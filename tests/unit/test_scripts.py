@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.doctor import wsl_memory_gb
+from scripts.doctor import is_on_system_drive, wsl_memory_gb
 from scripts.gen_keys import GENERATORS, fill_env
 
 
@@ -40,3 +40,17 @@ def test_wsl_memory_parsing(tmp_path: Path, content: str, expected: float | None
     config = tmp_path / ".wslconfig"
     config.write_text(content, encoding="utf-8")
     assert wsl_memory_gb(config) == expected
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        (r"C:\Users\x\AppData\Local\npm-cache", True),
+        ("c:/cache", True),
+        (None, True),
+        ("", True),
+        (r"D:\devcache\uv-cache", False),
+    ],
+)
+def test_is_on_system_drive(path: str | None, expected: bool) -> None:
+    assert is_on_system_drive(path) is expected

@@ -14,6 +14,14 @@ from pathlib import Path
 REQUIRED_TOOLS = ["uv", "just", "docker"]
 OPTIONAL_TOOLS = ["ollama"]
 WSL_TARGET_GB = 10
+# The C: drive is nearly full on the dev machine: every cache must live on another drive.
+CACHE_ENV_VARS = [
+    "UV_CACHE_DIR",
+    "UV_PYTHON_INSTALL_DIR",
+    "UV_TOOL_DIR",
+    "OLLAMA_MODELS",
+    "HF_HOME",
+]
 
 
 def _run(cmd: list[str]) -> tuple[int, str]:
@@ -37,6 +45,11 @@ def wsl_memory_gb(wslconfig: Path) -> float | None:
         return None
     value = float(match.group(1))
     return value / 1024 if match.group(2).upper() == "MB" else value
+
+
+def is_on_system_drive(path: str | None) -> bool:
+    """True if the path is unset or on C: (where Windows puts caches by default)."""
+    return not path or path.strip().upper().startswith("C:")
 
 
 def main() -> int:
@@ -78,6 +91,16 @@ def main() -> int:
             f"{cap} GB (target {WSL_TARGET_GB} GB)" if cap else "not set in ~/.wslconfig",
             required=False,
         )
+
+    if os.name == "nt":
+        for var in CACHE_ENV_VARS:
+            value = os.environ.get(var)
+            report(not is_on_system_drive(value), f"{var} off C:", value or "unset", required=False)
+        npm = shutil.which("npm")  # npm.cmd on Windows, so use the resolved path
+        if npm:
+            code, npm_cache = _run([npm, "config", "get", "cache"])
+            ok = code == 0 and not is_on_system_drive(npm_cache)
+            report(ok, "npm cache off C:", npm_cache, required=False)
 
     report(
         Path(".env").is_file(),

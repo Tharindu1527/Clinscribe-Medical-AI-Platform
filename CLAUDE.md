@@ -30,6 +30,8 @@ local Ollama (host GPU, last fallback). Speech: Deepgram, AssemblyAI. TTS: Carte
 - Use `just` (justfile) for task commands, not make. Scripts must work in PowerShell.
 - All infrastructure services run in Docker. Use forward slashes in paths inside code and configs.
 - Local models: Ollama for Windows (RTX 3050, 4 GB VRAM). No vLLM. LoRA fine-tuning runs on Colab/Kaggle.
+- Disk: C: is almost full. Every install, cache, model, dataset and temp output goes on D:
+  (`D:\devcache\...`, Docker data in `D:\Docker\wsl`, run output in `.artifacts/`). `just doctor` checks it.
 - Memory: WSL2 is capped at 10 GB; `just up` (core stack) must stay under ~8 GB. Use Compose profiles.
 
 ## Commands (created in Phase 1; keep this list current)

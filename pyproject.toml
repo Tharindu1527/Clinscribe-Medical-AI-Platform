@@ -55,7 +55,9 @@ init_typed = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "-m", "not live"]
+# basetemp keeps pytest's temporary files on the project drive (D:), not in %TEMP% on C:
+addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "-m", "not live",
+           "--basetemp=.artifacts/pytest"]
 markers = [
     "unit: fast, no network, no Docker",
     "integration: needs the Docker stack (just up)",

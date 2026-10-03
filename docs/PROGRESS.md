@@ -26,7 +26,7 @@ Run with `just gate 1`.
 
 | # | Task | Exit-gate test | Status |
 |---|------|----------------|--------|
-| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ◐ uv, just, Python 3.11, Docker done; Ollama + `.wslconfig` left |
+| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama **installed to D:** (`OllamaSetup.exe /DIR=D:\Ollama`) + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ◐ uv, just, Python 3.11, Docker done; Ollama + `.wslconfig` left |
 | 1 | **Repo skeleton and tooling:** `pyproject.toml` (Python 3.11, ruff, mypy, pytest markers `unit`/`integration`/`live`), package folders, `justfile` (PowerShell shell), `.env.example`, `.gitignore`, `data/LICENSES.md`, `config/settings.py` (pydantic-settings, `SecretStr`), ruff banned-import rule for provider SDKs outside `llmops/gateway`. | On a clean clone, `uv sync; just lint; just test` pass. Tests: every Settings field has a key in `.env.example` and vice versa; `repr(Settings())` contains no secret value; a fixture that imports `openai` outside the gateway makes `ruff check` fail. | ✅ 2026-10-04 |
 | 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ✅ test passes; text awaiting your review |
 | 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ☐ |
@@ -68,12 +68,14 @@ Run with `just gate 1`.
 
 ## Next
 
-- You: finish task 0 (Ollama + a ~3B model, `.wslconfig` memory=10GB then `wsl --shutdown`),
+- You: finish task 0 (Ollama installed to D: + a ~3B model, `.wslconfig` memory=10GB then `wsl --shutdown`),
   then `just gen-keys` and paste provider + Langfuse keys into `.env`.
 - Task 3: core Compose stack, then measure memory per service.
 
 ## Blockers
 
+- C: has ~3 GB free. All caches are on D: (uv, Python, tools, Ollama models, HF, npm, Docker data,
+  pytest temp); `just doctor` warns if any moves back to C:.
 - Ollama not installed; `~/.wslconfig` has no memory cap (Docker currently sees 7.7 GB, the WSL default).
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell1.0`; the justfile uses the full path.
 - GitHub remote not yet created (needed for task 11).
