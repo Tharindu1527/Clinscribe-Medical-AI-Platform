@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-04 · Current phase: **1 — Foundations (not started; plan awaiting approval)**
+Last updated: 2026-10-04 · Current phase: **1 — Foundations (in progress: tasks 1–2 done)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -26,9 +26,9 @@ Run with `just gate 1`.
 
 | # | Task | Exit-gate test | Status |
 |---|------|----------------|--------|
-| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ☐ |
-| 1 | **Repo skeleton and tooling:** `pyproject.toml` (Python 3.11, ruff, mypy, pytest markers `unit`/`integration`/`live`), package folders, `justfile` (PowerShell shell), `.env.example`, `.gitignore`, `data/LICENSES.md`, `config/settings.py` (pydantic-settings, `SecretStr`), ruff banned-import rule for provider SDKs outside `llmops/gateway`. | On a clean clone, `uv sync; just lint; just test` pass. Tests: every Settings field has a key in `.env.example` and vice versa; `repr(Settings())` contains no secret value; a fixture that imports `openai` outside the gateway makes `ruff check` fail. | ☐ |
-| 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ☐ |
+| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ◐ uv, just, Python 3.11, Docker done; Ollama + `.wslconfig` left |
+| 1 | **Repo skeleton and tooling:** `pyproject.toml` (Python 3.11, ruff, mypy, pytest markers `unit`/`integration`/`live`), package folders, `justfile` (PowerShell shell), `.env.example`, `.gitignore`, `data/LICENSES.md`, `config/settings.py` (pydantic-settings, `SecretStr`), ruff banned-import rule for provider SDKs outside `llmops/gateway`. | On a clean clone, `uv sync; just lint; just test` pass. Tests: every Settings field has a key in `.env.example` and vice versa; `repr(Settings())` contains no secret value; a fixture that imports `openai` outside the gateway makes `ruff check` fail. | ✅ 2026-10-04 |
+| 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ✅ test passes; text awaiting your review |
 | 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ☐ |
 | 4 | **HAPI FHIR + Synthea:** pinned Synthea release (SHA-256 checked), seed 42, 50 patients, loaded in dependency order by `just fhir-load`; idempotent. | Integration tests: Patient count == 50; every patient has ≥ 1 Encounter; search by family name works; a second `just fhir-load` leaves the count at 50. | ☐ |
 | 5 | **LiteLLM gateway with failover:** alias with the 4-step fallback chain, per-key budget and rpm, spend logs without prompt text, `config/models.yaml` (task → alias), `llmops/gateway/client.py` (accepts only `DeidentifiedText`), record/replay cache for tests, chaos switch `just chaos primary-down`. | Unit: client rejects a plain `str`; a replay-cache hit makes zero network calls. Live (`just test-live`): with the primary down, a request succeeds, the response names the Groq model, and the failover appears in spend logs. Ollama step is skipped if Ollama is not running. | ☐ |
@@ -55,19 +55,27 @@ Run with `just gate 1`.
 
 ## Done
 
+- 2026-10-04: Task 1 — repo skeleton, uv project (Python 3.11), justfile, Settings + `.env.example`,
+  `just doctor` / `just gen-keys`, ruff ban on provider SDKs outside the gateway. Verified on a clean clone:
+  `just lint` clean, `just test` 25 passed.
+- 2026-10-04: Task 2 — ADR-0001 (gateway scope), ADR-0002 (Langfuse Cloud), ADR-0003 (profiles and memory);
+  ADR format test. `just lint` clean, `just test` 29 passed.
+- 2026-10-04: Installed Python 3.11.11 (uv) and just 1.58.0 (`uv tool install rust-just`, in `D:\devcachein`).
+  CLAUDE.md: vLLM removed, commands and layout updated; SPEC §10 tree synced.
 - 2026-10-04: SPEC §12 roadmap written in; SPEC wording updated for free tiers, Gemini Live,
   Ollama-only local fallback and Langfuse Cloud; gateway-scope rule added to CLAUDE.md;
   branch renamed `master` → `main`; this file created.
 
 ## Next
 
-- Get approval for the Phase 1 plan (structure, Compose services, justfile, `.env.example` keys).
-- Task 0 (you), then task 1.
+- You: finish task 0 (Ollama + a ~3B model, `.wslconfig` memory=10GB then `wsl --shutdown`),
+  then `just gen-keys` and paste provider + Langfuse keys into `.env`.
+- Task 3: core Compose stack, then measure memory per service.
 
 ## Blockers
 
-- `just`, Docker Desktop and Ollama are not installed on the dev machine (checked 2026-10-04).
-  uv 0.6.4 is present; Python 3.11 not yet installed (system Python is 3.10).
+- Ollama not installed; `~/.wslconfig` has no memory cap (Docker currently sees 7.7 GB, the WSL default).
+- The machine PATH lacks `C:\Windows\System32\WindowsPowerShell1.0`; the justfile uses the full path.
 - GitHub remote not yet created (needed for task 11).
 
 ## Open questions
@@ -79,6 +87,3 @@ Run with `just gate 1`.
   framework comparison should run in its own isolated project under `evals/agents/`.
 - SPEC §3 and §6 still contain embedded-diagram placeholders (architecture, RAG pipeline). Text is enough
   for now; re-export if the diagrams are wanted in the repo.
-- CLAUDE.md still mentions vLLM (Stack and Platform sections), which is now out of scope. Update?
-- SPEC §10 repository tree will be synced once the final structure is approved.
-- Langfuse Cloud region: EU (`cloud.langfuse.com`) assumed, which fits the GDPR story.
