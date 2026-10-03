@@ -23,18 +23,20 @@ LiveKit Agents, Qdrant + BM25, Neo4j, HAPI FHIR (Synthea data), LiteLLM, Langfus
 OpenTelemetry, Presidio, RAGAS, DeepEval, pytest, React (Vite), Docker Compose, k6.
 
 Free-tier providers behind the gateway: Gemini Flash, Groq, OpenRouter `:free` models,
-local Ollama/vLLM. Speech: Deepgram, AssemblyAI. TTS: Cartesia / ElevenLabs free tiers.
+local Ollama (host GPU, last fallback). Speech: Deepgram, AssemblyAI. TTS: Cartesia / ElevenLabs free tiers.
 
 ## Platform
 - Development machine: native Windows, PowerShell + Git Bash, Docker Desktop (WSL2 backend).
 - Use `just` (justfile) for task commands, not make. Scripts must work in PowerShell.
 - All infrastructure services run in Docker. Use forward slashes in paths inside code and configs.
-- Local models: Ollama for Windows. vLLM only inside Docker with GPU, if available.
+- Local models: Ollama for Windows (RTX 3050, 4 GB VRAM). No vLLM. LoRA fine-tuning runs on Colab/Kaggle.
+- Memory: WSL2 is capped at 10 GB; `just up` (core stack) must stay under ~8 GB. Use Compose profiles.
 
 ## Commands (created in Phase 1; keep this list current)
-- `just up` / `just down` — start or stop the full stack
-- `just test` — unit and integration tests
-- `just lint` — ruff + mypy
+- `just doctor` — check prerequisites; `just gen-keys` — fill generated secrets in `.env`
+- `just up` / `just down` — start or stop the core stack (added in Phase 1 task 3)
+- `just test` — unit and integration tests; `just test-unit`; `just test-live` (real provider calls)
+- `just lint` — ruff + mypy; `just fmt` to auto-fix
 - `just eval` — evaluation suite; writes reports to `evals/reports/`
 - `just load` — load tests; reports p50/p95
 
@@ -54,4 +56,5 @@ local Ollama/vLLM. Speech: Deepgram, AssemblyAI. TTS: Cartesia / ElevenLabs free
 
 ## Layout
 apps/web, apps/api, voice/, agents/, mcp_servers/, retrieval/, privacy/deid/, llmops/,
-prompts/, config/, finetune/, evals/, load_tests/, docs/ (adr, postmortems, compliance, runbooks)
+prompts/, config/, finetune/, evals/, load_tests/, tests/ (unit, integration), scripts/, infra/,
+data/ (git-ignored except LICENSES.md), docs/ (adr, postmortems, compliance, runbooks)

@@ -1,0 +1,63 @@
+[project]
+name = "clinscribe"
+version = "0.1.0"
+description = "Voice-first clinical copilot (portfolio project, synthetic data only)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "pydantic>=2.9",          # contracts and validation everywhere
+    "pydantic-settings>=2.6", # typed settings loaded from .env, secrets as SecretStr
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["data", "finetune"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "S", "PT", "TID"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S603"]
+# The gateway client and the speech-to-speech plugin are the only places allowed to import
+# provider SDKs (CLAUDE.md non-negotiable rules, ADR-0001).
+"llmops/gateway/**" = ["TID251"]
+"voice/agent_s2s.py" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"openai".msg = "Provider SDKs are banned outside llmops/gateway; call the LiteLLM gateway (ADR-0001)."
+"anthropic".msg = "Provider SDKs are banned outside llmops/gateway; call the LiteLLM gateway (ADR-0001)."
+"groq".msg = "Provider SDKs are banned outside llmops/gateway; call the LiteLLM gateway (ADR-0001)."
+"google.genai".msg = "Provider SDKs are banned outside llmops/gateway; call the LiteLLM gateway (ADR-0001)."
+"google.generativeai".msg = "Provider SDKs are banned outside llmops/gateway; call the LiteLLM gateway (ADR-0001)."
+"litellm".msg = "Use llmops.gateway.client, which talks to the LiteLLM proxy (ADR-0001)."
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+files = ["apps", "agents", "config", "evals", "llmops", "mcp_servers", "privacy", "retrieval", "scripts", "voice", "tests"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["--import-mode=importlib", "-ra", "--strict-markers", "-m", "not live"]
+markers = [
+    "unit: fast, no network, no Docker",
+    "integration: needs the Docker stack (just up)",
+    "live: calls real free-tier provider APIs (just test-live)",
+]

@@ -334,10 +334,17 @@ clinscribe/
 │   ├── rag/  voice/  agents/  privacy/
 │   └── reports/
 ├── load_tests/
+├── tests/                   # unit/ and integration/ (pytest)
+├── scripts/                 # cross-platform helper scripts run by the justfile
+├── infra/                   # Postgres init SQL, HAPI config, other service configs
+├── data/                    # git-ignored datasets; only LICENSES.md is committed
 ├── docs/
 │   ├── adr/  postmortems/  compliance/  runbooks/
 ├── .github/workflows/
-└── docker-compose.yml
+├── Dockerfile               # one Python image; services differ by entrypoint
+├── docker-compose.yml       # Compose profiles: core, fhir, rag, voice, obs, tools
+├── justfile
+└── pyproject.toml           # one uv project, top-level packages
 ```
 
 ## 11. Evaluation and testing plan
