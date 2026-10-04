@@ -6,6 +6,9 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "pydantic>=2.9",          # contracts and validation everywhere
     "pydantic-settings>=2.6", # typed settings loaded from .env, secrets as SecretStr
+    "fastapi>=0.115",         # HTTP services (api, deid), per the SPEC stack
+    "uvicorn>=0.32",          # ASGI server that runs the FastAPI services
+    "httpx>=0.28",            # HTTP client for service-to-service calls and FastAPI's TestClient
 ]
 
 [dependency-groups]
@@ -27,7 +30,9 @@ extend-exclude = ["data", "finetune"]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "S", "PT", "TID"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S603"]
+# Tests and helper scripts run CLI tools (docker, npm, ollama) found on PATH by design
+"tests/**" = ["S101", "S603", "S607"]
+"scripts/**" = ["S603", "S607"]
 # The gateway client and the speech-to-speech plugin are the only places allowed to import
 # provider SDKs (CLAUDE.md non-negotiable rules, ADR-0001).
 "llmops/gateway/**" = ["TID251"]

@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     app_db_password: SecretStr = SecretStr("")
+    litellm_db_password: SecretStr = SecretStr("")
+    hapi_db_password: SecretStr = SecretStr("")
 
     # FHIR
     fhir_base_url: str = "http://localhost:8080/fhir"

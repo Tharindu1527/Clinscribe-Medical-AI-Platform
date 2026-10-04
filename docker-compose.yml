@@ -1,0 +1,149 @@
+# ClinScribe stack. Profiles and memory budget: docs/adr/0003-compose-profiles-memory-budget.md
+#   just up            -> core + fhir
+#   just up rag        -> core + fhir + rag (later phases)
+# Values come from .env (git-ignored). Each service receives only the variables it needs.
+# Ports are bound to 127.0.0.1 only.
+name: clinscribe
+
+x-python-service: &python-service
+  build: .
+  image: clinscribe-python:dev
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  # ---------------------------------------------------------------- core
+  postgres:
+    image: postgres:16.15-alpine
+    profiles: [core]
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?run just gen-keys}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run just gen-keys}
+      POSTGRES_DB: clinscribe
+      LITELLM_DB_PASSWORD: ${LITELLM_DB_PASSWORD:?run just gen-keys}
+      HAPI_DB_PASSWORD: ${HAPI_DB_PASSWORD:?run just gen-keys}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?run just gen-keys}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d clinscribe"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    profiles: [core]
+    restart: unless-stopped
+    mem_limit: 256m
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./llmops/telemetry/collector.yaml:/etc/otelcol/config.yaml:ro
+      - ./.artifacts/otel:/artifacts/otel
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:13133:13133"
+    # Distroless image: no shell for an in-container healthcheck; the stack test polls :13133.
+
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.104.0
+    profiles: [core]
+    restart: unless-stopped
+    mem_limit: 1g
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://litellm:${LITELLM_DB_PASSWORD}@postgres:5432/litellm
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?run just gen-keys}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:?run just gen-keys}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
+      CHAOS_PRIMARY_DOWN: ${CHAOS_PRIMARY_DOWN:-false}
+    volumes:
+      - ./llmops/gateway/config.yaml:/app/config.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:4000:4000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  deid:
+    <<: *python-service
+    profiles: [core]
+    mem_limit: 1536m
+    command: ["uvicorn", "privacy.deid.app:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      POSTGRES_HOST: postgres
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      DEID_MAPPING_KEY: ${DEID_MAPPING_KEY:?run just gen-keys}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    ports:
+      - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *python-service
+    profiles: [core]
+    mem_limit: 512m
+    command: ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      POSTGRES_HOST: postgres
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      AUDIT_CHAIN_KEY: ${AUDIT_CHAIN_KEY:?run just gen-keys}
+      LITELLM_APP_KEY: ${LITELLM_APP_KEY:?run just gen-keys}
+      GATEWAY_URL: http://litellm:4000
+      DEID_URL: http://deid:8001
+      FHIR_BASE_URL: http://hapi-fhir:8080/fhir
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------------------------------------------------------------- fhir
+  hapi-fhir:
+    image: hapiproject/hapi:v8.12.0-2
+    profiles: [fhir]
+    restart: unless-stopped
+    mem_limit: 2g
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx1280m -XX:MaxMetaspaceSize=256m"
+      hapi.fhir.fhir_version: R4
+      spring.datasource.url: jdbc:postgresql://postgres:5432/hapi
+      spring.datasource.username: hapi
+      spring.datasource.password: ${HAPI_DB_PASSWORD}
+      spring.datasource.driverClassName: org.postgresql.Driver
+      spring.jpa.properties.hibernate.dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
+    ports:
+      - "127.0.0.1:8080:8080"
+    # Distroless image: no shell for an in-container healthcheck; the stack test polls /fhir/metadata.
+
+volumes:
+  pgdata:

@@ -18,6 +18,30 @@ doctor:
 gen-keys:
     uv run python -m scripts.gen_keys
 
+# Start core + fhir (+ extra profiles, e.g. `just up rag`), wait until healthy
+up *profiles:
+    docker compose --profile core --profile fhir {{prepend("--profile ", profiles)}} up -d --build --wait --wait-timeout 300
+
+# Start every profile (needs more than the 10 GB WSL cap later on; see ADR-0003)
+up-all:
+    docker compose --profile "*" up -d --build --wait --wait-timeout 600
+
+# Stop all services (data volumes are kept)
+down:
+    docker compose --profile "*" down
+
+# Service status and health
+ps:
+    docker compose --profile "*" ps
+
+# Service logs, e.g. `just logs litellm`
+logs *args:
+    docker compose --profile "*" logs --tail 200 {{args}}
+
+# Memory per container and total against the 8 GB core budget
+stats:
+    uv run python -m scripts.stats
+
 # ruff (lint + format check) and mypy
 lint:
     uv run ruff check .

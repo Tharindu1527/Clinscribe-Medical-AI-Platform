@@ -36,7 +36,8 @@ local Ollama (host GPU, last fallback). Speech: Deepgram, AssemblyAI. TTS: Carte
 
 ## Commands (created in Phase 1; keep this list current)
 - `just doctor` — check prerequisites; `just gen-keys` — fill generated secrets in `.env`
-- `just up` / `just down` — start or stop the core stack (added in Phase 1 task 3)
+- `just up` / `just down` — start (core + fhir; `just up rag` adds a profile) or stop the stack;
+  `just ps`, `just logs <svc>`, `just stats` (memory vs the 8 GB budget)
 - `just test` — unit and integration tests; `just test-unit`; `just test-live` (real provider calls)
 - `just lint` — ruff + mypy; `just fmt` to auto-fix
 - `just eval` — evaluation suite; writes reports to `evals/reports/`

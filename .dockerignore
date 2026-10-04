@@ -1,0 +1,16 @@
+# Secrets never enter an image; services get only the variables compose passes them.
+.env
+.env.*
+
+.git
+.venv
+.artifacts
+data
+docs
+tests
+evals/reports
+apps/web/node_modules
+**/__pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache

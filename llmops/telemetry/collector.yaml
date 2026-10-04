@@ -1,0 +1,38 @@
+# OpenTelemetry collector. Task 3: receive OTLP and write a local file export.
+# Task 7 adds the redaction processor and the Langfuse Cloud (EU) exporter (ADR-0002).
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+  batch: {}
+
+exporters:
+  # Local copy of every exported signal; the PHI leak test (task 10) scans it
+  file/traces:
+    path: /artifacts/otel/traces.jsonl
+  file/logs:
+    path: /artifacts/otel/logs.jsonl
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [file/traces]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [file/logs]

@@ -38,3 +38,5 @@ Ollama runs on Windows, outside the WSL cap, using the GPU. vLLM is not used.
   raising the cap to 12 GB, a smaller HAPI heap, or leaving out services the demo does not need.
 - "One command for the full stack" (SPEC section 14) becomes `just up-all`, documented with its memory need.
 - Services must not assume other profiles are running: integration tests check which profile they need.
+- HAPI FHIR and the OTel collector ship distroless images with no shell, so they have no in-container
+  healthcheck. `tests/integration/test_stack_health.py` polls `/fhir/metadata` and `:13133` instead.

@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-04 · Current phase: **1 — Foundations (in progress: tasks 1–2 done)**
+Last updated: 2026-10-05 · Current phase: **1 — Foundations (in progress: tasks 1–2 done, task 3 blocked on C: space)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -26,10 +26,10 @@ Run with `just gate 1`.
 
 | # | Task | Exit-gate test | Status |
 |---|------|----------------|--------|
-| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama **installed to D:** (`OllamaSetup.exe /DIR=D:\Ollama`) + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ◐ uv, just, Python 3.11, Docker done; Ollama + `.wslconfig` left |
+| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama **installed to D:** (`OllamaSetup.exe /DIR=D:\Ollama`) + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ◐ all done (Ollama 0.35.1 in `D:\Ollama`, `.wslconfig` 10 GB) except the model pull, still downloading |
 | 1 | **Repo skeleton and tooling:** `pyproject.toml` (Python 3.11, ruff, mypy, pytest markers `unit`/`integration`/`live`), package folders, `justfile` (PowerShell shell), `.env.example`, `.gitignore`, `data/LICENSES.md`, `config/settings.py` (pydantic-settings, `SecretStr`), ruff banned-import rule for provider SDKs outside `llmops/gateway`. | On a clean clone, `uv sync; just lint; just test` pass. Tests: every Settings field has a key in `.env.example` and vice versa; `repr(Settings())` contains no secret value; a fixture that imports `openai` outside the gateway makes `ruff check` fail. | ✅ 2026-10-04 |
 | 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ✅ test passes; text awaiting your review |
-| 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ☐ |
+| 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ◐ files written, images pulled; **not started** (C: page-file blocker) |
 | 4 | **HAPI FHIR + Synthea:** pinned Synthea release (SHA-256 checked), seed 42, 50 patients, loaded in dependency order by `just fhir-load`; idempotent. | Integration tests: Patient count == 50; every patient has ≥ 1 Encounter; search by family name works; a second `just fhir-load` leaves the count at 50. | ☐ |
 | 5 | **LiteLLM gateway with failover:** alias with the 4-step fallback chain, per-key budget and rpm, spend logs without prompt text, `config/models.yaml` (task → alias), `llmops/gateway/client.py` (accepts only `DeidentifiedText`), record/replay cache for tests, chaos switch `just chaos primary-down`. | Unit: client rejects a plain `str`; a replay-cache hit makes zero network calls. Live (`just test-live`): with the primary down, a request succeeds, the response names the Groq model, and the failover appears in spend logs. Ollama step is skipped if Ollama is not running. | ☐ |
 | 6 | **De-ID service v0:** Presidio + spaCy `en_core_web_lg` + custom recognisers for the 18 Safe Harbor types; consistent surrogates per encounter (`PATIENT_1`); Fernet-encrypted mapping in Postgres; FastAPI `/deidentify` (and internal-only `/reidentify`). Seeded fake-PHI corpus generated with Faker. | `just eval privacy` writes `evals/reports/privacy/deid_v0.md` with recall per entity type. Structured types (MRN, phone, email, SSN, dates, ZIP, URL, IP, IDs) recall = 1.0; name recall recorded as the Phase 5 baseline. Same input → same surrogates. Raw DB row contains no plaintext. | ☐ |
@@ -60,24 +60,39 @@ Run with `just gate 1`.
   `just lint` clean, `just test` 25 passed.
 - 2026-10-04: Task 2 — ADR-0001 (gateway scope), ADR-0002 (Langfuse Cloud), ADR-0003 (profiles and memory);
   ADR format test. `just lint` clean, `just test` 29 passed.
-- 2026-10-04: Installed Python 3.11.11 (uv) and just 1.58.0 (`uv tool install rust-just`, in `D:\devcachein`).
+- 2026-10-04: Installed Python 3.11.11 (uv) and just 1.58.0 (`uv tool install rust-just`, in `D:\devcache\bin`).
   CLAUDE.md: vLLM removed, commands and layout updated; SPEC §10 tree synced.
 - 2026-10-04: SPEC §12 roadmap written in; SPEC wording updated for free tiers, Gemini Live,
   Ollama-only local fallback and Langfuse Cloud; gateway-scope rule added to CLAUDE.md;
   branch renamed `master` → `main`; this file created.
 
+- 2026-10-05: Task 0 — `.wslconfig` (memory 10 GB, 4 GB swap file on D:, autoMemoryReclaim);
+  Docker CLI plugins repointed to `D:\Docker\app\resources\cli-plugins` (`~/.docker/config.json`,
+  backup `config.json.bak-clinscribe`); Ollama 0.35.1 installed to `D:\Ollama` (signed by Ollama Inc.);
+  `.env` created by `just gen-keys`.
+- 2026-10-05: Task 3 files — Dockerfile, `docker-compose.yml` (profiles core/fhir, memory limits,
+  127.0.0.1 ports), Postgres init (per-service logins), minimal LiteLLM and collector configs,
+  `/health` apps, `just up/down/ps/logs/stats`, stack health tests. Images pulled (LiteLLM v1.104.0,
+  HAPI v8.12.0-2, Postgres 16.15, collector 0.161.0). `just lint` clean; `just test` 41 passed,
+  9 skipped (stack not started).
+
 ## Next
 
-- You: finish task 0 (Ollama installed to D: + a ~3B model, `.wslconfig` memory=10GB then `wsl --shutdown`),
-  then `just gen-keys` and paste provider + Langfuse keys into `.env`.
-- Task 3: core Compose stack, then measure memory per service.
+- You: move the Windows page file off C: and free space on C: (see Blockers), then paste
+  provider + Langfuse keys into `.env`.
+- Then: `just up`, run the stack health tests, record `just stats`, close task 3.
 
 ## Blockers
 
-- C: has ~3 GB free. All caches are on D: (uv, Python, tools, Ollama models, HF, npm, Docker data,
-  pytest temp); `just doctor` warns if any moves back to C:.
-- Ollama not installed; `~/.wslconfig` has no memory cap (Docker currently sees 7.7 GB, the WSL default).
-- The machine PATH lacks `C:\Windows\System32\WindowsPowerShell1.0`; the justfile uses the full path.
+- **C: page file.** C: has ~0.7 GB free; `C:\pagefile.sys` grew to ~5 GB. Commit charge is ~18 of 22 GB,
+  so starting the ~5 GB stack would force the page file to grow on a full C: drive. Fix (you, a Windows
+  system setting): System Properties → Advanced → Performance → Virtual memory → put a system-managed page
+  file on D: and a small one (or none) on C:, then reboot. Large browser downloads in `C:\Users\THARINDU\Downloads`
+  also consume C:.
+- All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
+  `just doctor` warns if any moves back to C:.
+- Network is unstable (DNS failures, connection resets): downloads need retries.
+- The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 - GitHub remote not yet created (needed for task 11).
 
 ## Open questions

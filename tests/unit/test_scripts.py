@@ -4,6 +4,7 @@ import pytest
 
 from scripts.doctor import is_on_system_drive, wsl_memory_gb
 from scripts.gen_keys import GENERATORS, fill_env
+from scripts.stats import parse_size
 
 
 def test_gen_keys_fills_only_empty_generated_keys_and_prints_no_values(
@@ -25,6 +26,31 @@ def test_gen_keys_fills_only_empty_generated_keys_and_prints_no_values(
     assert values["AUDIT_CHAIN_KEY"] not in capsys.readouterr().out
 
     assert fill_env(env, example) == []  # idempotent
+
+
+def test_gen_keys_appends_keys_added_to_example_later(tmp_path: Path) -> None:
+    example = tmp_path / ".env.example"
+    env = tmp_path / ".env"
+    env.write_text("GROQ_API_KEY=my-key\n", encoding="utf-8")
+    example.write_text(
+        "GROQ_API_KEY=\n# HAPI_DB_PASSWORD= (comment)\nHAPI_DB_PASSWORD=\nSYNTHEA_SEED=42\n",
+        encoding="utf-8",
+    )
+
+    assert fill_env(env, example) == ["HAPI_DB_PASSWORD"]
+
+    values = dict(line.split("=", 1) for line in env.read_text(encoding="utf-8").splitlines())
+    assert values["GROQ_API_KEY"] == "my-key"
+    assert values["SYNTHEA_SEED"] == "42"  # example default carried over
+    assert len(values["HAPI_DB_PASSWORD"]) >= 24
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [("512MiB", 512 * 2**20), ("1.5GiB", 1.5 * 2**30), ("0B", 0), (" 100kB ", 100_000)],
+)
+def test_parse_docker_size(text: str, expected: float) -> None:
+    assert parse_size(text) == expected
 
 
 def test_generated_keys_are_unique() -> None:
