@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-05 · Current phase: **1 — Foundations (in progress: tasks 1–3 done, task 4 loading)**
+Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–5 done; gates a and c pass; next: task 6 de-ID)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -30,8 +30,8 @@ Run with `just gate 1`.
 | 1 | **Repo skeleton and tooling:** `pyproject.toml` (Python 3.11, ruff, mypy, pytest markers `unit`/`integration`/`live`), package folders, `justfile` (PowerShell shell), `.env.example`, `.gitignore`, `data/LICENSES.md`, `config/settings.py` (pydantic-settings, `SecretStr`), ruff banned-import rule for provider SDKs outside `llmops/gateway`. | On a clean clone, `uv sync; just lint; just test` pass. Tests: every Settings field has a key in `.env.example` and vice versa; `repr(Settings())` contains no secret value; a fixture that imports `openai` outside the gateway makes `ruff check` fail. | ✅ 2026-10-04 |
 | 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ✅ test passes; text awaiting your review |
 | 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ✅ 2026-10-05: 9/9 stack tests pass; 1.94 GB measured |
-| 4 | **HAPI FHIR + Synthea:** pinned Synthea release (SHA-256 checked), seed 42, 50 patients, loaded in dependency order by `just fhir-load`; idempotent. | Integration tests: Patient count == 50; every patient has ≥ 1 Encounter; search by family name works; a second `just fhir-load` leaves the count at 50. | ☐ |
-| 5 | **LiteLLM gateway with failover:** alias with the 4-step fallback chain, per-key budget and rpm, spend logs without prompt text, `config/models.yaml` (task → alias), `llmops/gateway/client.py` (accepts only `DeidentifiedText`), record/replay cache for tests, chaos switch `just chaos primary-down`. | Unit: client rejects a plain `str`; a replay-cache hit makes zero network calls. Live (`just test-live`): with the primary down, a request succeeds, the response names the Groq model, and the failover appears in spend logs. Ollama step is skipped if Ollama is not running. | ☐ |
+| 4 | **HAPI FHIR + Synthea:** pinned Synthea release (SHA-256 checked), seed 42, 50 patients, loaded in dependency order by `just fhir-load`; idempotent. | Integration tests: Patient count == 50; every patient has ≥ 1 Encounter; search by family name works; a second `just fhir-load` leaves the count at 50. | ✅ 2026-10-05: 4/4 pass (gate c) |
+| 5 | **LiteLLM gateway with failover:** alias with the 4-step fallback chain, per-key budget and rpm, spend logs without prompt text, `config/models.yaml` (task → alias), `llmops/gateway/client.py` (accepts only `DeidentifiedText`), record/replay cache for tests, chaos switch `just chaos primary-down`. | Unit: client rejects a plain `str`; a replay-cache hit makes zero network calls. Live (`just test-live`): with the primary down, a request succeeds, the response names the Groq model, and the failover appears in spend logs. Ollama step is skipped if Ollama is not running. | ✅ 2026-10-05: live 2 pass, Ollama step skipped (model downloading) (gate a) |
 | 6 | **De-ID service v0:** Presidio + spaCy `en_core_web_lg` + custom recognisers for the 18 Safe Harbor types; consistent surrogates per encounter (`PATIENT_1`); Fernet-encrypted mapping in Postgres; FastAPI `/deidentify` (and internal-only `/reidentify`). Seeded fake-PHI corpus generated with Faker. | `just eval privacy` writes `evals/reports/privacy/deid_v0.md` with recall per entity type. Structured types (MRN, phone, email, SSN, dates, ZIP, URL, IP, IDs) recall = 1.0; name recall recorded as the Phase 5 baseline. Same input → same surrogates. Raw DB row contains no plaintext. | ☐ |
 | 7 | **Telemetry with redaction:** OTel setup in `llmops/telemetry` with GenAI semantic-convention attributes; redacting exporter wrapper + logging redaction filter; collector redaction processor → Langfuse Cloud (EU) + local file exporter; LiteLLM OTel callback → collector. | Unit: a span and a log record carrying seeded PHI are exported without it. Integration: one request → one Langfuse trace (fetched via API) with api → deid → gateway spans and `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`. | ☐ |
 | 8 | **Audit table:** append-only, hash-chained (HMAC-SHA-256 with `AUDIT_CHAIN_KEY`); DB trigger blocks UPDATE/DELETE; app role has INSERT/SELECT only; advisory lock keeps order; `just audit-verify`. | Tests: chain verifies after 100 appends including 10 concurrent; UPDATE and DELETE as the app role raise; a manual tamper (as owner) is reported at the exact row. | ☐ |
@@ -92,10 +92,22 @@ Run with `just gate 1`.
   `tests/integration/test_stack_health.py` 9/9 passed; memory 1.94 GB. Full suite: `just lint` clean,
   `just test` 53 passed, 4 skipped (FHIR data not loaded yet). Provider and Langfuse keys added to `.env`.
 
+- 2026-10-05: Task 4 done — Synthea v4.0.0 (SHA-256 checked), seed 42, 50 living patients, 52 bundles loaded
+  in 1,147 s (mostly the 201 MB jar on a slow link). `tests/integration/test_fhir_data.py` 4/4 pass:
+  count 50, every patient has an Encounter, family-name search, idempotent reload. Memory with data: 2.43 GB
+  (HAPI 1.52 of 2 GB limit).
+- 2026-10-05: Task 5 done — gateway aliases with the 4-step fallback chain (Gemini `gemini-3.5-flash` →
+  Groq `openai/gpt-oss-20b` → OpenRouter `google/gemma-4-31b-it:free` → Ollama `llama3.2:3b`),
+  app virtual key (30 rpm, $1/30d), `config/models.yaml`, `llmops/gateway/client.py` (accepts only
+  `DeidentifiedText`, record/replay cache), `just chaos primary-down on|off`, `just gateway-keys`.
+  `just test-live`: primary answers (spend log `gemini/gemini-3.5-flash|clinscribe-default`); with the primary
+  down the turn succeeds via Groq (spend log `groq/openai/gpt-oss-20b|clinscribe-fallback-groq`); Ollama step
+  skipped. `just lint` clean; `just test` 64 passed.
+
 ## Next
 
-- Task 4: `just fhir-load` (running), then the FHIR gate tests.
-- Task 5: gateway aliases and failover (keys are in place).
+- Task 6: de-ID service v0 (Presidio + spaCy, surrogates, encrypted mapping, privacy eval).
+- Resume: Ollama `llama3.2:3b` pull (running), then re-run `just test-live` for the local step.
 
 ## Blockers
 
@@ -103,7 +115,7 @@ Run with `just gate 1`.
   so the stack fits. The page file is still system-managed on C:; under heavy load it can grow and fill C:.
   Recommended (you, a Windows system setting): move it to D: (System Properties → Advanced → Performance →
   Virtual memory).
-- Ollama model `llama3.2:3b` pull paused to give the stack bandwidth; resume before the Ollama failover step.
+- Ollama model `llama3.2:3b` still downloading (slow link); the local failover step is skipped until then.
 - All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
   `just doctor` warns if any moves back to C:.
 - Network is unstable (DNS failures, connection resets): downloads need retries.
@@ -111,6 +123,14 @@ Run with `just gate 1`.
 - GitHub remote not yet created (needed for task 11).
 
 ## Open questions
+
+- Gemini 3.x Flash and Groq gpt-oss reason before answering; reasoning tokens count against `max_tokens`
+  (16 tokens returned empty text) and add latency. Decide the thinking level per task from the Phase 2/4
+  latency and quality evals, then set it in `config/models.yaml`.
+- LiteLLM's response `model` field echoes the alias for the primary but names the real deployment after
+  failover. The spend log (`model`, `model_group`) is the reliable record; task 7 traces should use it.
+- HAPI uses 1.52 of its 2 GB limit with 50 patients. Watch it when adding data; raise the limit or the heap only
+  with a measurement.
 
 - Core + fhir + rag + voice is ~10.2 GB, above the 10 GB WSL cap, so the Phase 4 demo won't fit as is.
   Options: raise the cap to 12 GB, trim the HAPI heap to 1 GB, or stop `rag` services that voice does not need.

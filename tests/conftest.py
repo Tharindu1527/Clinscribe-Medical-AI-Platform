@@ -16,5 +16,5 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Mark tests by folder, so `-m unit` / `-m integration` work without per-test decorators."""
     for item in items:
         folder = item.path.relative_to(TESTS_DIR).parts[0]
-        if folder in ("unit", "integration"):
+        if folder in ("unit", "integration", "live"):
             item.add_marker(getattr(pytest.mark, folder))

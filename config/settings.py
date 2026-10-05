@@ -50,9 +50,6 @@ class Settings(BaseSettings):
     langfuse_host: str = "https://cloud.langfuse.com"
     otel_exporter_otlp_endpoint: str = "http://localhost:4318"
 
-    # Chaos switches
-    chaos_primary_down: bool = False
-
 
 def get_settings() -> Settings:
     return Settings()

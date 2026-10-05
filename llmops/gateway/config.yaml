@@ -1,7 +1,38 @@
-# LiteLLM proxy configuration (the only path to LLM providers, ADR-0001).
-# Task 3: boots the proxy with its Postgres store. Task 5 adds the model aliases and the
-# Gemini -> Groq -> OpenRouter :free -> Ollama fallback chain, budgets and rate limits.
-model_list: []
+# LiteLLM proxy configuration: the only path to LLM providers (ADR-0001).
+# App code asks for an alias; the proxy picks the deployment and fails over in this order:
+#   Gemini Flash -> Groq -> OpenRouter :free -> local Ollama (SPEC section 7).
+# Model choice per task lives in config/models.yaml. Model names checked on 2026-10-05.
+model_list:
+  - model_name: clinscribe-default
+    litellm_params:
+      model: gemini/gemini-3.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+      # Empty in normal running; `just chaos primary-down on` points it at a dead address
+      api_base: os.environ/GEMINI_API_BASE
+
+  - model_name: clinscribe-fallback-groq
+    litellm_params:
+      model: groq/openai/gpt-oss-20b
+      api_key: os.environ/GROQ_API_KEY
+
+  - model_name: clinscribe-fallback-openrouter
+    litellm_params:
+      model: openrouter/google/gemma-4-31b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: clinscribe-fallback-local
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: os.environ/OLLAMA_API_BASE
+
+router_settings:
+  fallbacks:
+    - clinscribe-default:
+        - clinscribe-fallback-groq
+        - clinscribe-fallback-openrouter
+        - clinscribe-fallback-local
+  num_retries: 1
+  timeout: 60
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

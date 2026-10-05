@@ -46,6 +46,14 @@ stats:
 fhir-load:
     uv run python -m scripts.fhir_load
 
+# Register the app's gateway key with its budget and rate limit (idempotent)
+gateway-keys:
+    uv run python -m scripts.gateway_keys
+
+# Inject or clear a fault, e.g. `just chaos primary-down on`
+chaos fault state:
+    uv run python -m scripts.chaos {{fault}} {{state}}
+
 # ruff (lint + format check) and mypy
 lint:
     uv run ruff check .

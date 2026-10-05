@@ -1,0 +1,6 @@
+# Which gateway alias each task uses (SPEC section 7).
+# Change only from evaluation results (quality, p95 latency, cost), and note the report that justified it.
+version: 1
+tasks:
+  # Phase 1 pipeline smoke endpoint (task 9)
+  dev_complete: clinscribe-default

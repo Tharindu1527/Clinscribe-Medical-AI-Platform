@@ -70,7 +70,8 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
-      CHAOS_PRIMARY_DOWN: ${CHAOS_PRIMARY_DOWN:-false}
+      # Empty = the provider's default endpoint. Set only by `just chaos primary-down on`.
+      GEMINI_API_BASE: ${GEMINI_API_BASE_OVERRIDE:-}
     volumes:
       - ./llmops/gateway/config.yaml:/app/config.yaml:ro
     extra_hosts:
