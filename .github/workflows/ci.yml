@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0 # exact tags only; there is no floating v10 tag
         with:
           version: "0.6.4"
           enable-cache: true
@@ -40,7 +40,7 @@ jobs:
       HAS_LANGFUSE: ${{ secrets.LANGFUSE_PUBLIC_KEY != '' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0 # exact tags only; there is no floating v10 tag
         with:
           version: "0.6.4"
           enable-cache: true
