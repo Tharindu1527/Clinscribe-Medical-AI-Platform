@@ -165,9 +165,25 @@ Run with `just gate 1`.
   stopped the stack. First CI run failed: `astral-sh/setup-uv@v10` does not exist (only exact tags), fixed by
   pinning `v10.2.0`.
 
+- 2026-10-06: The page-file change ended in a blue screen (bugcheck 0x1A MEMORY_MANAGEMENT, 0x3F) and was
+  reverted; recommend Windows Memory Diagnostic. Measured with the stack down: each Ollama model load grows the
+  C: page file 1,725 → 2,760 MB and it shrinks back on unload. Local fallback now uses `num_ctx 2048`
+  (100% GPU, 2.3 GB, 54 tok/s) and `keep_alive 30s`. WSL capped at 6 GB for Phase 1 runs. CI fixes:
+  `.artifacts/otel` created writable before `just up` (root-owned bind mount crash-looped the collector on
+  Linux), FHIR lookups with `Cache-Control: no-cache` (HAPI's ~60 s search cache caused duplicate posts).
+  Gate runs from the fresh clone: lint, full suite (117), (c) FHIR pass; one run also passed (a) including the
+  local step; the C: guard (< 1 GB) stopped the stack during the live tests each time. Gemini
+  `gemini-3.5-flash` free tier is **20 requests/day per model** (429 `RESOURCE_EXHAUSTED`); after the quota
+  ran out the gateway failed over to Groq as designed, but the "primary answers" check failed.
+  `just gate 1` now scopes (a) to the cloud fallback; the local-model check belongs to the Phase 5 gate.
+
 ## Next
 
-- You: move the page file off C: (it is now the only blocker for the gate), then reboot.
+- Decide the primary model given Gemini's 20 requests/day free quota (see Open questions).
+- Re-run `just gate 1` from the fresh clone after the Gemini quota resets (midnight UTC), then
+  `just eval latency` on a fresh quota; record p50/p95 here; close task 12.
+- You (optional, safer than "No paging file"): C: page file custom size with initial = maximum (e.g. 2048 MB),
+  D: system managed; run Windows Memory Diagnostic first.
 - `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
 - Push the CI fix, add the repository secrets, confirm both CI jobs are green; close task 11.
 
@@ -191,6 +207,11 @@ Run with `just gate 1`.
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- **Primary model vs Gemini's free quota.** `gemini-3.5-flash` allows 20 requests/day; one `just gate 1` uses
+  ~25 LLM calls and the latency eval 40. Options: (1) spread the primary alias across several Gemini Flash
+  models, each with its own daily quota (LiteLLM load-balances and cools down on 429); (2) make Groq the primary
+  and Gemini the first fallback; (3) keep it and run live gates at most once a day. Recommend (1).
 
 - **PHI reaching the LLM (outside gate b).** Gate b passes because traces, logs and stores never hold
   message text. But the LLM still saw 2 of 66 seed values in the leak run (both invented place names that
