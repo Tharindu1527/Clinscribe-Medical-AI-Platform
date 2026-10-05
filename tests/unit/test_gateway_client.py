@@ -99,11 +99,34 @@ def test_task_alias_comes_from_models_yaml() -> None:
 
 def test_gateway_config_fallback_chain_matches_spec() -> None:
     config = yaml.safe_load(GATEWAY_CONFIG.read_text(encoding="utf-8"))
-    names = [m["model_name"] for m in config["model_list"]]
-    providers = [m["litellm_params"]["model"].split("/")[0] for m in config["model_list"]]
+    deployments = config["model_list"]
+    names = list(dict.fromkeys(m["model_name"] for m in deployments))  # aliases, in order
+    provider_of = {
+        name: {
+            m["litellm_params"]["model"].split("/")[0]
+            for m in deployments
+            if m["model_name"] == name
+        }
+        for name in names
+    }
     chain = config["router_settings"]["fallbacks"][0]["clinscribe-default"]
 
-    assert providers == ["gemini", "groq", "openrouter", "ollama_chat"]  # SPEC section 7 order
+    # SPEC section 7 order: Gemini Flash -> Groq -> OpenRouter :free -> local Ollama
+    assert [provider_of[n] for n in names] == [
+        {"gemini"},
+        {"groq"},
+        {"openrouter"},
+        {"ollama_chat"},
+    ]
     assert ["clinscribe-default", *chain] == names
     assert set(ALIASES) == set(names)  # the app key may use every step of the chain
     assert config["general_settings"]["store_prompts_in_spend_logs"] is False
+
+
+def test_every_primary_deployment_obeys_the_chaos_switch() -> None:
+    config = yaml.safe_load(GATEWAY_CONFIG.read_text(encoding="utf-8"))
+    primary = [
+        m["litellm_params"] for m in config["model_list"] if m["model_name"] == "clinscribe-default"
+    ]
+    assert len(primary) >= 2  # spread over several models: the free tier is 20 requests/day each
+    assert all(p["api_base"] == "os.environ/GEMINI_API_BASE" for p in primary)

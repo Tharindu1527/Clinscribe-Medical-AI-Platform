@@ -72,7 +72,11 @@ def test_primary_answers_normally(gateway: GatewayClient) -> None:
     assert result.text.strip()
     # The response's `model` field may echo the alias; the spend log records the real deployment
     assert result.response_id
-    assert _spend_log_entry(result.response_id) == "gemini/gemini-3.5-flash|clinscribe-default"
+    recorded = _spend_log_entry(result.response_id)
+    assert recorded is not None, "call not found in LiteLLM spend logs"
+    model, group = recorded.split("|")
+    assert group == "clinscribe-default", recorded  # served by the primary, not a fallback
+    assert model.startswith("gemini/"), recorded
 
 
 def test_turn_succeeds_through_failover_when_primary_is_down(gateway: GatewayClient) -> None:

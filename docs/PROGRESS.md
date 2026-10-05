@@ -179,7 +179,6 @@ Run with `just gate 1`.
 
 ## Next
 
-- Decide the primary model given Gemini's 20 requests/day free quota (see Open questions).
 - Re-run `just gate 1` from the fresh clone after the Gemini quota resets (midnight UTC), then
   `just eval latency` on a fresh quota; record p50/p95 here; close task 12.
 - You (optional, safer than "No paging file"): C: page file custom size with initial = maximum (e.g. 2048 MB),
@@ -208,10 +207,9 @@ Run with `just gate 1`.
 
 ## Open questions
 
-- **Primary model vs Gemini's free quota.** `gemini-3.5-flash` allows 20 requests/day; one `just gate 1` uses
-  ~25 LLM calls and the latency eval 40. Options: (1) spread the primary alias across several Gemini Flash
-  models, each with its own daily quota (LiteLLM load-balances and cools down on 429); (2) make Groq the primary
-  and Gemini the first fallback; (3) keep it and run live gates at most once a day. Recommend (1).
+- Decided 2026-10-06 (you): the primary alias spreads over four Gemini Flash models (`gemini-3.5-flash`,
+  `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-flash`), each with its own 20 requests/day free
+  quota. Their answer quality differs; the Phase 2 eval decides which stay.
 
 - **PHI reaching the LLM (outside gate b).** Gate b passes because traces, logs and stores never hold
   message text. But the LLM still saw 2 of 66 seed values in the leak run (both invented place names that
