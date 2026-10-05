@@ -151,6 +151,12 @@ Run with `just gate 1`.
   main). Fresh clone in `D:\devcache\tmp\clinscribe-clone`: `uv sync`, `just lint`, `just test-unit` pass;
   `just up` stopped by the C: guard (see Blockers). Not yet run: `just gate 1` from the clone, latency eval, CI.
 
+- 2026-10-06: Ollama `llama3.2:3b` installed (1.9 GB, in `D:\devcache\ollama-models`). The `ollama pull`
+  kept failing because IPv6 connections from this PC hang (`dial tcp [2606:4700:…]:443` timeouts); the blob
+  was fetched over IPv4 with `curl -4`, SHA-256 checked, then placed in the store. Direct check (no stack):
+  answers correctly; cold load 74.6 s; 37.8 tokens/s; runs 20% CPU / 80% GPU (2.9 GB with a 4096 context does
+  not fit fully in 4 GB VRAM). C: dipped to 0.24 GB free while the model loaded, then recovered to 2.34 GB.
+
 ## Next (after the page-file fix and reboot)
 
 - Fresh clone: `just up; just migrate; just gateway-keys; just fhir-load; just gate 1`.
@@ -173,7 +179,10 @@ Run with `just gate 1`.
 - Ollama model `llama3.2:3b` still downloading (slow link); the local failover step is skipped until then.
 - All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
   `just doctor` warns if any moves back to C:.
-- Network is unstable (DNS failures, connection resets): downloads need retries.
+- Network: IPv6 connections from this PC hang until timeout (root cause of the slow `localhost` DB
+  connections, Ollama pull failures and many "connection reset" retries). IPv4 works. Recommended (you, a
+  Windows system setting, admin + reboot): prefer IPv4 with
+  `reg add HKLM\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters /v DisabledComponents /t REG_DWORD /d 0x20 /f`.
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 - GitHub remote not yet created (needed for task 11).
 
