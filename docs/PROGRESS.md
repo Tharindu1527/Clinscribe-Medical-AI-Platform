@@ -145,9 +145,6 @@ Run with `just gate 1`.
   `"input_tokens": 100` matching the seeded age 100, so ages are now matched only in age context
   ("100-year-old", "aged 100"), with a regression test. `just lint` clean; `just test` 116 passed;
   audit chain OK (449 rows).
-
-## Next
-
 - 2026-10-05: Task 12 tooling written — `just gate 1` (`scripts/gate.py`: lint, full suite with the stack
   required, gates a/b/c, pipeline, audit chain), `just eval latency` (p50/p95 primary up vs down),
   `docs/runbooks/local-setup.md`; task 11 `.github/workflows/ci.yml` (lint + unit on PRs; stack tests on
