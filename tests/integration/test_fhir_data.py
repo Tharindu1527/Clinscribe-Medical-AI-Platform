@@ -9,7 +9,7 @@ import pytest
 from config.settings import Settings
 from scripts.fhir_load import load
 
-FHIR = "http://localhost:8080/fhir/"
+FHIR = "http://127.0.0.1:8080/fhir/"
 
 
 @pytest.fixture(scope="module")

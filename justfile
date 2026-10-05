@@ -77,9 +77,13 @@ test-unit *args:
 test-live *args:
     uv run pytest -m live {{args}}
 
-# Evaluation suites; reports go to evals/reports/ (suites arrive from Phase 1 task 6)
+# Evaluation suites (`just eval privacy`, or all); reports go to evals/reports/
 eval suite="all":
-    @echo "No evaluation suites yet (privacy suite arrives in Phase 1 task 6). Requested: {{suite}}"; exit 1
+    uv run python -m evals.run {{suite}}
+
+# Apply pending SQL migrations to the clinscribe database (idempotent)
+migrate:
+    uv run python -m scripts.migrate
 
 # Load tests with p50/p95 (Phase 6)
 load:

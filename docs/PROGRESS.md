@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–5 done; gates a and c pass; next: task 6 de-ID)**
+Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–6 done; gates a and c pass; next: task 7 telemetry)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -32,7 +32,7 @@ Run with `just gate 1`.
 | 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ✅ 2026-10-05: 9/9 stack tests pass; 1.94 GB measured |
 | 4 | **HAPI FHIR + Synthea:** pinned Synthea release (SHA-256 checked), seed 42, 50 patients, loaded in dependency order by `just fhir-load`; idempotent. | Integration tests: Patient count == 50; every patient has ≥ 1 Encounter; search by family name works; a second `just fhir-load` leaves the count at 50. | ✅ 2026-10-05: 4/4 pass (gate c) |
 | 5 | **LiteLLM gateway with failover:** alias with the 4-step fallback chain, per-key budget and rpm, spend logs without prompt text, `config/models.yaml` (task → alias), `llmops/gateway/client.py` (accepts only `DeidentifiedText`), record/replay cache for tests, chaos switch `just chaos primary-down`. | Unit: client rejects a plain `str`; a replay-cache hit makes zero network calls. Live (`just test-live`): with the primary down, a request succeeds, the response names the Groq model, and the failover appears in spend logs. Ollama step is skipped if Ollama is not running. | ✅ 2026-10-05: live 2 pass, Ollama step skipped (model downloading) (gate a) |
-| 6 | **De-ID service v0:** Presidio + spaCy `en_core_web_lg` + custom recognisers for the 18 Safe Harbor types; consistent surrogates per encounter (`PATIENT_1`); Fernet-encrypted mapping in Postgres; FastAPI `/deidentify` (and internal-only `/reidentify`). Seeded fake-PHI corpus generated with Faker. | `just eval privacy` writes `evals/reports/privacy/deid_v0.md` with recall per entity type. Structured types (MRN, phone, email, SSN, dates, ZIP, URL, IP, IDs) recall = 1.0; name recall recorded as the Phase 5 baseline. Same input → same surrogates. Raw DB row contains no plaintext. | ☐ |
+| 6 | **De-ID service v0:** Presidio + spaCy `en_core_web_lg` + custom recognisers for the 18 Safe Harbor types; consistent surrogates per encounter (`PATIENT_1`); Fernet-encrypted mapping in Postgres; FastAPI `/deidentify` (and internal-only `/reidentify`). Seeded fake-PHI corpus generated with Faker. | `just eval privacy` writes `evals/reports/privacy/deid_v0.md` with recall per entity type. Structured types (MRN, phone, email, SSN, dates, ZIP, URL, IP, IDs) recall = 1.0; name recall recorded as the Phase 5 baseline. Same input → same surrogates. Raw DB row contains no plaintext. | ✅ 2026-10-05: 15/15 structured types recall 1.000; PERSON 0.95, LOCATION 0.75 (baseline) |
 | 7 | **Telemetry with redaction:** OTel setup in `llmops/telemetry` with GenAI semantic-convention attributes; redacting exporter wrapper + logging redaction filter; collector redaction processor → Langfuse Cloud (EU) + local file exporter; LiteLLM OTel callback → collector. | Unit: a span and a log record carrying seeded PHI are exported without it. Integration: one request → one Langfuse trace (fetched via API) with api → deid → gateway spans and `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`. | ☐ |
 | 8 | **Audit table:** append-only, hash-chained (HMAC-SHA-256 with `AUDIT_CHAIN_KEY`); DB trigger blocks UPDATE/DELETE; app role has INSERT/SELECT only; advisory lock keeps order; `just audit-verify`. | Tests: chain verifies after 100 appends including 10 concurrent; UPDATE and DELETE as the app role raise; a manual tamper (as owner) is reported at the exact row. | ☐ |
 | 9 | **Pipeline endpoint:** FastAPI `/health` and `POST /v1/dev/complete` (text → deid → gateway → answer), writing an audit record (actor, model, prompt version, trace id). | Integration: the endpoint returns an answer; an audit row exists with the same trace id as the Langfuse trace. | ☐ |
@@ -104,9 +104,20 @@ Run with `just gate 1`.
   down the turn succeeds via Groq (spend log `groq/openai/gpt-oss-20b|clinscribe-fallback-groq`); Ollama step
   skipped. `just lint` clean; `just test` 64 passed.
 
+- 2026-10-05: Task 6 done — de-ID v0: Presidio with spaCy `en_core_web_md` for PERSON/LOCATION and explicit
+  regex recognisers for 15 structured Safe Harbor types (keyword-anchored > exact format > NER on overlap);
+  consistent surrogates per encounter (`PHONE_1`); mapping in `deid_mappings` with HMAC lookup + Fernet
+  ciphertext (no plaintext); `/deidentify`; `just migrate`; `just eval privacy`
+  (`evals/reports/privacy/deid_v0.md`): structured recall 1.000 on 200 seeded snippets, PERSON 0.95,
+  LOCATION 0.75; p50 16.7 ms, p95 22.2 ms per snippet in-process. Found and fixed an eval bug (surrogate label
+  `AGE_OVER_89_1` contains "91"). `just lint` clean; `just test` (stack required) 94 passed; memory 2.75 GB
+  (deid 362 MB).
+- 2026-10-05: Host URLs switched from `localhost` to `127.0.0.1` (Windows tried `::1` first: 30 s per
+  Postgres connection vs 0.04 s); DB connections get `connect_timeout=10`.
+
 ## Next
 
-- Task 6: de-ID service v0 (Presidio + spaCy, surrogates, encrypted mapping, privacy eval).
+- Task 7: telemetry with redaction (OTel → collector → Langfuse Cloud EU + local file).
 - Resume: Ollama `llama3.2:3b` pull (running), then re-run `just test-live` for the local step.
 
 ## Blockers
@@ -123,6 +134,15 @@ Run with `just gate 1`.
 - GitHub remote not yet created (needed for task 11).
 
 ## Open questions
+
+- **Gate (b) risk:** de-ID v0 misses ~5% of names and ~25% of invented place names (spaCy NER). The task 10
+  leak test needs 0 leaks, so it will fail on names unless NER improves. Options: name gazetteer from the
+  Faker/Census name lists as a recogniser (cheap, measurable), `en_core_web_lg` (compare in the eval), or
+  pull part of the Phase 5 LoRA NER forward. Decide at task 10 with measurements.
+- De-ID model changed from the planned `en_core_web_lg` to `en_core_web_md` (33 MB vs 401 MB on a slow link,
+  ~0.3 vs ~1 GB RAM, near-equal published NER F1); `DEID_SPACY_MODEL` switches it for a comparison.
+- `/reidentify` HTTP route deferred to Phase 3 (needs authentication); re-identification exists as a library
+  function with a round-trip test.
 
 - Gemini 3.x Flash and Groq gpt-oss reason before answering; reasoning tokens count against `max_tokens`
   (16 tokens returned empty text) and add latency. Decide the thinking level per task from the Phase 2/4

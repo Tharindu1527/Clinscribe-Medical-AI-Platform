@@ -10,11 +10,11 @@ from config.settings import Settings
 
 EXPECTED = {"postgres", "otel-collector", "litellm", "deid", "api", "hapi-fhir"}
 HTTP_CHECKS = {
-    "api": "http://localhost:8000/health",
-    "deid": "http://localhost:8001/health",
-    "litellm": "http://localhost:4000/health/liveliness",
-    "otel-collector": "http://localhost:13133/",
-    "hapi-fhir": "http://localhost:8080/fhir/metadata",
+    "api": "http://127.0.0.1:8000/health",
+    "deid": "http://127.0.0.1:8001/health",
+    "litellm": "http://127.0.0.1:4000/health/liveliness",
+    "otel-collector": "http://127.0.0.1:13133/",
+    "hapi-fhir": "http://127.0.0.1:8080/fhir/metadata",
 }
 
 

@@ -10,6 +10,10 @@ dependencies = [
     "uvicorn>=0.32",          # ASGI server that runs the FastAPI services
     "httpx>=0.28",            # HTTP client for service-to-service calls and FastAPI's TestClient
     "pyyaml>=6.0",            # read YAML configs (config/models.yaml, prompts/*.yaml)
+    "presidio-analyzer>=2.2.364", # PHI detection (SPEC section 8), with custom recognisers
+    "en-core-web-md",         # spaCy English model for Presidio's name/location NER (33 MB)
+    "cryptography>=46",       # Fernet encryption of the surrogate mapping
+    "psycopg[binary]>=3.2",   # Postgres driver (surrogate store, audit table, migrations)
 ]
 
 [dependency-groups]
@@ -18,10 +22,14 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.8",
     "types-pyyaml>=6.0",      # type stubs so mypy --strict accepts yaml
+    "faker>=37",              # seeded fake PHI for the privacy evals and leak test (never real data)
 ]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+en-core-web-md = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl" }
 
 [tool.ruff]
 line-length = 100
@@ -35,6 +43,8 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "S", "PT", "TID"]
 # Tests and helper scripts run CLI tools (docker, npm, ollama) found on PATH by design
 "tests/**" = ["S101", "S603", "S607"]
 "scripts/**" = ["S603", "S607"]
+# Seeded pseudo-random synthetic data for evaluations, never used for secrets
+"evals/**" = ["S311"]
 # The gateway client and the speech-to-speech plugin are the only places allowed to import
 # provider SDKs (CLAUDE.md non-negotiable rules, ADR-0001).
 "llmops/gateway/**" = ["TID251"]

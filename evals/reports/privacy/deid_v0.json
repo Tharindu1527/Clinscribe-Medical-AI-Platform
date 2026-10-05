@@ -1,0 +1,112 @@
+{
+  "spacy_model": "en_core_web_md",
+  "snippets": 200,
+  "seed": 42,
+  "latency_ms_p50": 16.7,
+  "latency_ms_p95": 22.2,
+  "results": [
+    {
+      "entity": "DATE",
+      "kind": "structured (gate 1.0)",
+      "n": 100,
+      "recall": 1.0
+    },
+    {
+      "entity": "AGE_OVER_89",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "PHONE",
+      "kind": "structured (gate 1.0)",
+      "n": 60,
+      "recall": 1.0
+    },
+    {
+      "entity": "EMAIL",
+      "kind": "structured (gate 1.0)",
+      "n": 40,
+      "recall": 1.0
+    },
+    {
+      "entity": "SSN",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "MRN",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "HEALTH_PLAN_ID",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "ACCOUNT_NUMBER",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "LICENSE_NUMBER",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "VEHICLE_ID",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "DEVICE_ID",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "URL",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "IP_ADDRESS",
+      "kind": "structured (gate 1.0)",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "STREET_ADDRESS",
+      "kind": "structured (gate 1.0)",
+      "n": 40,
+      "recall": 1.0
+    },
+    {
+      "entity": "ZIP",
+      "kind": "structured (gate 1.0)",
+      "n": 40,
+      "recall": 1.0
+    },
+    {
+      "entity": "PERSON",
+      "kind": "NER (baseline)",
+      "n": 120,
+      "recall": 0.95
+    },
+    {
+      "entity": "LOCATION",
+      "kind": "NER (baseline)",
+      "n": 60,
+      "recall": 0.75
+    }
+  ],
+  "gate_passed": true
+}

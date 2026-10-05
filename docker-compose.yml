@@ -94,6 +94,7 @@ services:
       POSTGRES_HOST: postgres
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       DEID_MAPPING_KEY: ${DEID_MAPPING_KEY:?run just gen-keys}
+      DEID_SPACY_MODEL: ${DEID_SPACY_MODEL:-en_core_web_md}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - "127.0.0.1:8001:8001"

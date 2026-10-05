@@ -92,7 +92,7 @@ def test_turn_succeeds_through_failover_when_primary_is_down(gateway: GatewayCli
 
 def test_local_model_answers(gateway: GatewayClient) -> None:
     """Last step of the chain. Skipped until Ollama has the model (full check is Phase 5)."""
-    base = "http://localhost:11434"
+    base = "http://127.0.0.1:11434"
     try:
         tags = httpx.get(f"{base}/api/tags", timeout=5).json().get("models", [])
     except httpx.HTTPError:

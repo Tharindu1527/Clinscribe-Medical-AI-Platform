@@ -23,32 +23,33 @@ class Settings(BaseSettings):
     litellm_master_key: SecretStr = SecretStr("")
     litellm_salt_key: SecretStr = SecretStr("")
     litellm_app_key: SecretStr = SecretStr("")
-    gateway_url: str = "http://localhost:4000"
+    gateway_url: str = "http://127.0.0.1:4000"
 
     # Postgres (databases: clinscribe, litellm, hapi)
     postgres_user: str = "clinscribe"
     postgres_password: SecretStr = SecretStr("")
-    postgres_host: str = "localhost"
+    postgres_host: str = "127.0.0.1"  # not "localhost": Windows tries ::1 first and stalls
     postgres_port: int = 5432
     app_db_password: SecretStr = SecretStr("")
     litellm_db_password: SecretStr = SecretStr("")
     hapi_db_password: SecretStr = SecretStr("")
 
     # FHIR
-    fhir_base_url: str = "http://localhost:8080/fhir"
+    fhir_base_url: str = "http://127.0.0.1:8080/fhir"
     synthea_population: int = 50
     synthea_seed: int = 42
 
     # Privacy and audit
-    deid_url: str = "http://localhost:8001"
+    deid_url: str = "http://127.0.0.1:8001"
     deid_mapping_key: SecretStr = SecretStr("")
+    deid_spacy_model: str = "en_core_web_md"
     audit_chain_key: SecretStr = SecretStr("")
 
     # Observability
     langfuse_public_key: SecretStr = SecretStr("")
     langfuse_secret_key: SecretStr = SecretStr("")
     langfuse_host: str = "https://cloud.langfuse.com"
-    otel_exporter_otlp_endpoint: str = "http://localhost:4318"
+    otel_exporter_otlp_endpoint: str = "http://127.0.0.1:4318"
 
 
 def get_settings() -> Settings:
