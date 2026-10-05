@@ -145,5 +145,36 @@ services:
       - "127.0.0.1:8080:8080"
     # Distroless image: no shell for an in-container healthcheck; the stack test polls /fhir/metadata.
 
+  # ---------------------------------------------------------------- tools (one-shot)
+  # Synthetic patients (Synthea v4.0.0, Apache-2.0). Run by `just fhir-load`, never by `just up`.
+  synthea:
+    image: eclipse-temurin:21.0.12.1_1-jre-noble
+    profiles: [tools]
+    mem_limit: 1g
+    working_dir: /synthea
+    volumes:
+      - ./data/synthea:/synthea
+    command:
+      - java
+      - -Xmx768m
+      - -jar
+      - synthea-with-dependencies.jar
+      - -p
+      - "${SYNTHEA_POPULATION:-50}"
+      - -s
+      - "${SYNTHEA_SEED:-42}"
+      - -cs
+      - "${SYNTHEA_SEED:-42}"
+      - -r
+      - "20260101"
+      - --generate.only_alive_patients=true
+      - --exporter.baseDirectory=/synthea/output/
+      - --exporter.fhir.export=true
+      - --exporter.hospital.fhir.export=true
+      - --exporter.practitioner.fhir.export=true
+      - --exporter.ccda.export=false
+      - --exporter.csv.export=false
+      - --exporter.years_of_history=10
+
 volumes:
   pgdata:

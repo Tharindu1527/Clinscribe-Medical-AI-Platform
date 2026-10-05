@@ -5,7 +5,7 @@ Data files themselves live in `data/` and are git-ignored; only this file is com
 
 | Dataset | Licence | Verified on | Source | Notes |
 |---|---|---|---|---|
-| Synthea (generator + generated FHIR R4 patients) | To verify at download (task 4) | — | https://github.com/synthetichealth/synthea | Phase 1 |
+| Synthea v4.0.0 (generator + generated FHIR R4 patients) | Apache-2.0 | 2026-10-05 (GitHub licence API) | https://github.com/synthetichealth/synthea | Phase 1; jar SHA-256 pinned in `scripts/fhir_load.py` |
 | PriMock57 | To verify | — | — | Phase 4 |
 | ACI-Bench | To verify | — | — | Phase 3 |
 | PubMed Central Open Access subset | Per article; to verify | — | — | Phase 2 |

@@ -24,7 +24,7 @@ up *profiles:
 
 # Start every profile (needs more than the 10 GB WSL cap later on; see ADR-0003)
 up-all:
-    docker compose --profile "*" up -d --build --wait --wait-timeout 600
+    docker compose --profile core --profile fhir --profile rag --profile voice --profile obs up -d --build --wait --wait-timeout 600
 
 # Stop all services (data volumes are kept)
 down:
@@ -41,6 +41,10 @@ logs *args:
 # Memory per container and total against the 8 GB core budget
 stats:
     uv run python -m scripts.stats
+
+# Generate Synthea patients (seeded) and load them into HAPI FHIR; safe to re-run
+fhir-load:
+    uv run python -m scripts.fhir_load
 
 # ruff (lint + format check) and mypy
 lint:
