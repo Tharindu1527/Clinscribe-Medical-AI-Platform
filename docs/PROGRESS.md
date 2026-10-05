@@ -148,20 +148,31 @@ Run with `just gate 1`.
 
 ## Next
 
-- You: move the page file off C: and reboot; create the private GitHub repo and add it as `origin`.
-- Task 11: CI (needs the GitHub remote).
-- Task 12: `just gate 1`, `docs/runbooks/local-setup.md`, failover latency p50/p95, fresh-clone check
-  (needs the stack, so after the page-file fix).
+- 2026-10-05: Task 12 tooling written — `just gate 1` (`scripts/gate.py`: lint, full suite with the stack
+  required, gates a/b/c, pipeline, audit chain), `just eval latency` (p50/p95 primary up vs down),
+  `docs/runbooks/local-setup.md`; task 11 `.github/workflows/ci.yml` (lint + unit on PRs; stack tests on
+  main). Fresh clone in `D:\devcache\tmp\clinscribe-clone`: `uv sync`, `just lint`, `just test-unit` pass;
+  `just up` stopped by the C: guard (see Blockers). Not yet run: `just gate 1` from the clone, latency eval, CI.
+
+## Next (after the page-file fix and reboot)
+
+- Fresh clone: `just up; just migrate; just gateway-keys; just fhir-load; just gate 1`.
+- `just eval latency`; record p50/p95 here; close task 12.
+- You: create the private GitHub repo and add it as `origin`; then push and close task 11.
 - Ollama `llama3.2:3b` download still running (to D:); then re-run `just test-live` for the local step.
 - Resume: Ollama `llama3.2:3b` pull (running), then re-run `just test-live` for the local step.
 
 ## Blockers
 
-- **C: page file (blocking task 12).** On 2026-10-05 the system-managed `C:\pagefile.sys` grew from 2.7 to
-  4.5 GB during the stack + live test runs and C: fell to 0.2 GB free. The stack was stopped (`just down`,
-  data volume kept), which brought C: back to 2.4 GB. Fix (you, a Windows system setting): System Properties →
-  Advanced → Performance → Virtual memory → C: "No paging file" (or a small fixed 1024–2048 MB), D: "System
-  managed size" → Set → reboot. Until then, keep the stack down when not testing.
+- **C: page file (blocking all stack work).** The system-managed `C:\pagefile.sys` grows under memory load.
+  2026-10-05: it grew 2.7 → 4.5 GB during live test runs (C: fell to 0.2 GB free). A second time, during the
+  fresh-clone `just up`, C: fell to 0.87 GB; a C: guard stopped the stack automatically. Windows only shrinks
+  the page file on reboot. Fix (you, a Windows system setting): System Properties → Advanced → Performance →
+  Virtual memory → untick automatic → C: "No paging file" (or a small fixed 1024–2048 MB), D: "System
+  managed size" → Set → reboot. Do not start the stack until then.
+- LiteLLM was OOM-killed (`exit 137`) during that start-up while the host was under memory pressure; it ran at
+  520–630 MB of its 1 GB limit in earlier runs. Re-check after the page-file fix; if it repeats, stagger
+  start-up (`depends_on` HAPI healthy) or raise its limit with a measurement.
 - Ollama model `llama3.2:3b` still downloading (slow link); the local failover step is skipped until then.
 - All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
   `just doctor` warns if any moves back to C:.
