@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–10 done; gates a, b and c pass; left: task 11 CI, task 12 exit)**
+Last updated: 2026-10-06 · Current phase: **1 — Foundations (tasks 1–10 done; gates a, b and c pass; left: task 11 CI, task 12 exit)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -157,13 +157,19 @@ Run with `just gate 1`.
   answers correctly; cold load 74.6 s; 37.8 tokens/s; runs 20% CPU / 80% GPU (2.9 GB with a 4096 context does
   not fit fully in 4 GB VRAM). C: dipped to 0.24 GB free while the model loaded, then recovered to 2.34 GB.
 
-## Next (after the page-file fix and reboot)
+- 2026-10-06: After the reboot (IPv4 now preferred; page file still system-managed on C:), the GitHub repo
+  `Tharindu1527/Clinscribe-Medical-AI-Platform` (private) exists and `main` is pushed; a history scan found
+  none of the 14 `.env` secret values in any of the 18 commits. Fresh clone **from GitHub** passed
+  `uv sync`, `just lint`, `just test-unit` (93), `just up`, `just migrate`, `just gateway-keys`,
+  `just fhir-load`; during `just gate 1` C: fell to 0.91 GB (C: page file 2.66 → 3.11 GB) and the guard
+  stopped the stack. First CI run failed: `astral-sh/setup-uv@v10` does not exist (only exact tags), fixed by
+  pinning `v10.2.0`.
 
-- Fresh clone: `just up; just migrate; just gateway-keys; just fhir-load; just gate 1`.
-- `just eval latency`; record p50/p95 here; close task 12.
-- You: create the private GitHub repo and add it as `origin`; then push and close task 11.
-- Ollama `llama3.2:3b` download still running (to D:); then re-run `just test-live` for the local step.
-- Resume: Ollama `llama3.2:3b` pull (running), then re-run `just test-live` for the local step.
+## Next
+
+- You: move the page file off C: (it is now the only blocker for the gate), then reboot.
+- `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
+- Push the CI fix, add the repository secrets, confirm both CI jobs are green; close task 11.
 
 ## Blockers
 
@@ -176,7 +182,6 @@ Run with `just gate 1`.
 - LiteLLM was OOM-killed (`exit 137`) during that start-up while the host was under memory pressure; it ran at
   520–630 MB of its 1 GB limit in earlier runs. Re-check after the page-file fix; if it repeats, stagger
   start-up (`depends_on` HAPI healthy) or raise its limit with a measurement.
-- Ollama model `llama3.2:3b` still downloading (slow link); the local failover step is skipped until then.
 - All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
   `just doctor` warns if any moves back to C:.
 - Network: IPv6 connections from this PC hang until timeout (root cause of the slow `localhost` DB
@@ -184,7 +189,6 @@ Run with `just gate 1`.
   Windows system setting, admin + reboot): prefer IPv4 with
   `reg add HKLM\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters /v DisabledComponents /t REG_DWORD /d 0x20 /f`.
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
-- GitHub remote not yet created (needed for task 11).
 
 ## Open questions
 
