@@ -1,0 +1,25 @@
+{
+  "primary up": {
+    "calls": 20,
+    "succeeded": 20,
+    "failed": 0,
+    "p50_ms": 2564,
+    "p95_ms": 3821,
+    "mean_ms": 2254,
+    "served_by": {
+      "clinscribe-default": 19,
+      "openai/gpt-oss-20b": 1
+    }
+  },
+  "primary down": {
+    "calls": 20,
+    "succeeded": 20,
+    "failed": 0,
+    "p50_ms": 779,
+    "p95_ms": 1080,
+    "mean_ms": 841,
+    "served_by": {
+      "openai/gpt-oss-20b": 20
+    }
+  }
+}

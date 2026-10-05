@@ -1,6 +1,7 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-06 · Current phase: **1 — Foundations (tasks 1–10 done; gates a, b and c pass; left: task 11 CI, task 12 exit)**
+Last updated: 2026-10-06 · Current phase: **1 — Foundations: exit gate PASSES (`just gate 1` from a fresh clone);
+left: two task 11 checks that need you (red PR, branch protection)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -26,7 +27,7 @@ Run with `just gate 1`.
 
 | # | Task | Exit-gate test | Status |
 |---|------|----------------|--------|
-| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama **installed to D:** (`OllamaSetup.exe /DIR=D:\Ollama`) + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ◐ all done (Ollama 0.35.1 in `D:\Ollama`, `.wslconfig` 10 GB) except the model pull, still downloading |
+| 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama **installed to D:** (`OllamaSetup.exe /DIR=D:\Ollama`) + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ✅ 2026-10-06 (Ollama 0.35.1 + `llama3.2:3b`; WSL cap temporarily 6 GB, see Blockers) |
 | 1 | **Repo skeleton and tooling:** `pyproject.toml` (Python 3.11, ruff, mypy, pytest markers `unit`/`integration`/`live`), package folders, `justfile` (PowerShell shell), `.env.example`, `.gitignore`, `data/LICENSES.md`, `config/settings.py` (pydantic-settings, `SecretStr`), ruff banned-import rule for provider SDKs outside `llmops/gateway`. | On a clean clone, `uv sync; just lint; just test` pass. Tests: every Settings field has a key in `.env.example` and vice versa; `repr(Settings())` contains no secret value; a fixture that imports `openai` outside the gateway makes `ruff check` fail. | ✅ 2026-10-04 |
 | 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ✅ test passes; text awaiting your review |
 | 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ✅ 2026-10-05: 9/9 stack tests pass; 1.94 GB measured |
@@ -37,20 +38,30 @@ Run with `just gate 1`.
 | 8 | **Audit table:** append-only, hash-chained (HMAC-SHA-256 with `AUDIT_CHAIN_KEY`); DB trigger blocks UPDATE/DELETE; app role has INSERT/SELECT only; advisory lock keeps order; `just audit-verify`. | Tests: chain verifies after 100 appends including 10 concurrent; UPDATE and DELETE as the app role raise; a manual tamper (as owner) is reported at the exact row. | ✅ 2026-10-05: 8/8 pass; `just audit-verify` OK |
 | 9 | **Pipeline endpoint:** FastAPI `/health` and `POST /v1/dev/complete` (text → deid → gateway → answer), writing an audit record (actor, model, prompt version, trace id). | Integration: the endpoint returns an answer; an audit row exists with the same trace id as the Langfuse trace. | ✅ 2026-10-05: live 1/1 (answer, audit row = trace id, Langfuse trace has api + deid + gateway spans, no seeded PHI) |
 | 10 | **PHI leak test (gate b):** `evals/privacy/leak_test.py` seeds 20 transcripts with fake PHI, sends them through the endpoint, then scans the collector file export, `docker compose logs` for every service, Langfuse traces for the run, LiteLLM spend logs and the audit table. | 0 leaks. Positive control: the scanner finds 100% of seed values in a planted file. Report in `evals/reports/privacy/`. | ✅ 2026-10-05: 0 leaks in 6 sinks (66 seed values), control 100% (gate b) |
-| 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ☐ |
-| 12 | **Phase 1 exit:** `just gate 1`; `docs/runbooks/local-setup.md`; failover latency p50/p95 (20 calls, normal vs primary down); measured memory per service. | On a fresh clone, following the runbook: `just up; just fhir-load; just gate 1` passes. PROGRESS updated with the numbers. | ☐ |
+| 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ◐ 2026-10-06: run #3 on `33e7fd3` green (lint-unit 21 s, integration 8 m 2 s); red-PR check and branch protection pending (you) |
+| 12 | **Phase 1 exit:** `just gate 1`; `docs/runbooks/local-setup.md`; failover latency p50/p95 (20 calls, normal vs primary down); measured memory per service. | On a fresh clone, following the runbook: `just up; just fhir-load; just gate 1` passes. PROGRESS updated with the numbers. | ✅ 2026-10-06: fresh clone from GitHub at `9e300cb`, `just gate 1` 7/7 PASS |
 
-### Memory measured (`just stats`, 2026-10-05, idle after start-up, task 3 placeholders)
+### Phase 1 exit numbers (2026-10-06, fresh clone at `9e300cb`, after `just gate 1`)
 
 | Container | Used | Limit |
 |---|---|---|
-| hapi-fhir | 1148 MB | 2048 MB |
-| litellm | 632 MB | 1024 MB |
-| postgres | 100 MB | 512 MB |
-| otel-collector | 41 MB | 256 MB |
-| api | 36 MB | 512 MB |
-| deid | 35 MB | 1536 MB (grows with spaCy in task 6) |
-| **total (core + fhir)** | **1.94 GB** | target ≤ 8 GB |
+| hapi-fhir | 1194 MB | 2048 MB |
+| litellm | 564 MB | 1024 MB |
+| deid (spaCy `en_core_web_md`) | 378 MB | 1536 MB |
+| api | 136 MB | 512 MB |
+| postgres | 108 MB | 512 MB |
+| otel-collector | 56 MB | 256 MB |
+| **total (core + fhir)** | **2.38 GB** | target ≤ 8 GB |
+
+Gateway latency (`just eval latency`, `evals/reports/llmops/failover_latency.md`), 20 calls per mode, all succeeded:
+
+| Mode | p50 | p95 | Served by |
+|---|---|---|---|
+| Primary up | 2,564 ms | 3,821 ms | Gemini Flash pool ×19, Groq ×1 |
+| Primary down (chaos) | 779 ms | 1,080 ms | Groq `gpt-oss-20b` ×20 |
+
+PHI leak test (gate b), run `bd445eaf`: 0 leaks in all 6 sinks, positive control 100%.
+Lowest C: free space during the whole run: 2.35 GB.
 
 ### Memory budget (estimates per profile)
 
@@ -177,10 +188,15 @@ Run with `just gate 1`.
   ran out the gateway failed over to Groq as designed, but the "primary answers" check failed.
   `just gate 1` now scopes (a) to the cloud fallback; the local-model check belongs to the Phase 5 gate.
 
+- 2026-10-06: **Phase 1 exit gate PASS.** Fresh clone from GitHub at `9e300cb`: `just up` 80 s,
+  `just gate 1` 508 s — lint, full suite, (c) FHIR, (a) failover, pipeline, (b) leak test, audit chain all PASS.
+  Latency and memory in the tables above. CI run #3 (`33e7fd3`) green: lint-unit and integration.
+
 ## Next
 
-- Re-run `just gate 1` from the fresh clone after the Gemini quota resets (midnight UTC), then
-  `just eval latency` on a fresh quota; record p50/p95 here; close task 12.
+- You: finish task 11 — open a throwaway PR with a deliberately failing test and confirm CI goes red (I can
+  prepare the branch), then add branch protection on `main` requiring the `lint-unit` check.
+- Then Phase 1 is closed. Before Phase 2: decide the de-ID name/place gap (Open questions), and plan Phase 2.
 - You (optional, safer than "No paging file"): C: page file custom size with initial = maximum (e.g. 2048 MB),
   D: system managed; run Windows Memory Diagnostic first.
 - `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
@@ -188,15 +204,14 @@ Run with `just gate 1`.
 
 ## Blockers
 
-- **C: page file (blocking all stack work).** The system-managed `C:\pagefile.sys` grows under memory load.
-  2026-10-05: it grew 2.7 → 4.5 GB during live test runs (C: fell to 0.2 GB free). A second time, during the
-  fresh-clone `just up`, C: fell to 0.87 GB; a C: guard stopped the stack automatically. Windows only shrinks
-  the page file on reboot. Fix (you, a Windows system setting): System Properties → Advanced → Performance →
-  Virtual memory → untick automatic → C: "No paging file" (or a small fixed 1024–2048 MB), D: "System
-  managed size" → Set → reboot. Do not start the stack until then.
-- LiteLLM was OOM-killed (`exit 137`) during that start-up while the host was under memory pressure; it ran at
-  520–630 MB of its 1 GB limit in earlier runs. Re-check after the page-file fix; if it repeats, stagger
-  start-up (`depends_on` HAPI healthy) or raise its limit with a measurement.
+- **C: page file (managed, not blocking).** The system-managed `C:\pagefile.sys` grows under memory load and
+  shrinks afterwards; moving it ended in a blue screen (0x1A), so it stays. Working limits that kept the full
+  gate run above 2.35 GB free on C:: WSL capped at 6 GB, local model `num_ctx 2048` + `keep_alive 30s`, the
+  local-model check kept out of `just gate 1` (it is the Phase 5 gate), `just down` when idle, and the C: guard
+  (stop the stack below 1 GB) for long runs. Phase 2 (Qdrant, Neo4j, encoders) needs more than 6 GB WSL; revisit
+  then (fixed-size C: page file, or more free space on C:).
+- LiteLLM was OOM-killed (`exit 137`) once during a start-up under host memory pressure; it ran at 520–630 MB of
+  its 1 GB limit otherwise and was healthy in the passing gate run. Watch for repeats.
 - All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
   `just doctor` warns if any moves back to C:.
 - Network: IPv6 connections from this PC hang until timeout (root cause of the slow `localhost` DB
@@ -207,6 +222,9 @@ Run with `just gate 1`.
 
 ## Open questions
 
+- Latency: Groq `gpt-oss-20b` answered ~3× faster than the Gemini pool (p95 1.1 s vs 3.8 s), mostly Gemini's
+  reasoning time. The Phase 4 voice budget (TTFA p95 < 1.5 s) will need a faster model or a lower thinking
+  level for Ask mode; choose from the Phase 2/4 evals.
 - Decided 2026-10-06 (you): the primary alias spreads over four Gemini Flash models (`gemini-3.5-flash`,
   `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-flash`), each with its own 20 requests/day free
   quota. Their answer quality differs; the Phase 2 eval decides which stay.

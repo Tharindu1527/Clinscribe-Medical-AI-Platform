@@ -1,5 +1,5 @@
 {
-  "run": "f3d5918c",
+  "run": "bd445eaf",
   "transcripts": 20,
   "seed_values": 66,
   "faker_seed": 1234,
@@ -20,11 +20,11 @@
     "de-ID mapping table": []
   },
   "sink_bytes_scanned": {
-    "collector file export": 436091,
-    "docker compose logs": 918027,
-    "Langfuse observations": 249069,
-    "LiteLLM spend logs": 199999,
-    "audit table": 14180,
+    "collector file export": 321303,
+    "docker compose logs": 841849,
+    "Langfuse observations": 206741,
+    "LiteLLM spend logs": 211728,
+    "audit table": 13720,
     "de-ID mapping table": 13641
   },
   "positive_control_recall": 1.0,
