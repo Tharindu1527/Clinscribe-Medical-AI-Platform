@@ -148,16 +148,20 @@ Run with `just gate 1`.
 
 ## Next
 
-- Task 11: CI (needs your GitHub remote).
-- Task 12: `just gate 1`, `docs/runbooks/local-setup.md`, failover latency p50/p95, fresh-clone check.
+- You: move the page file off C: and reboot; create the private GitHub repo and add it as `origin`.
+- Task 11: CI (needs the GitHub remote).
+- Task 12: `just gate 1`, `docs/runbooks/local-setup.md`, failover latency p50/p95, fresh-clone check
+  (needs the stack, so after the page-file fix).
+- Ollama `llama3.2:3b` download still running (to D:); then re-run `just test-live` for the local step.
 - Resume: Ollama `llama3.2:3b` pull (running), then re-run `just test-live` for the local step.
 
 ## Blockers
 
-- **C: page file (risk, not blocking now).** After a reboot, commit is ~8.5 of 18.6 GB and C: has ~2.6 GB free,
-  so the stack fits. The page file is still system-managed on C:; under heavy load it can grow and fill C:.
-  Recommended (you, a Windows system setting): move it to D: (System Properties → Advanced → Performance →
-  Virtual memory).
+- **C: page file (blocking task 12).** On 2026-10-05 the system-managed `C:\pagefile.sys` grew from 2.7 to
+  4.5 GB during the stack + live test runs and C: fell to 0.2 GB free. The stack was stopped (`just down`,
+  data volume kept), which brought C: back to 2.4 GB. Fix (you, a Windows system setting): System Properties →
+  Advanced → Performance → Virtual memory → C: "No paging file" (or a small fixed 1024–2048 MB), D: "System
+  managed size" → Set → reboot. Until then, keep the stack down when not testing.
 - Ollama model `llama3.2:3b` still downloading (slow link); the local failover step is skipped until then.
 - All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
   `just doctor` warns if any moves back to C:.
