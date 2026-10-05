@@ -1,0 +1,92 @@
+# CI (PROGRESS task 11). PRs: lint + type check + unit tests (no secrets, no network calls to LLMs).
+# Push to main / manual: the integration job also starts the core stack and runs the stack tests.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.6.4"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv tool install rust-just
+      - run: just lint
+      - run: just test-unit
+
+  integration:
+    if: github.event_name != 'pull_request'
+    needs: lint-unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLINSCRIBE_REQUIRE_STACK: "1"
+      HAS_LANGFUSE: ${{ secrets.LANGFUSE_PUBLIC_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.6.4"
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv tool install rust-just
+
+      - name: Create .env (generated secrets; provider keys from repository secrets when set)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+        run: |
+          just gen-keys
+          for k in GEMINI_API_KEY GROQ_API_KEY OPENROUTER_API_KEY LANGFUSE_PUBLIC_KEY LANGFUSE_SECRET_KEY; do
+            v="${!k}"
+            if [ -n "$v" ]; then sed -i "s|^$k=.*|$k=$v|" .env; fi
+          done
+
+      - name: Cache Synthea jar and generated patients
+        uses: actions/cache@v6
+        with:
+          path: data/synthea
+          key: synthea-v4.0.0-seed42-pop50
+
+      - run: just up
+      - run: just migrate
+      - run: just fhir-load
+
+      - name: Stack tests (Langfuse check only when its keys are configured)
+        run: |
+          if [ "$HAS_LANGFUSE" = "true" ]; then
+            uv run pytest -m integration -q
+          else
+            uv run pytest -m integration -q -k "not langfuse"
+          fi
+
+      - run: just audit-verify
+
+      - name: Service logs on failure (synthetic data only)
+        if: failure()
+        run: docker compose --profile "*" logs --no-color > compose-logs.txt
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compose-logs
+          path: compose-logs.txt
+          retention-days: 7

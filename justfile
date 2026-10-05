@@ -89,6 +89,10 @@ audit-verify:
 migrate:
     uv run python -m scripts.migrate
 
+# Run a phase's exit gate, e.g. `just gate 1` (needs the stack; makes real LLM calls)
+gate phase:
+    uv run python -m scripts.gate {{phase}}
+
 # Load tests with p50/p95 (Phase 6)
 load:
     @echo "Load tests are not implemented until Phase 6."; exit 1
