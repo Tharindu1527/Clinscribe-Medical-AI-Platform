@@ -12,9 +12,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from config.settings import Settings
+from llmops.telemetry.setup import configure_logging, configure_tracing, instrument
 from privacy.deid.engine import Deidentifier, build_analyzer
 from privacy.deid.store import PostgresStore
 
+SERVICE = "deid"
 APP_DB_USER = "app"
 
 
@@ -44,17 +46,21 @@ def conninfo(settings: Settings) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
+    configure_logging()
+    provider = configure_tracing(SERVICE, settings.otel_exporter_otlp_endpoint)
     store = PostgresStore(conninfo(settings), settings.deid_mapping_key)
     app.state.deidentifier = Deidentifier(build_analyzer(settings.deid_spacy_model), store)
     yield
+    provider.shutdown()
 
 
 app = FastAPI(title="ClinScribe de-ID", version="0.1.0", lifespan=lifespan)
+instrument(app, SERVICE)
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "deid"}
+    return {"status": "ok", "service": SERVICE}
 
 
 @app.post("/deidentify")

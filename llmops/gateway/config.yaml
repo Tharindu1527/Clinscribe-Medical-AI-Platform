@@ -42,3 +42,6 @@ general_settings:
 
 litellm_settings:
   drop_params: true
+  # Traces via OpenTelemetry to the collector; never include prompt or response text
+  callbacks: ["otel"]
+  turn_off_message_logging: true

@@ -44,6 +44,10 @@ services:
     restart: unless-stopped
     mem_limit: 256m
     command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_OTLP_ENDPOINT: ${LANGFUSE_HOST:-https://cloud.langfuse.com}/api/public/otel
     volumes:
       - ./llmops/telemetry/collector.yaml:/etc/otelcol/config.yaml:ro
       - ./.artifacts/otel:/artifacts/otel
@@ -72,6 +76,11 @@ services:
       OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
       # Empty = the provider's default endpoint. Set only by `just chaos primary-down on`.
       GEMINI_API_BASE: ${GEMINI_API_BASE_OVERRIDE:-}
+      # Gateway spans go to the collector (redaction, then Langfuse); no message content
+      OTEL_EXPORTER: otlp_http
+      OTEL_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_SERVICE_NAME: litellm
+      OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: "false"
     volumes:
       - ./llmops/gateway/config.yaml:/app/config.yaml:ro
     extra_hosts:

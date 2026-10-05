@@ -14,6 +14,8 @@ dependencies = [
     "en-core-web-md",         # spaCy English model for Presidio's name/location NER (33 MB)
     "cryptography>=46",       # Fernet encryption of the surrogate mapping
     "psycopg[binary]>=3.2",   # Postgres driver (surrogate store, audit table, migrations)
+    "opentelemetry-sdk>=1.45",  # tracing with GenAI semantic conventions (SPEC section 7)
+    "opentelemetry-exporter-otlp-proto-http>=1.45",  # send spans to the OTel collector
 ]
 
 [dependency-groups]

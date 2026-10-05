@@ -15,10 +15,13 @@ from typing import Literal
 
 import httpx
 import yaml
+from opentelemetry import propagate, trace
+from opentelemetry.trace import SpanKind
 from pydantic import SecretStr
 
 from privacy.deid.types import DeidentifiedText
 
+_tracer = trace.get_tracer("clinscribe.gateway")
 Role = Literal["system", "user", "assistant"]
 CacheMode = Literal["off", "record", "replay"]
 MODELS_FILE = Path(__file__).resolve().parents[2] / "config" / "models.yaml"
@@ -131,28 +134,42 @@ class GatewayClient:
             "max_tokens": max_tokens,
         }
         key = ReplayCache.key(payload)
-        if self._cache is not None:
-            hit = self._cache.get(key)
-            if hit is not None:
-                return hit
-            if self._cache.mode == "replay":
-                raise CacheMissError(f"no recorded response for request {key[:12]}")
+        # GenAI semantic conventions; message content is never put on the span
+        with _tracer.start_as_current_span(f"chat {model}", kind=SpanKind.CLIENT) as span:
+            span.set_attribute("gen_ai.operation.name", "chat")
+            span.set_attribute("gen_ai.request.model", model)
+            span.set_attribute("gen_ai.request.max_tokens", max_tokens)
+            span.set_attribute("gen_ai.request.temperature", temperature)
+            if self._cache is not None:
+                hit = self._cache.get(key)
+                span.set_attribute("clinscribe.cache_hit", hit is not None)
+                if hit is not None:
+                    return hit
+                if self._cache.mode == "replay":
+                    raise CacheMissError(f"no recorded response for request {key[:12]}")
 
-        started = time.perf_counter()
-        response = self._http.post("/v1/chat/completions", json=payload)
-        latency_ms = (time.perf_counter() - started) * 1000
-        response.raise_for_status()
-        body = response.json()
-        usage = body.get("usage") or {}
-        completion = Completion(
-            text=body["choices"][0]["message"].get("content") or "",
-            model=str(body.get("model", "")),
-            input_tokens=int(usage.get("prompt_tokens", 0)),
-            output_tokens=int(usage.get("completion_tokens", 0)),
-            latency_ms=round(latency_ms, 1),
-            response_id=body.get("id"),
-            call_id=response.headers.get("x-litellm-call-id"),
-        )
+            headers: dict[str, str] = {}
+            propagate.inject(headers)  # the gateway's spans join this trace
+            started = time.perf_counter()
+            response = self._http.post("/v1/chat/completions", json=payload, headers=headers)
+            latency_ms = (time.perf_counter() - started) * 1000
+            span.set_attribute("http.response.status_code", response.status_code)
+            response.raise_for_status()
+            body = response.json()
+            usage = body.get("usage") or {}
+            completion = Completion(
+                text=body["choices"][0]["message"].get("content") or "",
+                model=str(body.get("model", "")),
+                input_tokens=int(usage.get("prompt_tokens", 0)),
+                output_tokens=int(usage.get("completion_tokens", 0)),
+                latency_ms=round(latency_ms, 1),
+                response_id=body.get("id"),
+                call_id=response.headers.get("x-litellm-call-id"),
+            )
+            span.set_attribute("gen_ai.response.model", completion.model)
+            span.set_attribute("gen_ai.response.id", completion.response_id or "")
+            span.set_attribute("gen_ai.usage.input_tokens", completion.input_tokens)
+            span.set_attribute("gen_ai.usage.output_tokens", completion.output_tokens)
         if self._cache is not None:
             self._cache.put(key, completion)
         return completion

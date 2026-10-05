@@ -35,3 +35,6 @@ Option 2: Langfuse Cloud free tier in the EU region (`https://cloud.langfuse.com
 - Free-tier volume limits mean load tests sample traces rather than export every span.
 - The collector also writes a local file export, so tracing evidence and the leak test still work offline.
 - Switching back to self-hosted only changes the collector's exporter endpoint and credentials.
+- Langfuse retired `GET /api/public/traces` for organisations created on or after 2026-09-16 (HTTP 410,
+  `LEGACY_API_UNAVAILABLE_FOR_NEW_ORGANIZATION`). Tests and scripts read spans back through
+  `GET /api/public/v2/observations` filtered by `traceId` and a time window.

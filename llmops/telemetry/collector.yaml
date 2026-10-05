@@ -1,8 +1,14 @@
-# OpenTelemetry collector. Task 3: receive OTLP and write a local file export.
-# Task 7 adds the redaction processor and the Langfuse Cloud (EU) exporter (ADR-0002).
+# OpenTelemetry collector: the last stop before traces leave the machine.
+# Second PHI defence (SPEC section 7): every span, including LiteLLM's, keeps only allow-listed
+# attribute keys and has structured-PHI patterns masked, then goes to Langfuse Cloud (EU,
+# ADR-0002) and to a local file that the PHI leak test scans (task 10).
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
+  basicauth/langfuse:
+    client_auth:
+      username: ${env:LANGFUSE_PUBLIC_KEY}
+      password: ${env:LANGFUSE_SECRET_KEY}
 
 receivers:
   otlp:
@@ -16,23 +22,51 @@ processors:
   memory_limiter:
     check_interval: 1s
     limit_mib: 200
+  redaction:
+    allow_all_keys: false
+    # Must equal ALLOWED_KEYS in llmops/telemetry/redaction.py (checked by a unit test)
+    allowed_keys:
+      - gen_ai.operation.name
+      - gen_ai.system
+      - gen_ai.request.model
+      - gen_ai.request.max_tokens
+      - gen_ai.request.temperature
+      - gen_ai.response.model
+      - gen_ai.response.id
+      - gen_ai.usage.input_tokens
+      - gen_ai.usage.output_tokens
+      - http.request.method
+      - http.response.status_code
+      - url.path
+      - server.address
+      - server.port
+      - error.type
+      - clinscribe.cache_hit
+      - clinscribe.prompt_version
+      - clinscribe.encounter_id
+      - clinscribe.redacted_attributes
+    # RE2 patterns for structured PHI in the values that remain
+    blocked_values:
+      - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+      - "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+      - "\\(?\\b\\d{3}\\)?[-. ]?\\d{3}[-. ]?\\d{4}\\b"
+      - "\\b\\d{1,2}/\\d{1,2}/\\d{2,4}\\b"
+      - "\\b(19|20)\\d{2}-\\d{2}-\\d{2}\\b"
+    summary: info
   batch: {}
 
 exporters:
-  # Local copy of every exported signal; the PHI leak test (task 10) scans it
   file/traces:
     path: /artifacts/otel/traces.jsonl
-  file/logs:
-    path: /artifacts/otel/logs.jsonl
+  otlphttp/langfuse:
+    endpoint: ${env:LANGFUSE_OTLP_ENDPOINT}
+    auth:
+      authenticator: basicauth/langfuse
 
 service:
-  extensions: [health_check]
+  extensions: [health_check, basicauth/langfuse]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [file/traces]
-    logs:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [file/logs]
+      processors: [memory_limiter, redaction, batch]
+      exporters: [file/traces, otlphttp/langfuse]
