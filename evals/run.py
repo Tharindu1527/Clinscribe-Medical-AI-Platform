@@ -6,10 +6,12 @@ Reports are written to evals/reports/.
 import sys
 from collections.abc import Callable
 
-from evals.privacy import deid_eval
+from evals.privacy import deid_eval, leak_test
 
+# `all` runs every suite; `leak` needs the stack and makes ~20 real LLM calls
 SUITES: dict[str, list[Callable[[], int]]] = {
     "privacy": [deid_eval.main],
+    "leak": [leak_test.main],
 }
 
 

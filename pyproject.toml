@@ -45,8 +45,9 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "S", "PT", "TID"]
 # Tests and helper scripts run CLI tools (docker, npm, ollama) found on PATH by design
 "tests/**" = ["S101", "S603", "S607"]
 "scripts/**" = ["S603", "S607"]
-# Seeded pseudo-random synthetic data for evaluations, never used for secrets
-"evals/**" = ["S311"]
+# Seeded pseudo-random synthetic data for evaluations, never used for secrets;
+# the leak test runs docker compose from PATH
+"evals/**" = ["S311", "S603", "S607"]
 # The gateway client and the speech-to-speech plugin are the only places allowed to import
 # provider SDKs (CLAUDE.md non-negotiable rules, ADR-0001).
 "llmops/gateway/**" = ["TID251"]

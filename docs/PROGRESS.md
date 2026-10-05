@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–9 done; gates a and c pass; next: task 10 PHI leak test, gate b)**
+Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–10 done; gates a, b and c pass; left: task 11 CI, task 12 exit)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -36,7 +36,7 @@ Run with `just gate 1`.
 | 7 | **Telemetry with redaction:** OTel setup in `llmops/telemetry` with GenAI semantic-convention attributes; redacting exporter wrapper + logging redaction filter; collector redaction processor → Langfuse Cloud (EU) + local file exporter; LiteLLM OTel callback → collector. | Unit: a span and a log record carrying seeded PHI are exported without it. Integration: one request → one Langfuse trace (fetched via API) with api → deid → gateway spans and `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`. | ✅ 2026-10-05: unit 4/4, integration 2/2 (local export + Langfuse, no PHI); the api → deid → gateway chain check moves to task 9 (needs the endpoint) |
 | 8 | **Audit table:** append-only, hash-chained (HMAC-SHA-256 with `AUDIT_CHAIN_KEY`); DB trigger blocks UPDATE/DELETE; app role has INSERT/SELECT only; advisory lock keeps order; `just audit-verify`. | Tests: chain verifies after 100 appends including 10 concurrent; UPDATE and DELETE as the app role raise; a manual tamper (as owner) is reported at the exact row. | ✅ 2026-10-05: 8/8 pass; `just audit-verify` OK |
 | 9 | **Pipeline endpoint:** FastAPI `/health` and `POST /v1/dev/complete` (text → deid → gateway → answer), writing an audit record (actor, model, prompt version, trace id). | Integration: the endpoint returns an answer; an audit row exists with the same trace id as the Langfuse trace. | ✅ 2026-10-05: live 1/1 (answer, audit row = trace id, Langfuse trace has api + deid + gateway spans, no seeded PHI) |
-| 10 | **PHI leak test (gate b):** `evals/privacy/leak_test.py` seeds 20 transcripts with fake PHI, sends them through the endpoint, then scans the collector file export, `docker compose logs` for every service, Langfuse traces for the run, LiteLLM spend logs and the audit table. | 0 leaks. Positive control: the scanner finds 100% of seed values in a planted file. Report in `evals/reports/privacy/`. | ☐ |
+| 10 | **PHI leak test (gate b):** `evals/privacy/leak_test.py` seeds 20 transcripts with fake PHI, sends them through the endpoint, then scans the collector file export, `docker compose logs` for every service, Langfuse traces for the run, LiteLLM spend logs and the audit table. | 0 leaks. Positive control: the scanner finds 100% of seed values in a planted file. Report in `evals/reports/privacy/`. | ✅ 2026-10-05: 0 leaks in 6 sinks (66 seed values), control 100% (gate b) |
 | 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ☐ |
 | 12 | **Phase 1 exit:** `just gate 1`; `docs/runbooks/local-setup.md`; failover latency p50/p95 (20 calls, normal vs primary down); measured memory per service. | On a fresh clone, following the runbook: `just up; just fhir-load; just gate 1` passes. PROGRESS updated with the numbers. | ☐ |
 
@@ -137,9 +137,19 @@ Run with `just gate 1`.
   Langfuse holds one trace with `POST /v1/dev/complete`, `POST /deidentify` and `chat clinscribe-default`
   spans (closes the deferred task 7 check). `just lint` clean; `just test` 111 passed; memory 2.91 GB.
 
+- 2026-10-05: Task 10 done — `evals/privacy/leak_test.py` (`just eval leak`): 20 synthetic transcripts
+  (Faker seed 1234, 66 seed values) through `POST /v1/dev/complete`, then scans the collector export,
+  `docker compose logs`, Langfuse v2 observations, LiteLLM spend logs, the audit table and the de-ID
+  mapping table. Run `f3d5918c`: **0 leaks in every sink, positive control 100% — gate b passes**
+  (`evals/reports/privacy/leak_test.md`). First run flagged `AGE_OVER_89` in three sinks; evidence showed
+  `"input_tokens": 100` matching the seeded age 100, so ages are now matched only in age context
+  ("100-year-old", "aged 100"), with a regression test. `just lint` clean; `just test` 116 passed;
+  audit chain OK (449 rows).
+
 ## Next
 
-- Task 10: PHI leak test (gate b). Expect the name/place NER gap to show up; decide the fix with numbers.
+- Task 11: CI (needs your GitHub remote).
+- Task 12: `just gate 1`, `docs/runbooks/local-setup.md`, failover latency p50/p95, fresh-clone check.
 - Resume: Ollama `llama3.2:3b` pull (running), then re-run `just test-live` for the local step.
 
 ## Blockers
@@ -157,10 +167,12 @@ Run with `just gate 1`.
 
 ## Open questions
 
-- **Gate (b) risk:** de-ID v0 misses ~5% of names and ~25% of invented place names (spaCy NER). The task 10
-  leak test needs 0 leaks, so it will fail on names unless NER improves. Options: name gazetteer from the
-  Faker/Census name lists as a recogniser (cheap, measurable), `en_core_web_lg` (compare in the eval), or
-  pull part of the Phase 5 LoRA NER forward. Decide at task 10 with measurements.
+- **PHI reaching the LLM (outside gate b).** Gate b passes because traces, logs and stores never hold
+  message text. But the LLM still saw 2 of 66 seed values in the leak run (both invented place names that
+  spaCy missed); the de-ID eval shows PERSON 0.95 and LOCATION 0.75 recall. CLAUDE.md requires no PHI to reach
+  an LLM. Options: a place/name gazetteer recogniser (cheap, measurable), `en_core_web_lg` (compare in the
+  eval), or pull the Phase 5 LoRA NER forward. Recommend deciding before Phase 2 sends real-looking
+  transcripts; it does not block the Phase 1 gates as written.
 - De-ID model changed from the planned `en_core_web_lg` to `en_core_web_md` (33 MB vs 401 MB on a slow link,
   ~0.3 vs ~1 GB RAM, near-equal published NER F1); `DEID_SPACY_MODEL` switches it for a comparison.
 - `/reidentify` HTTP route deferred to Phase 3 (needs authentication); re-identification exists as a library

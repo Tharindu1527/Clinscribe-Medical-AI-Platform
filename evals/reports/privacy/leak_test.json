@@ -1,0 +1,36 @@
+{
+  "run": "f3d5918c",
+  "transcripts": 20,
+  "seed_values": 66,
+  "faker_seed": 1234,
+  "leaks_per_sink": {
+    "collector file export": 0,
+    "docker compose logs": 0,
+    "Langfuse observations": 0,
+    "LiteLLM spend logs": 0,
+    "audit table": 0,
+    "de-ID mapping table": 0
+  },
+  "leaked_types_per_sink": {
+    "collector file export": [],
+    "docker compose logs": [],
+    "Langfuse observations": [],
+    "LiteLLM spend logs": [],
+    "audit table": [],
+    "de-ID mapping table": []
+  },
+  "sink_bytes_scanned": {
+    "collector file export": 436091,
+    "docker compose logs": 918027,
+    "Langfuse observations": 249069,
+    "LiteLLM spend logs": 199999,
+    "audit table": 14180,
+    "de-ID mapping table": 13641
+  },
+  "positive_control_recall": 1.0,
+  "llm_exposed_seed_values": 2,
+  "llm_exposed_by_type": {
+    "LOCATION": 2
+  },
+  "gate_passed": true
+}
