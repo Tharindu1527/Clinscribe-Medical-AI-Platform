@@ -81,6 +81,10 @@ test-live *args:
 eval suite="all":
     uv run python -m evals.run {{suite}}
 
+# Recompute the audit log hash chain; exit 1 and name the first broken row if tampered
+audit-verify:
+    uv run python -m scripts.audit_verify
+
 # Apply pending SQL migrations to the clinscribe database (idempotent)
 migrate:
     uv run python -m scripts.migrate

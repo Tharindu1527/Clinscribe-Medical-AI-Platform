@@ -11,13 +11,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from config.db import app_conninfo
 from config.settings import Settings
 from llmops.telemetry.setup import configure_logging, configure_tracing, instrument
 from privacy.deid.engine import Deidentifier, build_analyzer
 from privacy.deid.store import PostgresStore
 
 SERVICE = "deid"
-APP_DB_USER = "app"
 
 
 class DeidRequest(BaseModel):
@@ -35,20 +35,12 @@ class DeidResponse(BaseModel):
     replacements: list[ReplacementOut]
 
 
-def conninfo(settings: Settings) -> str:
-    return (
-        f"host={settings.postgres_host} port={settings.postgres_port} dbname=clinscribe "
-        f"user={APP_DB_USER} password={settings.app_db_password.get_secret_value()} "
-        "connect_timeout=10"
-    )
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
     configure_logging()
     provider = configure_tracing(SERVICE, settings.otel_exporter_otlp_endpoint)
-    store = PostgresStore(conninfo(settings), settings.deid_mapping_key)
+    store = PostgresStore(app_conninfo(settings), settings.deid_mapping_key)
     app.state.deidentifier = Deidentifier(build_analyzer(settings.deid_spacy_model), store)
     yield
     provider.shutdown()

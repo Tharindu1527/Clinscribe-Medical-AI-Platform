@@ -5,8 +5,8 @@ import uuid
 import httpx
 import psycopg
 
+from config.db import owner_conninfo
 from config.settings import Settings
-from scripts.migrate import owner_conninfo
 
 DEID = "http://127.0.0.1:8001"
 PHONE = "617-555-0142"

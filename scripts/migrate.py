@@ -9,17 +9,10 @@ from pathlib import Path
 
 import psycopg
 
+from config.db import owner_conninfo
 from config.settings import Settings
 
 MIGRATIONS = Path(__file__).resolve().parents[1] / "infra" / "postgres" / "migrations"
-
-
-def owner_conninfo(settings: Settings) -> str:
-    return (
-        f"host={settings.postgres_host} port={settings.postgres_port} dbname=clinscribe "
-        f"user={settings.postgres_user} password={settings.postgres_password.get_secret_value()} "
-        "connect_timeout=10"
-    )
 
 
 def main() -> int:
