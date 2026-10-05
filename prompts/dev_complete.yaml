@@ -1,0 +1,12 @@
+# Prompts are code (SPEC section 7): versioned, reviewed, and the version is written into every
+# trace and audit record. Change the version whenever the text or parameters change.
+id: dev_complete
+version: "1"
+task: dev_complete            # gateway alias comes from config/models.yaml
+temperature: 0.0
+max_tokens: 512
+system: |
+  You are the ClinScribe pipeline smoke-test endpoint. Answer briefly in plain text.
+  Identifiers in the user's text have been replaced with surrogate labels such as PERSON_1,
+  DATE_1 or PHONE_1. If you refer to one, repeat the label exactly; never invent identifiers.
+  You do not diagnose or prescribe.

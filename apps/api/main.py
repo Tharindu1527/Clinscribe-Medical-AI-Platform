@@ -1,21 +1,42 @@
-"""ClinScribe API. Task 3 provides only the health endpoint; task 9 adds the pipeline endpoint."""
+"""ClinScribe API. Phase 1: health and the pipeline smoke endpoint (de-ID -> LLM -> audit)."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
+from pydantic import BaseModel, Field
 
+from apps.api.audit import AuditLog
+from apps.api.pipeline import Pipeline
+from config.db import app_conninfo
 from config.settings import Settings
+from llmops.gateway.client import GatewayClient, alias_for
+from llmops.prompts import load_prompt
 from llmops.telemetry.setup import configure_logging, configure_tracing, instrument
+from privacy.deid.client import DeidClient
 
 SERVICE = "api"
+ID_PATTERN = r"^[A-Za-z0-9._-]{1,64}$"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = Settings()
     configure_logging()
-    provider = configure_tracing(SERVICE, Settings().otel_exporter_otlp_endpoint)
+    provider = configure_tracing(SERVICE, settings.otel_exporter_otlp_endpoint)
+    prompt = load_prompt("dev_complete")
+    deid = DeidClient(settings.deid_url)
+    gateway = GatewayClient(settings.gateway_url, settings.litellm_app_key)
+    app.state.pipeline = Pipeline(
+        deid=deid,
+        gateway=gateway,
+        audit=AuditLog(app_conninfo(settings), settings.audit_chain_key),
+        prompt=prompt,
+        alias=alias_for(prompt.task),
+    )
     yield
+    deid.close()
+    gateway.close()
     provider.shutdown()
 
 
@@ -23,6 +44,37 @@ app = FastAPI(title="ClinScribe API", version="0.1.0", lifespan=lifespan)
 instrument(app, SERVICE)
 
 
+class CompleteRequest(BaseModel):
+    encounter_id: str = Field(pattern=ID_PATTERN)
+    text: str = Field(min_length=1, max_length=20_000)
+
+
+class CompleteResponse(BaseModel):
+    text: str  # surrogate form; re-identification needs authentication (Phase 3)
+    model: str
+    prompt_version: str
+    trace_id: str
+    audit_seq: int
+    phi_replaced: dict[str, int]
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": SERVICE}
+
+
+@app.post("/v1/dev/complete")
+def dev_complete(
+    request: CompleteRequest,
+    x_actor: str = Header(default="dev", pattern=ID_PATTERN),  # real identity arrives with auth
+) -> CompleteResponse:
+    pipeline: Pipeline = app.state.pipeline
+    result = pipeline.run(request.text, request.encounter_id, actor=x_actor)
+    return CompleteResponse(
+        text=result.text,
+        model=result.model,
+        prompt_version=result.prompt_version,
+        trace_id=result.trace_id,
+        audit_seq=result.audit_seq,
+        phi_replaced=result.replaced,
+    )

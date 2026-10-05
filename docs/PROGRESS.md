@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–8 done; gates a and c pass; next: task 9 pipeline endpoint)**
+Last updated: 2026-10-05 · Current phase: **1 — Foundations (tasks 1–9 done; gates a and c pass; next: task 10 PHI leak test, gate b)**
 
 ## Agreed decisions (2026-10-04)
 
@@ -35,7 +35,7 @@ Run with `just gate 1`.
 | 6 | **De-ID service v0:** Presidio + spaCy `en_core_web_lg` + custom recognisers for the 18 Safe Harbor types; consistent surrogates per encounter (`PATIENT_1`); Fernet-encrypted mapping in Postgres; FastAPI `/deidentify` (and internal-only `/reidentify`). Seeded fake-PHI corpus generated with Faker. | `just eval privacy` writes `evals/reports/privacy/deid_v0.md` with recall per entity type. Structured types (MRN, phone, email, SSN, dates, ZIP, URL, IP, IDs) recall = 1.0; name recall recorded as the Phase 5 baseline. Same input → same surrogates. Raw DB row contains no plaintext. | ✅ 2026-10-05: 15/15 structured types recall 1.000; PERSON 0.95, LOCATION 0.75 (baseline) |
 | 7 | **Telemetry with redaction:** OTel setup in `llmops/telemetry` with GenAI semantic-convention attributes; redacting exporter wrapper + logging redaction filter; collector redaction processor → Langfuse Cloud (EU) + local file exporter; LiteLLM OTel callback → collector. | Unit: a span and a log record carrying seeded PHI are exported without it. Integration: one request → one Langfuse trace (fetched via API) with api → deid → gateway spans and `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`. | ✅ 2026-10-05: unit 4/4, integration 2/2 (local export + Langfuse, no PHI); the api → deid → gateway chain check moves to task 9 (needs the endpoint) |
 | 8 | **Audit table:** append-only, hash-chained (HMAC-SHA-256 with `AUDIT_CHAIN_KEY`); DB trigger blocks UPDATE/DELETE; app role has INSERT/SELECT only; advisory lock keeps order; `just audit-verify`. | Tests: chain verifies after 100 appends including 10 concurrent; UPDATE and DELETE as the app role raise; a manual tamper (as owner) is reported at the exact row. | ✅ 2026-10-05: 8/8 pass; `just audit-verify` OK |
-| 9 | **Pipeline endpoint:** FastAPI `/health` and `POST /v1/dev/complete` (text → deid → gateway → answer), writing an audit record (actor, model, prompt version, trace id). | Integration: the endpoint returns an answer; an audit row exists with the same trace id as the Langfuse trace. | ☐ |
+| 9 | **Pipeline endpoint:** FastAPI `/health` and `POST /v1/dev/complete` (text → deid → gateway → answer), writing an audit record (actor, model, prompt version, trace id). | Integration: the endpoint returns an answer; an audit row exists with the same trace id as the Langfuse trace. | ✅ 2026-10-05: live 1/1 (answer, audit row = trace id, Langfuse trace has api + deid + gateway spans, no seeded PHI) |
 | 10 | **PHI leak test (gate b):** `evals/privacy/leak_test.py` seeds 20 transcripts with fake PHI, sends them through the endpoint, then scans the collector file export, `docker compose logs` for every service, Langfuse traces for the run, LiteLLM spend logs and the audit table. | 0 leaks. Positive control: the scanner finds 100% of seed values in a planted file. Report in `evals/reports/privacy/`. | ☐ |
 | 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ☐ |
 | 12 | **Phase 1 exit:** `just gate 1`; `docs/runbooks/local-setup.md`; failover latency p50/p95 (20 calls, normal vs primary down); measured memory per service. | On a fresh clone, following the runbook: `just up; just fhir-load; just gate 1` passes. PROGRESS updated with the numbers. | ☐ |
@@ -130,10 +130,16 @@ Run with `just gate 1`.
   Tests 8/8 (100 appends incl. 10 concurrent; app UPDATE/DELETE/TRUNCATE refused; owner blocked by trigger;
   tamper found at the exact seq inside a rolled-back transaction). `just lint` clean; `just test` 108 passed.
 
+- 2026-10-05: Task 9 done — `POST /v1/dev/complete` (`apps/api/pipeline.py`): de-ID client → gateway with the
+  versioned prompt `prompts/dev_complete.yaml` (`dev_complete@v1`) → audit row (actor, model, prompt version,
+  trace id, token counts, PHI type counts; no PHI). Answer stays in surrogate form until Phase 3 auth.
+  `just test-live`: one real request returns an answer, its audit row carries the same trace id, and
+  Langfuse holds one trace with `POST /v1/dev/complete`, `POST /deidentify` and `chat clinscribe-default`
+  spans (closes the deferred task 7 check). `just lint` clean; `just test` 111 passed; memory 2.91 GB.
+
 ## Next
 
-- Task 9: pipeline endpoint `POST /v1/dev/complete` (deid → gateway → audit), plus the deferred task 7
-  check (one trace with api → deid → gateway spans in Langfuse).
+- Task 10: PHI leak test (gate b). Expect the name/place NER gap to show up; decide the fix with numbers.
 - Resume: Ollama `llama3.2:3b` pull (running), then re-run `just test-live` for the local step.
 
 ## Blockers
