@@ -34,6 +34,9 @@ JAR_PATH = SYNTHEA_DIR / "synthea-with-dependencies.jar"
 FHIR_OUT = SYNTHEA_DIR / "output" / "fhir"
 SYNTHEA_ID_SYSTEM = "https://github.com/synthetichealth/synthea"
 FHIR_JSON = "application/fhir+json"
+# HAPI reuses search results for ~60 s; without this, a "not found" from just before a load is
+# served again and the patient is posted twice (seen in CI, where the reload test runs right after).
+NO_CACHE = {"Cache-Control": "no-cache"}
 
 
 def sha256_of(path: Path) -> str:
@@ -115,6 +118,7 @@ def load(client: httpx.Client) -> dict[str, int]:
             found = client.get(
                 "Patient",
                 params={"identifier": f"{SYNTHEA_ID_SYSTEM}|{patient_id}", "_summary": "count"},
+                headers=NO_CACHE,
             )
             found.raise_for_status()
             if found.json().get("total", 0) > 0:
@@ -133,7 +137,11 @@ def main() -> int:
     generate()
     with httpx.Client(base_url=settings.fhir_base_url.rstrip("/") + "/", timeout=300) as client:
         counts = load(client)
-        total = client.get("Patient", params={"_summary": "count"}).json().get("total")
+        total = (
+            client.get("Patient", params={"_summary": "count"}, headers=NO_CACHE)
+            .json()
+            .get("total")
+        )
     print(f"bundles loaded: {counts['loaded']}, skipped (already present): {counts['skipped']}")
     print(f"patients on the FHIR server: {total}")
     return 0

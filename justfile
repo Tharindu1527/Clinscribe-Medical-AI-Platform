@@ -18,12 +18,16 @@ doctor:
 gen-keys:
     uv run python -m scripts.gen_keys
 
+# Create host folders that containers write to (see scripts/prepare_dirs.py)
+prepare-dirs:
+    uv run python -m scripts.prepare_dirs
+
 # Start core + fhir (+ extra profiles, e.g. `just up rag`), wait until healthy
-up *profiles:
+up *profiles: prepare-dirs
     docker compose --profile core --profile fhir {{prepend("--profile ", profiles)}} up -d --build --wait --wait-timeout 300
 
 # Start every profile (needs more than the 10 GB WSL cap later on; see ADR-0003)
-up-all:
+up-all: prepare-dirs
     docker compose --profile core --profile fhir --profile rag --profile voice --profile obs up -d --build --wait --wait-timeout 600
 
 # Stop all services (data volumes are kept)

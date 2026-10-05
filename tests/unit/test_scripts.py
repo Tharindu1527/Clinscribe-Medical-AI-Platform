@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 
 import pytest
 
 from scripts.doctor import is_on_system_drive, wsl_memory_gb
 from scripts.gen_keys import GENERATORS, fill_env
+from scripts.prepare_dirs import prepare
 from scripts.stats import parse_size
 
 
@@ -51,6 +53,15 @@ def test_gen_keys_appends_keys_added_to_example_later(tmp_path: Path) -> None:
 )
 def test_parse_docker_size(text: str, expected: float) -> None:
     assert parse_size(text) == expected
+
+
+def test_prepare_dirs_creates_writable_folders(tmp_path: Path) -> None:
+    target = tmp_path / ".artifacts" / "otel"
+    prepare([target])
+    prepare([target])  # idempotent
+    assert target.is_dir()
+    if os.name == "posix":
+        assert target.stat().st_mode & 0o777 == 0o777  # the collector's user can write
 
 
 def test_generated_keys_are_unique() -> None:

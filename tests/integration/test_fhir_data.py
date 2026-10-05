@@ -14,7 +14,8 @@ FHIR = "http://127.0.0.1:8080/fhir/"
 
 @pytest.fixture(scope="module")
 def fhir(stack: list[dict[str, str]]) -> Iterator[httpx.Client]:
-    with httpx.Client(base_url=FHIR, timeout=120) as client:
+    # no-cache: counts must reflect what is stored now, not HAPI's ~60 s search cache
+    with httpx.Client(base_url=FHIR, timeout=120, headers={"Cache-Control": "no-cache"}) as client:
         total = client.get("Patient", params={"_summary": "count"}).json().get("total", 0)
         if total == 0:
             if os.environ.get("CLINSCRIBE_REQUIRE_STACK") == "1":
