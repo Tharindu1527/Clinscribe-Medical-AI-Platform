@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–6 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–7 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -103,7 +103,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ✅ 2026-10-06: dense recall@10 0.809, nDCG@10 0.583 |
 | 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ✅ 2026-10-06: measured; hybrid not better at top 10 (CI spans 0) |
 | 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ✅ 2026-10-06: hybrid + ColBERT recall@10 0.876; ADR-0006 proposed |
-| 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ☐ |
+| 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ✅ 2026-10-06: hybrid + ColBERT + context recall@10 0.909, MRR 0.680 |
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ☐ |
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ☐ |
 | 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ☐ |
@@ -329,14 +329,33 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   unanswerable questions (median top-1 30.8 vs 30.3): abstention must come from generation (task 10).
   Unit 7/7, integration 2/2. `just lint` clean; `just test` 197 passed.
 
+- 2026-10-06: **Phase 2 task 7 (ablation step 4, contextual retrieval)** — `retrieval/contextual.py` and
+  `prompts/contextual_prefix.yaml` (v1): the local `llama3.2:3b` writes a ≤ 60-word prefix per chunk from
+  the title, source, section heading and the first 600 words of the section (Anthropic's prompt adapted to a
+  2,048-token context; chunks of a section share the prompt prefix for Ollama's cache). New gateway key
+  `clinscribe-batch` (`LITELLM_BATCH_KEY`, `just gateway-keys`): local alias only, 240 rpm, verified 403 on
+  cloud aliases, so the job cannot spend free-tier quota. 8,104 prefixes in 3 h 20 min (0.68/s, p50 1.3 s,
+  ~1,300 input / 50 output tokens), cached and resumable (`data/corpus/contextual/v1/`); median 36 words;
+  0.4% contain a number absent from their chunk/title/section (section numbers from the excerpt). Re-indexed
+  with `--variant contextual`: dense 81 min, ColBERT 14 min (359 MB). Results (paired bootstrap):
+  **hybrid + ColBERT + context vs best so far (hybrid + ColBERT): MRR@10 0.680 (+0.073, CI [+0.028,
+  +0.118]), nDCG@10 0.695 (+0.057, CI [+0.018, +0.095]), recall@1 0.565 (+0.096), recall@10 0.909 (+0.033,
+  CI [−0.010, +0.077])**; vs dense baseline recall@10 +0.100 (CI [+0.053, +0.148]), MRR +0.119; latency
+  p50 144 ms / p95 191 ms (no query-time cost). BM25 gains most (recall@10 0.699 → 0.799, +0.100, CI
+  [+0.057, +0.148]); dense alone +0.033 recall@10 (n.s.), nDCG +0.040 (yes). Best so far is now hybrid +
+  ColBERT over the contextual corpus. Incident: during the prefix run the C: page file grew 9 → 15 GB (Ollama
+  llama-server 8 GB commit + WSL 7.5 GB), C: fell to 2.9 GB; stopped unneeded services and dropped the WSL
+  cache, then ran with a monitor that would pause the job below 1.5 GB (not triggered). A reboot shrinks
+  the page file. Unit 6/6 (contextual). `just lint` clean; `just test` 203 passed.
+
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
-- You: review ADR-0006 (reranker: ColBERT over the hybrid pool).
-- Phase 2 task 7: contextual retrieval (step 4). Design point: Anthropic-style prefixes put the whole document
-  in the prompt, but the local model runs with a 2,048-token context and WHO PDFs are 100+ pages, so the
-  context given to the LLM will be the section (title + section heading + nearby text); 8,104 prefixes on the
-  local 3B model through the gateway (no quota), cached; then re-embed dense (66 min) and ColBERT (14 min).
+- You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
+  shrinks after a restart.
+- Phase 2 task 8: late chunking (step 5), compared with contextual retrieval (not stacked, per the plan):
+  ModernBERT Embed encodes a whole section (up to 8k tokens) and pools token vectors per chunk; dense only
+  (late chunking is an embedding method), measured against dense_ctx and then in the full pipeline.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
