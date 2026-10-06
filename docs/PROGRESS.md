@@ -197,19 +197,16 @@ Lowest C: free space during the whole run: 2.35 GB.
 - You: finish task 11 — open a throwaway PR with a deliberately failing test and confirm CI goes red (I can
   prepare the branch), then add branch protection on `main` requiring the `lint-unit` check.
 - Then Phase 1 is closed. Before Phase 2: decide the de-ID name/place gap (Open questions), and plan Phase 2.
-- You (optional, safer than "No paging file"): C: page file custom size with initial = maximum (e.g. 2048 MB),
-  D: system managed; run Windows Memory Diagnostic first.
+- You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 - `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
 - Push the CI fix, add the repository secrets, confirm both CI jobs are green; close task 11.
 
 ## Blockers
 
-- **C: page file (managed, not blocking).** The system-managed `C:\pagefile.sys` grows under memory load and
-  shrinks afterwards; moving it ended in a blue screen (0x1A), so it stays. Working limits that kept the full
-  gate run above 2.35 GB free on C:: WSL capped at 6 GB, local model `num_ctx 2048` + `keep_alive 30s`, the
-  local-model check kept out of `just gate 1` (it is the Phase 5 gate), `just down` when idle, and the C: guard
-  (stop the stack below 1 GB) for long runs. Phase 2 (Qdrant, Neo4j, encoders) needs more than 6 GB WSL; revisit
-  then (fixed-size C: page file, or more free space on C:).
+- **C: space (resolved 2026-10-06).** Moved the Ubuntu WSL distro to `D:\WSL\Ubuntu` (`wsl --manage --move`,
+  10 GB) and VS Code extensions to `D:\devcache\vscode\extensions` (junction at the old path, 59,066 files
+  verified): C: went from 3.6 to 16.0 GB free, so the system-managed page file can grow safely. WSL cap back to
+  10 GB (ADR-0003). Kept: local model `num_ctx 2048` + `keep_alive 30s`, local-model check in the Phase 5 gate.
 - LiteLLM was OOM-killed (`exit 137`) once during a start-up under host memory pressure; it ran at 520–630 MB of
   its 1 GB limit otherwise and was healthy in the passing gate run. Watch for repeats.
 - All project caches are on D: (uv, Python, tools, Ollama, HF, npm, Docker data, WSL swap, pytest temp);
