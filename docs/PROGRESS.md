@@ -247,11 +247,24 @@ Memory estimate: current stack ~2.4 GB + Qdrant, Neo4j and encoders ~3.5 GB ≈ 
   and **0 of 66 seed values reached the LLM** (was 2). A first leak-test run crashed with an error my
   output filter hid; the rerun passed. `just lint` clean; `just test` 137 passed (stack required).
 
+- 2026-10-06: Phase 2 plan approved (corpus scope, golden-set review, eval budget); ADRs 0001–0004 approved.
+- 2026-10-06: **Phase 2 task 0** — licences verified at the source: WHO (4 docs, CC BY-NC-SA 3.0 IGO, from
+  IRIS metadata), PMC OA (CC BY/CC0 only, checked per article), openFDA (CC0), DDInter 2.0 (CC BY-NC-SA 4.0).
+- 2026-10-06: **Phase 2 task 1** — `just ingest` (`retrieval/ingest`, scope in `config/corpus.yaml`): 4 WHO
+  guidelines (PDF outline sections), 48 FDA labels (newest single-ingredient prescription label per drug), 183
+  PMC reviews (JATS, CC BY/CC0, 2016–2026) → 235 docs, 8,104 section-aware chunks (median 195 words), each with
+  URL, section and licence. Quality fixes found by inspecting the output, each with a regression test: the FDA
+  search returned combination products (e.g. "clarithromycin" → an H. pylori kit); veterinary reviews (equine
+  asthma) excluded; WHO PDF text repaired (fontTools for CFF fonts; running headers; GRADE ☐/⊕/◯ glyphs; the
+  PEN 2020 offset-29 font decoded, which also restored digits — `splitlines()` had turned "140/90" into
+  "140/0"); unverified glyphs left as `[?]` (51, all in PEN charts) rather than guessed; LaTeX formulas →
+  `[formula]`. Garbled chunks 0. `just lint` clean; 126 unit tests passed; corpus tests 6/6. Raw cache and
+  corpus stay in `data/` (git-ignored, on D:).
+
 ## Next
-- Phase 2 (Advanced RAG, SPEC §12): plan proposed 2026-10-06, awaiting approval.
+- Phase 2 task 2: `rag` Compose profile (Qdrant, Neo4j) and the dense baseline index.
+- Phase 2 task 3: golden set v1 (200+), drafted from source passages; you or a reviewer check a 20% sample.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
-- `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
-- Push the CI fix, add the repository secrets, confirm both CI jobs are green; close task 11.
 
 ## Blockers
 
