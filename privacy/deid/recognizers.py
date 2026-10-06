@@ -97,6 +97,42 @@ PATTERNS: dict[str, list[str]] = {
     ],
 }
 STRUCTURED_TYPES = frozenset(PATTERNS)
+
+# Names and places found from context cues (de-ID v1). spaCy alone missed names after relation words
+# and invented towns in address lines; a cue makes the span unambiguous. Measured in deid_eval.
+_NAME = r"[A-Z][a-zA-Z'’-]*[a-z]"  # Smith, McDonald, O'Brien, Smith-Jones; not ICU or BP
+_NAMES_2_3 = rf"{_NAME}(?:\s+{_NAME}){{1,2}}"
+_NAMES_1_4 = rf"{_NAME}(?:\s+{_NAME}){{0,3}}"
+_TITLE = r"(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof)\.?"
+_RELATION = (
+    r"(?:[Dd]aughter|[Ss]on|[Ww]ife|[Hh]usband|[Mm]other|[Ff]ather|[Ss]ister|[Bb]rother|[Pp]artner|"
+    r"[Ss]pouse|[Cc]aregiver|[Cc]arer|[Gg]uardian|[Nn]ext of kin|[Ee]mergency contact|[Cc]ontact|"
+    r"[Pp]atient|[Pp]t|[Nn]ame)"
+)
+_STATES = (
+    "AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|"
+    "NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|PR"
+)
+CONTEXT_PATTERNS: dict[str, list[str]] = {
+    "PERSON": [
+        # a title before one to three name words: "Dr. Wells", "Mrs. Taylor Smith"
+        rf"\b{_TITLE}\s+(?P<v>{_NAME}(?:\s+{_NAME}){{0,2}})",
+        # a relation or role word before a full name: "Daughter Morgan Marsh", "Patient: Ada Jones"
+        rf"\b{_RELATION}\s*:?\s+(?:{_TITLE}\s+)?(?P<v>{_NAMES_2_3})",
+        # a full name right before an identifier: "Tiffany Holloway (MRN", "Ada Jones, DOB"
+        rf"(?P<v>{_NAMES_2_3})(?=\s*[,(]\s*(?:MRN|DOB|D\.O\.B\.?|SSN|NHS|date of birth)\b)",
+    ],
+    "LOCATION": [
+        # a town before a US state code in an address: "Jacquelineland, MA 02115"
+        rf"(?P<v>{_NAMES_1_4}),\s+(?:{_STATES})\b(?![a-z])",
+        # residence and travel: "lives in Springfield", "moved to New Barry"
+        rf"\b(?:lives|living|lived|resides|residing|moved|relocated|visiting|visited|travel(?:l)?ed|"
+        rf"returned|arrived|born)\s+(?:in|at|near|to|from)\s+(?P<v>{_NAMES_1_4})",
+        # referral source: "Referred by Dr. Ada Jones from New Barry"
+        rf"\b(?:[Rr]eferred|[Tt]ransferred|[Ss]ent)\b[^\n;]{{0,80}}?\bfrom\s+(?P<v>{_NAMES_1_4})",
+    ],
+}
+CUE_SCORE = 0.88  # above spaCy (0.85), below exact formats (0.9)
 # Patterns anchored on a keyword ("account number ...") beat bare formats: a 10-digit account
 # number also looks like a phone number, and the keyword says which one it is.
 KEYWORD_ANCHORED = frozenset(
@@ -116,11 +152,18 @@ class _Compiled:
 class RegexRecognizer(EntityRecognizer):
     """Presidio recogniser for regexes whose named group `v` is the exact PHI span."""
 
-    def __init__(self, patterns: dict[str, list[str]] = PATTERNS) -> None:
+    def __init__(
+        self,
+        patterns: dict[str, list[str]] = PATTERNS,
+        name: str = "clinscribe-regex",
+        score: float | None = None,
+    ) -> None:
         self._compiled = [
             _Compiled(entity, re.compile(p)) for entity, plist in patterns.items() for p in plist
         ]
-        super().__init__(supported_entities=list(patterns), name="clinscribe-regex")
+        self._fixed_score = score
+        self._recognizer_name: str = name  # Presidio's own `name` attribute is untyped
+        super().__init__(supported_entities=list(patterns), name=name)
 
     def load(self) -> None:
         return None
@@ -132,8 +175,21 @@ class RegexRecognizer(EntityRecognizer):
         for compiled in self._compiled:
             if compiled.entity not in entities:
                 continue
-            score = KEYWORD_SCORE if compiled.entity in KEYWORD_ANCHORED else FORMAT_SCORE
+            if self._fixed_score is not None:
+                score = self._fixed_score
+            else:
+                score = KEYWORD_SCORE if compiled.entity in KEYWORD_ANCHORED else FORMAT_SCORE
             for match in compiled.regex.finditer(text):
                 start, end = match.span("v")
-                results.append(RecognizerResult(compiled.entity, start, end, score))
+                results.append(
+                    RecognizerResult(
+                        compiled.entity,
+                        start,
+                        end,
+                        score,
+                        recognition_metadata={
+                            RecognizerResult.RECOGNIZER_NAME_KEY: self._recognizer_name
+                        },
+                    )
+                )
         return results

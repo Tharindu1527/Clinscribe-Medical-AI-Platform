@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-06 · Current phase: **1 — Foundations: exit gate PASSES (`just gate 1` from a fresh clone);
-left: two task 11 checks that need you (red PR, branch protection)**
+Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06).** Exit gate passes from a fresh
+clone; CI green with a proven red path; `main` protected. Next: de-ID fix, then plan Phase 2 (Advanced RAG).
 
 ## Agreed decisions (2026-10-04)
 
@@ -38,7 +38,7 @@ Run with `just gate 1`.
 | 8 | **Audit table:** append-only, hash-chained (HMAC-SHA-256 with `AUDIT_CHAIN_KEY`); DB trigger blocks UPDATE/DELETE; app role has INSERT/SELECT only; advisory lock keeps order; `just audit-verify`. | Tests: chain verifies after 100 appends including 10 concurrent; UPDATE and DELETE as the app role raise; a manual tamper (as owner) is reported at the exact row. | ✅ 2026-10-05: 8/8 pass; `just audit-verify` OK |
 | 9 | **Pipeline endpoint:** FastAPI `/health` and `POST /v1/dev/complete` (text → deid → gateway → answer), writing an audit record (actor, model, prompt version, trace id). | Integration: the endpoint returns an answer; an audit row exists with the same trace id as the Langfuse trace. | ✅ 2026-10-05: live 1/1 (answer, audit row = trace id, Langfuse trace has api + deid + gateway spans, no seeded PHI) |
 | 10 | **PHI leak test (gate b):** `evals/privacy/leak_test.py` seeds 20 transcripts with fake PHI, sends them through the endpoint, then scans the collector file export, `docker compose logs` for every service, Langfuse traces for the run, LiteLLM spend logs and the audit table. | 0 leaks. Positive control: the scanner finds 100% of seed values in a planted file. Report in `evals/reports/privacy/`. | ✅ 2026-10-05: 0 leaks in 6 sinks (66 seed values), control 100% (gate b) |
-| 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ◐ 2026-10-06: run #3 on `33e7fd3` green (lint-unit 21 s, integration 8 m 2 s); red-PR check and branch protection pending (you) |
+| 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ✅ 2026-10-06: green on `a8d0733` (lint-unit + integration); throwaway PR with a failing test went red; ruleset `protect-main` requires `lint-unit` |
 | 12 | **Phase 1 exit:** `just gate 1`; `docs/runbooks/local-setup.md`; failover latency p50/p95 (20 calls, normal vs primary down); measured memory per service. | On a fresh clone, following the runbook: `just up; just fhir-load; just gate 1` passes. PROGRESS updated with the numbers. | ✅ 2026-10-06: fresh clone from GitHub at `9e300cb`, `just gate 1` 7/7 PASS |
 
 ### Phase 1 exit numbers (2026-10-06, fresh clone at `9e300cb`, after `just gate 1`)
@@ -192,11 +192,28 @@ Lowest C: free space during the whole run: 2.35 GB.
   `just gate 1` 508 s — lint, full suite, (c) FHIR, (a) failover, pipeline, (b) leak test, audit chain all PASS.
   Latency and memory in the tables above. CI run #3 (`33e7fd3`) green: lint-unit and integration.
 
-## Next
+- 2026-10-06: CI fix for a start-up race: `just up --wait` returns before HAPI serves (no shell, so no
+  healthcheck), and with Synthea data cached `fhir-load` posted 1 s later and was dropped. The loader now
+  waits for `/fhir/metadata` (≤ 300 s); reproduced and fixed locally. CI green on `a8d0733`: lint-unit and
+  integration (with Langfuse secrets).
 
-- You: finish task 11 — open a throwaway PR with a deliberately failing test and confirm CI goes red (I can
-  prepare the branch), then add branch protection on `main` requiring the `lint-unit` check.
-- Then Phase 1 is closed. Before Phase 2: decide the de-ID name/place gap (Open questions), and plan Phase 2.
+- 2026-10-06: Task 11 done — throwaway PR (`ci/red-check`, `assert 1 + 1 == 3`) showed CI red; PR closed and
+  the branch deleted; ruleset `protect-main` (active, default branch) requires `lint-unit`.
+  **Phase 1 complete.**
+
+- 2026-10-06: **De-ID v1** (ADR-0004). Added an over-redaction measure (80 PHI-free clinical sentences): v0
+  altered 17.5% (eponyms, place-named diseases, drug brands). v1 = spaCy `md` + context cues for names
+  (titles, relation words, name before MRN/DOB) and places (`City, ST`, residence, referral source) + an
+  eponym rule and a 19,079-term RxNorm lexicon (person names removed) applied to spaCy guesses. Results
+  (`evals/reports/privacy/deid_v1_en_core_web_md.md`): seeded names 1.000, places 1.000, structured 1.000,
+  over-redaction 0/80; frozen held-out set names 0.973, places 0.850. `en_core_web_lg` compared and
+  rejected (held-out places 0.650, over-redaction 1/80, 702 vs 334 MB). Leak test run `89341a14`: gate b PASS
+  and **0 of 66 seed values reached the LLM** (was 2). A first leak-test run crashed with an error my
+  output filter hid; the rerun passed. `just lint` clean; `just test` 137 passed (stack required).
+
+## Next
+- You: review the ADR texts (0001–0004; task 2 asked for your approval of 0001–0003).
+- Then plan Phase 2 (Advanced RAG, SPEC §12) for approval.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 - `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
 - Push the CI fix, add the repository secrets, confirm both CI jobs are green; close task 11.
@@ -226,14 +243,11 @@ Lowest C: free space during the whole run: 2.35 GB.
   `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-flash`), each with its own 20 requests/day free
   quota. Their answer quality differs; the Phase 2 eval decides which stay.
 
-- **PHI reaching the LLM (outside gate b).** Gate b passes because traces, logs and stores never hold
-  message text. But the LLM still saw 2 of 66 seed values in the leak run (both invented place names that
-  spaCy missed); the de-ID eval shows PERSON 0.95 and LOCATION 0.75 recall. CLAUDE.md requires no PHI to reach
-  an LLM. Options: a place/name gazetteer recogniser (cheap, measurable), `en_core_web_lg` (compare in the
-  eval), or pull the Phase 5 LoRA NER forward. Recommend deciding before Phase 2 sends real-looking
-  transcripts; it does not block the Phase 1 gates as written.
-- De-ID model changed from the planned `en_core_web_lg` to `en_core_web_md` (33 MB vs 401 MB on a slow link,
-  ~0.3 vs ~1 GB RAM, near-equal published NER F1); `DEID_SPACY_MODEL` switches it for a comparison.
+- **De-ID generalisation (after v1).** On the frozen held-out set, names 0.973 and places 0.850: misses are
+  places without a cue ("originally from X", "works in X") and a second name in a list. Seeded scores are
+  optimistic (cues were designed on that set). Next steps: Phase 2 transcripts as a harder test, a new
+  held-out set for any further tuning, and the Phase 5 fine-tuned NER. Known gap: an uncommon first name that
+  is also a drug brand (e.g. "Allegra") is not redacted when it appears alone with no cue (ADR-0004).
 - `/reidentify` HTTP route deferred to Phase 3 (needs authentication); re-identification exists as a library
   function with a round-trip test.
 

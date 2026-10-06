@@ -1,0 +1,162 @@
+{
+  "spacy_model": "en_core_web_md",
+  "snippets": 200,
+  "seed": 42,
+  "latency_ms_p50": 15.6,
+  "latency_ms_p95": 19.7,
+  "results": [
+    {
+      "entity": "DATE",
+      "n": 100,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "AGE_OVER_89",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "PHONE",
+      "n": 60,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "EMAIL",
+      "n": 40,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "SSN",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "MRN",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "HEALTH_PLAN_ID",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "ACCOUNT_NUMBER",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "LICENSE_NUMBER",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "VEHICLE_ID",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "DEVICE_ID",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "URL",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "IP_ADDRESS",
+      "n": 20,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "STREET_ADDRESS",
+      "n": 40,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "ZIP",
+      "n": 40,
+      "recall": 1.0,
+      "gate": 1.0
+    },
+    {
+      "entity": "PERSON",
+      "n": 120,
+      "recall": 1.0,
+      "gate": 0.99
+    },
+    {
+      "entity": "LOCATION",
+      "n": 60,
+      "recall": 1.0,
+      "gate": 0.98
+    }
+  ],
+  "misses_by_template": {},
+  "negative_sentences": 80,
+  "over_redacted": 0,
+  "over_redaction_rate": 0.0,
+  "heldout": [
+    {
+      "entity": "PERSON",
+      "n": 110,
+      "recall": 0.973
+    },
+    {
+      "entity": "LOCATION",
+      "n": 60,
+      "recall": 0.85
+    },
+    {
+      "entity": "DATE",
+      "n": 10,
+      "recall": 1.0
+    },
+    {
+      "entity": "PHONE",
+      "n": 20,
+      "recall": 1.0
+    },
+    {
+      "entity": "EMAIL",
+      "n": 10,
+      "recall": 1.0
+    },
+    {
+      "entity": "STREET_ADDRESS",
+      "n": 10,
+      "recall": 1.0
+    },
+    {
+      "entity": "ZIP",
+      "n": 10,
+      "recall": 1.0
+    }
+  ],
+  "heldout_misses_by_template": {
+    "LOCATION@h3": 3,
+    "LOCATION@h5": 3,
+    "LOCATION@h7": 1,
+    "LOCATION@h8": 2,
+    "PERSON@h0": 1,
+    "PERSON@h2": 2
+  },
+  "gate_passed": true,
+  "failed": []
+}
