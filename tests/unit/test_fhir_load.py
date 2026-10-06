@@ -1,6 +1,40 @@
 from pathlib import Path
 
-from scripts.fhir_load import SYNTHEA_ID_SYSTEM, bundle_order, sha256_of, synthea_patient_id
+import httpx
+import pytest
+
+from scripts.fhir_load import (
+    SYNTHEA_ID_SYSTEM,
+    bundle_order,
+    sha256_of,
+    synthea_patient_id,
+    wait_for_fhir,
+)
+
+
+def test_wait_for_fhir_retries_until_the_server_answers() -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if len(calls) == 1:
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+        if len(calls) == 2:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"resourceType": "CapabilityStatement"})
+
+    client = httpx.Client(base_url="http://fhir/fhir/", transport=httpx.MockTransport(handler))
+    wait_for_fhir(client, timeout_s=5, interval_s=0)
+    assert calls == ["/fhir/metadata"] * 3
+
+
+def test_wait_for_fhir_gives_up_with_the_last_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503)
+
+    client = httpx.Client(base_url="http://fhir/fhir/", transport=httpx.MockTransport(handler))
+    with pytest.raises(SystemExit, match="HTTP 503"):
+        wait_for_fhir(client, timeout_s=0.05, interval_s=0.01)
 
 
 def test_bundles_load_organisations_then_practitioners_then_patients() -> None:

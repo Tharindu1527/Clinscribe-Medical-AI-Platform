@@ -131,11 +131,30 @@ def load(client: httpx.Client) -> dict[str, int]:
     return counts
 
 
+def wait_for_fhir(client: httpx.Client, timeout_s: float = 300, interval_s: float = 3) -> None:
+    """Block until HAPI answers /metadata. Its image has no shell, so compose cannot healthcheck it;
+    `just up --wait` returns once the JVM is running, a minute or two before it serves requests
+    (CI failed on 2026-10-06 when cached Synthea data made the first upload come too early)."""
+    deadline = time.monotonic() + timeout_s
+    last = "no attempt"
+    while time.monotonic() < deadline:
+        try:
+            response = client.get("metadata", headers=NO_CACHE)
+            if response.status_code == 200:
+                return
+            last = f"HTTP {response.status_code}"
+        except httpx.HTTPError as exc:
+            last = type(exc).__name__
+        time.sleep(interval_s)
+    raise SystemExit(f"FHIR server not ready after {timeout_s:.0f} s ({last})")
+
+
 def main() -> int:
     settings = Settings()
     ensure_jar()
     generate()
     with httpx.Client(base_url=settings.fhir_base_url.rstrip("/") + "/", timeout=300) as client:
+        wait_for_fhir(client)
         counts = load(client)
         total = (
             client.get("Patient", params={"_summary": "count"}, headers=NO_CACHE)
