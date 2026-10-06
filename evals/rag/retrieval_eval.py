@@ -42,63 +42,83 @@ class Retriever(Protocol):
     def search(self, query: DeidentifiedText, k: int = 10) -> list[Hit]: ...
 
 
-def dense_system() -> tuple[Retriever, dict[str, Any]]:
-    from retrieval.dense import (
-        DenseRetriever,
-        SentenceTransformerEncoder,
-        connect,
-        load_chunks,
-        load_config,
-    )
-
-    cfg = load_config()
-    retriever = DenseRetriever(cfg, connect(), SentenceTransformerEncoder(cfg, cfg.query_prefix))
-    meta = {
-        "model": cfg.model,
-        "revision": cfg.revision,
-        "collection": cfg.collection,
-        "corpus_chunks_sha256": load_chunks()[1],
-    }
-    return retriever, meta
+System = Callable[[], tuple[Retriever, dict[str, Any]]]
 
 
-def bm25_system() -> tuple[Retriever, dict[str, Any]]:
-    from retrieval.bm25 import BM25Retriever, load_index
-    from retrieval.dense import load_chunks
+def dense_system(variant: str = "raw") -> System:
+    def build() -> tuple[Retriever, dict[str, Any]]:
+        from retrieval.contextual import variant as corpus_variant
+        from retrieval.dense import (
+            DenseRetriever,
+            SentenceTransformerEncoder,
+            connect,
+            load_chunks,
+            load_config,
+        )
 
-    started = time.perf_counter()
-    index = load_index()
-    meta = {
-        "bm25": {
-            "k1": index.k1,
-            "b": index.b,
-            "build_seconds": round(time.perf_counter() - started, 1),
-        },
-        "corpus_chunks_sha256": load_chunks()[1],
-    }
-    return BM25Retriever(index), meta
+        corpus, suffix = corpus_variant(variant)
+        cfg = load_config()
+        cfg = cfg.model_copy(update={"collection": cfg.collection + suffix})
+        encoder = SentenceTransformerEncoder(cfg, cfg.query_prefix)
+        meta = {
+            "variant": variant,
+            "model": cfg.model,
+            "revision": cfg.revision,
+            "collection": cfg.collection,
+            "corpus_chunks_sha256": load_chunks(corpus)[1],
+        }
+        return DenseRetriever(cfg, connect(), encoder), meta
 
-
-def hybrid_system() -> tuple[Retriever, dict[str, Any]]:
-    import yaml
-
-    from retrieval.hybrid import HybridRetriever
-
-    dense, dense_meta = dense_system()
-    bm25, bm25_meta = bm25_system()
-    cfg = yaml.safe_load((ROOT / "config" / "retrieval.yaml").read_text(encoding="utf-8"))
-    return HybridRetriever(dense, bm25, **cfg["hybrid"]), {
-        **dense_meta,
-        **bm25_meta,
-        "hybrid": cfg["hybrid"],
-    }
+    return build
 
 
-def reranked_system(
-    first_stage: Callable[[], tuple[Retriever, dict[str, Any]]], kind: str
-) -> Callable[[], tuple[Retriever, dict[str, Any]]]:
+def bm25_system(variant: str = "raw") -> System:
+    def build() -> tuple[Retriever, dict[str, Any]]:
+        from retrieval.bm25 import BM25Retriever, load_index
+        from retrieval.contextual import variant as corpus_variant
+        from retrieval.dense import load_chunks
+
+        corpus, _ = corpus_variant(variant)
+        started = time.perf_counter()
+        index = load_index(corpus)
+        meta = {
+            "variant": variant,
+            "bm25": {
+                "k1": index.k1,
+                "b": index.b,
+                "build_seconds": round(time.perf_counter() - started, 1),
+            },
+            "corpus_chunks_sha256": load_chunks(corpus)[1],
+        }
+        return BM25Retriever(index), meta
+
+    return build
+
+
+def hybrid_system(variant: str = "raw") -> System:
+    def build() -> tuple[Retriever, dict[str, Any]]:
+        import yaml
+
+        from retrieval.hybrid import HybridRetriever
+
+        dense, dense_meta = dense_system(variant)()
+        bm25, bm25_meta = bm25_system(variant)()
+        cfg = yaml.safe_load((ROOT / "config" / "retrieval.yaml").read_text(encoding="utf-8"))
+        return HybridRetriever(dense, bm25, **cfg["hybrid"]), {
+            **dense_meta,
+            **bm25_meta,
+            "hybrid": cfg["hybrid"],
+        }
+
+    return build
+
+
+def reranked_system(first_stage: System, kind: str, variant: str = "raw") -> System:
+    """First stage + reranker. The reranker reads the same corpus variant as the first stage."""
+
     def build() -> tuple[Retriever, dict[str, Any]]:
         from retrieval.colbert import ColBERTConfig, ColBERTEncoder, build_store
+        from retrieval.contextual import variant as corpus_variant
         from retrieval.dense import load_chunks
         from retrieval.rerank import (
             ColBERTReranker,
@@ -110,15 +130,13 @@ def reranked_system(
 
         base, meta = first_stage()
         cfg = rerank_config()
+        chunks, sha = load_chunks(corpus_variant(variant)[0])
         reranker: Reranker
         if kind == "ce":
-            chunks, _ = load_chunks()
-            reranker = CrossEncoderReranker(
-                {c["id"]: c["text"] for c in chunks}, **cfg["cross_encoder"]
-            )
+            texts = {c["id"]: c["text"] for c in chunks}
+            reranker = CrossEncoderReranker(texts, **cfg["cross_encoder"])
         else:
             col = ColBERTConfig.model_validate(cfg["colbert"])
-            chunks, sha = load_chunks()
             store, store_meta = build_store(col, chunks, sha, ColBERTEncoder)
             reranker = ColBERTReranker(ColBERTEncoder(col), store)
             meta = {**meta, "colbert_store": store_meta}
@@ -129,14 +147,19 @@ def reranked_system(
     return build
 
 
-SYSTEMS: dict[str, Callable[[], tuple[Retriever, dict[str, Any]]]] = {
-    "dense": dense_system,
-    "bm25": bm25_system,
-    "hybrid": hybrid_system,
-    "dense_ce": reranked_system(dense_system, "ce"),
-    "hybrid_ce": reranked_system(hybrid_system, "ce"),
-    "dense_colbert": reranked_system(dense_system, "colbert"),
-    "hybrid_colbert": reranked_system(hybrid_system, "colbert"),
+SYSTEMS: dict[str, System] = {
+    "dense": dense_system(),
+    "bm25": bm25_system(),
+    "hybrid": hybrid_system(),
+    "dense_ce": reranked_system(dense_system(), "ce"),
+    "hybrid_ce": reranked_system(hybrid_system(), "ce"),
+    "dense_colbert": reranked_system(dense_system(), "colbert"),
+    "hybrid_colbert": reranked_system(hybrid_system(), "colbert"),
+    # ablation step 4: the same pipelines over the contextual-retrieval corpus
+    "dense_ctx": dense_system("contextual"),
+    "bm25_ctx": bm25_system("contextual"),
+    "hybrid_ctx": hybrid_system("contextual"),
+    "hybrid_colbert_ctx": reranked_system(hybrid_system("contextual"), "colbert", "contextual"),
 }
 
 

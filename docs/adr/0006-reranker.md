@@ -1,6 +1,6 @@
 # ADR-0006: Reranker — ColBERT late interaction over the hybrid candidate pool
 
-Status: Proposed · Date: 2026-10-06
+Status: Accepted · Date: 2026-10-06
 
 ## Context
 

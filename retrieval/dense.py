@@ -5,7 +5,7 @@ encoders see only public corpus text and de-identified queries). Embeddings are 
 data/index/, keyed by the corpus hash and the pinned model revision, so recreating the Qdrant
 collection does not mean re-embedding 8k chunks.
 
-Usage: uv run python -m retrieval.dense [--recreate] [--device cpu|cuda]
+Usage: uv run python -m retrieval.dense [--recreate] [--device cpu|cuda] [--variant contextual]
 """
 
 import argparse
@@ -244,10 +244,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--recreate", action="store_true", help="drop and reload the collection")
     parser.add_argument("--device", default="cpu", help="cpu (default) or cuda")
+    parser.add_argument("--variant", default="raw", help="corpus variant: raw or contextual")
     args = parser.parse_args(argv)
 
+    from retrieval.contextual import variant
+
+    corpus, suffix = variant(args.variant)
     cfg = load_config()
-    chunks, chunks_sha256 = load_chunks()
+    cfg = cfg.model_copy(update={"collection": cfg.collection + suffix})
+    chunks, chunks_sha256 = load_chunks(corpus)
 
     def factory(config: DenseConfig, prefix: str) -> Encoder:
         return SentenceTransformerEncoder(config, prefix, device=args.device)

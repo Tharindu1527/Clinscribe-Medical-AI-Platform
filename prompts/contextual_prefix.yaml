@@ -1,0 +1,29 @@
+# Contextual retrieval prefix (Phase 2 ablation step 4, retrieval/contextual.py).
+# Adapted from Anthropic's contextual retrieval prompt: the whole document does not fit the local
+# model's 2,048-token context, so the "document" is the title, source, section heading and the first
+# words of the chunk's section. Everything before <chunk> is identical for chunks of one section,
+# so consecutive requests share a prompt prefix (Ollama reuses its cache).
+# Change the version whenever the text or parameters change: it names the output folder and cache.
+id: contextual_prefix
+version: "1"
+task: contextual_prefix       # gateway alias comes from config/models.yaml
+temperature: 0.0
+max_tokens: 120
+section_excerpt_words: 600    # ~800 tokens; with the chunk (~300) and instructions it fits 2,048
+max_prefix_words: 60          # longer outputs are cut at a word boundary
+system: |
+  You write short search context for passages taken from medical guidelines, drug labels and
+  review articles. You only describe where a passage sits and what it is about; you never add
+  medical facts, numbers or advice that the passage does not contain.
+user: |
+  <document title="{title}" source="{source}" section="{section}">
+  {excerpt}
+  </document>
+  Here is the chunk we want to situate within the whole document:
+  <chunk>
+  {chunk}
+  </chunk>
+  Give a short, succinct context (one or two sentences, at most 50 words) to situate this chunk
+  within the overall document, for the purposes of improving search retrieval of the chunk. Name
+  the document, the section topic and the drug or condition it concerns. Answer only with the
+  succinct context and nothing else.

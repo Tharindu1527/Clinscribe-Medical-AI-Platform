@@ -229,9 +229,12 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Build the ColBERT document store")
     parser.add_argument("--device", default="cpu")
+    parser.add_argument("--variant", default="raw", help="corpus variant: raw or contextual")
     args = parser.parse_args(argv)
+    from retrieval.contextual import variant
+
     cfg = load_config()
-    chunks, sha = load_chunks()
+    chunks, sha = load_chunks(variant(args.variant)[0])
     _, meta = build_store(cfg, chunks, sha, lambda c: ColBERTEncoder(c, device=args.device))
     print(json.dumps(meta, indent=2))
     return 0
