@@ -38,7 +38,7 @@ Run with `just gate 1`.
 | 8 | **Audit table:** append-only, hash-chained (HMAC-SHA-256 with `AUDIT_CHAIN_KEY`); DB trigger blocks UPDATE/DELETE; app role has INSERT/SELECT only; advisory lock keeps order; `just audit-verify`. | Tests: chain verifies after 100 appends including 10 concurrent; UPDATE and DELETE as the app role raise; a manual tamper (as owner) is reported at the exact row. | ✅ 2026-10-05: 8/8 pass; `just audit-verify` OK |
 | 9 | **Pipeline endpoint:** FastAPI `/health` and `POST /v1/dev/complete` (text → deid → gateway → answer), writing an audit record (actor, model, prompt version, trace id). | Integration: the endpoint returns an answer; an audit row exists with the same trace id as the Langfuse trace. | ✅ 2026-10-05: live 1/1 (answer, audit row = trace id, Langfuse trace has api + deid + gateway spans, no seeded PHI) |
 | 10 | **PHI leak test (gate b):** `evals/privacy/leak_test.py` seeds 20 transcripts with fake PHI, sends them through the endpoint, then scans the collector file export, `docker compose logs` for every service, Langfuse traces for the run, LiteLLM spend logs and the audit table. | 0 leaks. Positive control: the scanner finds 100% of seed values in a planted file. Report in `evals/reports/privacy/`. | ✅ 2026-10-05: 0 leaks in 6 sinks (66 seed values), control 100% (gate b) |
-| 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ◐ 2026-10-06: run #3 on `33e7fd3` green (lint-unit 21 s, integration 8 m 2 s); red-PR check and branch protection pending (you) |
+| 11 | **CI** (after you add the GitHub remote): `.github/workflows/ci.yml` runs ruff, mypy and unit tests on every PR (replay cache, no secrets); integration job (core + fhir) on push to `main` and manual dispatch. | A PR shows green; a throwaway PR with a failing test goes red. You enable branch protection on `main` requiring CI. | ◐ 2026-10-06: green on `a8d0733` (lint-unit + integration, Langfuse secrets set); red-PR check and branch protection pending (you) |
 | 12 | **Phase 1 exit:** `just gate 1`; `docs/runbooks/local-setup.md`; failover latency p50/p95 (20 calls, normal vs primary down); measured memory per service. | On a fresh clone, following the runbook: `just up; just fhir-load; just gate 1` passes. PROGRESS updated with the numbers. | ✅ 2026-10-06: fresh clone from GitHub at `9e300cb`, `just gate 1` 7/7 PASS |
 
 ### Phase 1 exit numbers (2026-10-06, fresh clone at `9e300cb`, after `just gate 1`)
@@ -192,10 +192,15 @@ Lowest C: free space during the whole run: 2.35 GB.
   `just gate 1` 508 s — lint, full suite, (c) FHIR, (a) failover, pipeline, (b) leak test, audit chain all PASS.
   Latency and memory in the tables above. CI run #3 (`33e7fd3`) green: lint-unit and integration.
 
+- 2026-10-06: CI fix for a start-up race: `just up --wait` returns before HAPI serves (no shell, so no
+  healthcheck), and with Synthea data cached `fhir-load` posted 1 s later and was dropped. The loader now
+  waits for `/fhir/metadata` (≤ 300 s); reproduced and fixed locally. CI green on `a8d0733`: lint-unit and
+  integration (with Langfuse secrets).
+
 ## Next
 
-- You: finish task 11 — open a throwaway PR with a deliberately failing test and confirm CI goes red (I can
-  prepare the branch), then add branch protection on `main` requiring the `lint-unit` check.
+- You: finish task 11 — push the prepared `ci/red-check` branch, open a PR, confirm CI goes red, close it;
+  then add branch protection on `main` requiring the `lint-unit` check.
 - Then Phase 1 is closed. Before Phase 2: decide the de-ID name/place gap (Open questions), and plan Phase 2.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 - `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
