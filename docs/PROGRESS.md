@@ -99,7 +99,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 0 | Licences for WHO guidelines, PMC OA (CC-BY/CC0 only), openFDA labels, DDInter in `data/LICENSES.md` | Every source has a licence and a verified date | ✅ 2026-10-06 |
 | 1 | Corpus ingestion: fetch, parse, keep section titles and source URLs (`just ingest`) | Doc count; every chunk has URL + section; no duplicates; idempotent | ✅ 2026-10-06: 235 docs, 8,104 chunks; 6/6 corpus tests incl. byte-identical offline rebuild |
 | 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ✅ 2026-10-06: 5/5 rag tests; 8,104 points; stack 3.59 GB |
-| 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ☐ |
+| 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ◐ 2026-10-06: 235 items valid; **review sheet waiting for you** |
 | 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ☐ |
 | 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ☐ |
 | 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ☐ |
@@ -277,9 +277,22 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   while pulling images grew the C: page file to 12 GB (C: down to 5.7 GB free); dropping the WSL file cache
   helped. `just lint` clean; `just test` 167 passed (stack + rag up).
 
+- 2026-10-06: **Phase 2 task 3 (drafted, review pending)**. `evals/golden/golden_v1.jsonl`: 235 items,
+  209 answerable (hypertension 43, diabetes 40, anticoagulation 40, respiratory 42, infections 44;
+  WHO 43, FDA 81, PMC 85) and 26 unanswerable (11%, drugs absent from the corpus, checked). Drafted by
+  Claude from a seeded, stratified chunk sample (`evals/golden/candidates.py`); answers are exact quotes;
+  gold ids = every chunk containing the quote (150 items with 1, 52 with 2, 7 with 3–4; one wrong
+  cross-drug match fixed). Validator (`just golden`): quote in each gold chunk, no 6-word copy from the
+  source, absent terms absent, quotas. Review sheet `evals/golden/review/review_v1.csv` (49 rows, 21%,
+  every stratum; `just golden-review summary` checks it). Found while drafting (not fixed, see Open
+  questions): WHO 344424 section titles come from figure bookmarks, and reference lists are indexed as
+  chunks. Unit 6/6, integration 1/1; `just lint` clean; `just test` 174 passed.
+
 ## Next
-- You: review ADR-0005 (embedding model: ModernBERT Embed instead of jina-v2).
-- Phase 2 task 3: golden set v1 (200+), drafted from source passages; you or a reviewer check a 20% sample.
+- **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
+  verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
+- Phase 2 task 4: retrieval harness (recall@10, nDCG@10, MRR) and the dense baseline report; it can start
+  before the review ends (reviewed fixes only change a few items).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
@@ -299,6 +312,11 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- Corpus quality (task 1 follow-up): WHO 344424 outline entries are figures ("Fig. 2 Framework for
+  analysis"), so its section titles are misleading, and reference-list pages are indexed as chunks.
+  Fixing changes chunk ids and costs a 66-min re-embed on CPU; golden gold ids are recomputed from quotes
+  (`just golden --expand`), so the fix can wait for the next planned re-embed (tasks 7–8).
 
 - Embedding speed: CPU gives 2.0 chunks/s (66 min for the corpus). Contextual retrieval (task 7) and late
   chunking (task 8) re-embed the corpus. Options: the int8 ONNX export in the same model repo (CPU), or CUDA

@@ -89,6 +89,14 @@ ingest *args:
 index *args:
     uv run python -m retrieval.dense {{args}}
 
+# Validate the golden Q&A set against the corpus (`just golden --expand` refreshes gold chunk ids)
+golden *args:
+    uv run python -m evals.golden.golden {{args}}
+
+# Golden-set review sheet: `just golden-review make` or `just golden-review summary`
+golden-review action="summary":
+    uv run python -m evals.golden.review {{action}}
+
 # Evaluation suites (`just eval privacy`, or all); reports go to evals/reports/
 eval suite="all":
     uv run python -m evals.run {{suite}}
