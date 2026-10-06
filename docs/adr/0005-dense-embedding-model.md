@@ -1,6 +1,6 @@
 # ADR-0005: Dense embedding model — ModernBERT Embed instead of jina-embeddings-v2
 
-Status: Proposed · Date: 2026-10-06
+Status: Accepted · Date: 2026-10-06
 
 ## Context
 
