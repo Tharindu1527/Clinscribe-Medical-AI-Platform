@@ -201,10 +201,18 @@ Lowest C: free space during the whole run: 2.35 GB.
   the branch deleted; ruleset `protect-main` (active, default branch) requires `lint-unit`.
   **Phase 1 complete.**
 
-## Next
+- 2026-10-06: **De-ID v1** (ADR-0004). Added an over-redaction measure (80 PHI-free clinical sentences): v0
+  altered 17.5% (eponyms, place-named diseases, drug brands). v1 = spaCy `md` + context cues for names
+  (titles, relation words, name before MRN/DOB) and places (`City, ST`, residence, referral source) + an
+  eponym rule and a 19,079-term RxNorm lexicon (person names removed) applied to spaCy guesses. Results
+  (`evals/reports/privacy/deid_v1_en_core_web_md.md`): seeded names 1.000, places 1.000, structured 1.000,
+  over-redaction 0/80; frozen held-out set names 0.973, places 0.850. `en_core_web_lg` compared and
+  rejected (held-out places 0.650, over-redaction 1/80, 702 vs 334 MB). Leak test run `89341a14`: gate b PASS
+  and **0 of 66 seed values reached the LLM** (was 2). A first leak-test run crashed with an error my
+  output filter hid; the rerun passed. `just lint` clean; `just test` 137 passed (stack required).
 
-- Before Phase 2: close the de-ID name/place gap (2 of 66 seed values reached the LLM); plan awaiting approval.
-- You: review the ADR texts (0001–0003; task 2 asked for your approval).
+## Next
+- You: review the ADR texts (0001–0004; task 2 asked for your approval of 0001–0003).
 - Then plan Phase 2 (Advanced RAG, SPEC §12) for approval.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 - `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
@@ -235,14 +243,11 @@ Lowest C: free space during the whole run: 2.35 GB.
   `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-flash`), each with its own 20 requests/day free
   quota. Their answer quality differs; the Phase 2 eval decides which stay.
 
-- **PHI reaching the LLM (outside gate b).** Gate b passes because traces, logs and stores never hold
-  message text. But the LLM still saw 2 of 66 seed values in the leak run (both invented place names that
-  spaCy missed); the de-ID eval shows PERSON 0.95 and LOCATION 0.75 recall. CLAUDE.md requires no PHI to reach
-  an LLM. Options: a place/name gazetteer recogniser (cheap, measurable), `en_core_web_lg` (compare in the
-  eval), or pull the Phase 5 LoRA NER forward. Recommend deciding before Phase 2 sends real-looking
-  transcripts; it does not block the Phase 1 gates as written.
-- De-ID model changed from the planned `en_core_web_lg` to `en_core_web_md` (33 MB vs 401 MB on a slow link,
-  ~0.3 vs ~1 GB RAM, near-equal published NER F1); `DEID_SPACY_MODEL` switches it for a comparison.
+- **De-ID generalisation (after v1).** On the frozen held-out set, names 0.973 and places 0.850: misses are
+  places without a cue ("originally from X", "works in X") and a second name in a list. Seeded scores are
+  optimistic (cues were designed on that set). Next steps: Phase 2 transcripts as a harder test, a new
+  held-out set for any further tuning, and the Phase 5 fine-tuned NER. Known gap: an uncommon first name that
+  is also a drug brand (e.g. "Allegra") is not redacted when it appears alone with no cue (ADR-0004).
 - `/reidentify` HTTP route deferred to Phase 3 (needs authentication); re-identification exists as a library
   function with a round-trip test.
 

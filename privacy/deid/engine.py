@@ -7,11 +7,13 @@ from presidio_analyzer import AnalyzerEngine, RecognizerRegistry, RecognizerResu
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_analyzer.predefined_recognizers import SpacyRecognizer
 
-from privacy.deid.recognizers import PATTERNS, RegexRecognizer
+from privacy.deid.lexicon import clinical_terms, is_clinical_term
+from privacy.deid.recognizers import CONTEXT_PATTERNS, CUE_SCORE, PATTERNS, RegexRecognizer
 from privacy.deid.store import SurrogateStore
 from privacy.deid.types import DeidentifiedText, issue
 
 NER_TYPES = ("PERSON", "LOCATION")
+CONTEXT_RECOGNIZER = "clinscribe-context"
 ALL_TYPES = (*NER_TYPES, *PATTERNS)
 MIN_SCORE = 0.5
 SURROGATE_RE = re.compile(r"\b(?:" + "|".join(ALL_TYPES) + r")_\d+\b")
@@ -40,7 +42,24 @@ def build_analyzer(spacy_model: str) -> AnalyzerEngine:
     registry = RecognizerRegistry(supported_languages=["en"])
     registry.add_recognizer(SpacyRecognizer(supported_entities=list(NER_TYPES)))
     registry.add_recognizer(RegexRecognizer())
+    registry.add_recognizer(
+        RegexRecognizer(CONTEXT_PATTERNS, name=CONTEXT_RECOGNIZER, score=CUE_SCORE)
+    )
     return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["en"])
+
+
+def _not_phi(text: str, result: RecognizerResult) -> bool:
+    """Drop name/place spans that are clinical terms (de-ID v1, see privacy/deid/lexicon.py).
+
+    spaCy guesses also pass the eponym rule ("Hodgkin lymphoma"); cue-based matches only the exact
+    lexicon check ("Sent from Cardiology"), so a cue such as "Dr. Parkinson" still redacts the name.
+    """
+    if result.entity_type not in NER_TYPES:
+        return False
+    if text[result.start : result.end].strip().lower() in clinical_terms():
+        return True
+    recognizer = (result.recognition_metadata or {}).get(RecognizerResult.RECOGNIZER_NAME_KEY)
+    return recognizer != CONTEXT_RECOGNIZER and is_clinical_term(text, result.start, result.end)
 
 
 def _select(results: list[RecognizerResult]) -> list[RecognizerResult]:
@@ -61,6 +80,7 @@ class Deidentifier:
 
     def deidentify(self, text: str, encounter_id: str) -> DeidResult:
         results = self._analyzer.analyze(text=text, language="en", entities=list(ALL_TYPES))
+        results = [r for r in results if not _not_phi(text, r)]
         pieces: list[str] = []
         replacements: list[Replacement] = []
         cursor = 0

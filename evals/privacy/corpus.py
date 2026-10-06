@@ -45,6 +45,23 @@ TEMPLATES = [
 ]
 
 
+# Held out: written after de-ID v1 was tuned on TEMPLATES and never used to design recognisers.
+# Phrasings v1 has no cue for on purpose (neighbour, family meeting, sentence-initial names, two
+# places, "Dr" without a period), so this set measures generalisation, not memorisation.
+HELDOUT_TEMPLATES = [
+    "I saw {PERSON} today; she was brought in by her son {PERSON} after a fall.",
+    "Her neighbour {PERSON} found her on the kitchen floor this morning.",
+    "Plan discussed with {PERSON} and {PERSON} at the family meeting.",
+    "{PERSON} is a retired teacher originally from {LOCATION}, now living near {LOCATION}.",
+    "Spoke with {PERSON} by phone on {PHONE} about the biopsy result.",
+    "Discussed with Dr {PERSON} on call; transfer to {LOCATION} declined.",
+    "Letters go to {STREET_ADDRESS}, {LOCATION}, CA {ZIP}; copy to {EMAIL}.",
+    "{PERSON} works as a nurse in {LOCATION} and cares for her mother.",
+    "Seen with interpreter {PERSON}; family recently moved here from {LOCATION}.",
+    "Pharmacy called {PERSON} at {PHONE} on {DATE} about the warfarin dose.",
+]
+
+
 @dataclass(frozen=True)
 class Snippet:
     text: str
@@ -88,13 +105,14 @@ def _value(fake: Faker, rng: random.Random, entity: str) -> str:
     return makers[entity]()
 
 
-def build(n: int = 200, seed: int = 42) -> list[Snippet]:
+def build(n: int = 200, seed: int = 42, templates: list[str] | None = None) -> list[Snippet]:
+    templates = templates or TEMPLATES
     fake = Faker("en_US")
     Faker.seed(seed)
     rng = random.Random(seed)
     snippets = []
     for i in range(n):
-        template = TEMPLATES[i % len(TEMPLATES)]
+        template = templates[i % len(templates)]
         phi: list[tuple[str, str]] = []
         text = template
         while "{" in text:
