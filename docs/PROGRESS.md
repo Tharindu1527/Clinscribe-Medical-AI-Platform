@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06).** Exit gate passes from a fresh
-clone; CI green with a proven red path; `main` protected. Next: de-ID fix, then plan Phase 2 (Advanced RAG).
+Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+**Phase 2 — Advanced RAG: planned, awaiting go-ahead** (task list below). Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -29,7 +29,7 @@ Run with `just gate 1`.
 |---|------|----------------|--------|
 | 0 | **Prerequisites (you):** install Docker Desktop (WSL2, `.wslconfig` memory=10GB), `just`, Ollama **installed to D:** (`OllamaSetup.exe /DIR=D:\Ollama`) + one ~3B quantized model; `uv self update`; `uv python install 3.11`. | `docker info`, `just --version`, `ollama list` (model present) and `uv python find 3.11` all succeed. | ✅ 2026-10-06 (Ollama 0.35.1 + `llama3.2:3b`; WSL cap temporarily 6 GB, see Blockers) |
 | 1 | **Repo skeleton and tooling:** `pyproject.toml` (Python 3.11, ruff, mypy, pytest markers `unit`/`integration`/`live`), package folders, `justfile` (PowerShell shell), `.env.example`, `.gitignore`, `data/LICENSES.md`, `config/settings.py` (pydantic-settings, `SecretStr`), ruff banned-import rule for provider SDKs outside `llmops/gateway`. | On a clean clone, `uv sync; just lint; just test` pass. Tests: every Settings field has a key in `.env.example` and vice versa; `repr(Settings())` contains no secret value; a fixture that imports `openai` outside the gateway makes `ruff check` fail. | ✅ 2026-10-04 |
-| 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ✅ test passes; text awaiting your review |
+| 2 | **ADRs:** 0001 gateway scope, 0002 Langfuse Cloud vs self-hosted, 0003 Compose profiles and memory budget. | `tests/unit/test_adr_format.py`: every ADR has Context, Options, Decision, Consequences headings. You review and approve the text. | ✅ test passes; ADRs 0001–0004 approved by you 2026-10-06 |
 | 3 | **Core Compose stack:** postgres (init script creates `clinscribe`, `litellm`, `hapi` databases and least-privilege roles), otel-collector, litellm, deid, api (one Python image), hapi-fhir (profile `fhir`); memory limits and healthchecks on every service. | `just up` → `tests/integration/test_stack_health.py`: all services healthy within 5 min. `just stats` total recorded below; target ≤ 8 GB. | ✅ 2026-10-05: 9/9 stack tests pass; 1.94 GB measured |
 | 4 | **HAPI FHIR + Synthea:** pinned Synthea release (SHA-256 checked), seed 42, 50 patients, loaded in dependency order by `just fhir-load`; idempotent. | Integration tests: Patient count == 50; every patient has ≥ 1 Encounter; search by family name works; a second `just fhir-load` leaves the count at 50. | ✅ 2026-10-05: 4/4 pass (gate c) |
 | 5 | **LiteLLM gateway with failover:** alias with the 4-step fallback chain, per-key budget and rpm, spend logs without prompt text, `config/models.yaml` (task → alias), `llmops/gateway/client.py` (accepts only `DeidentifiedText`), record/replay cache for tests, chaos switch `just chaos primary-down`. | Unit: client rejects a plain `str`; a replay-cache hit makes zero network calls. Live (`just test-live`): with the primary down, a request succeeds, the response names the Groq model, and the failover appears in spend logs. Ollama step is skipped if Ollama is not running. | ✅ 2026-10-05: live 2 pass, Ollama step skipped (model downloading) (gate a) |
@@ -75,6 +75,42 @@ Lowest C: free space during the whole run: 2.35 GB.
 | obs (optional) | prometheus, grafana | ~0.4 GB |
 | tools (one-shot) | synthea generator | ~1.0 GB while running |
 | Ollama (Windows host, outside WSL cap) | ~3B Q4 model | ~2.5 GB VRAM + ~1 GB RAM |
+
+## Phase 2 — Advanced RAG (weeks 3–5)
+
+**Phase exit gate (SPEC §12):** the ablation report shows the chosen pipeline beats dense-only on
+**recall@10** and **faithfulness** (paired bootstrap 95% CI for each difference). Run with `just gate 2`.
+
+**Decisions (you, 2026-10-06):** corpus = focused primary care (hypertension, type 2 diabetes, atrial
+fibrillation/anticoagulation, asthma/COPD, common infections; ~200–400 docs, ~5–10k chunks); golden set
+drafted by Claude from source passages (answers quoted, gold chunk ids), 20% sample reviewed by a human and
+recorded; faithfulness on a stratified 60-question subset (dense-only vs best two), judge Groq
+`gpt-oss-120b` via the gateway, cached.
+
+**Defaults (from the plan):** local encoders on CPU first (measure; GPU only if too slow) —
+`jina-embeddings-v2-base-en` (8k context, for dense and late chunking), `ms-marco-MiniLM-L-6-v2`
+cross-encoder, ColBERT via **PyLate** (SPEC names RAGatouille, unmaintained since 2025-05); BM25 with
+`rank-bm25` in-process; own RRF; contextual-retrieval prefixes from local Ollama through the gateway (no
+free-tier quota). Corpus text is public (no PHI); patient-derived queries are de-identified before retrieval
+(ADR-0001). Ablation step 7 (adaptive routing) and Self-RAG/CRAG move to Phase 3 (need the agent loop).
+
+| # | Task | Exit-gate test | Status |
+|---|------|----------------|--------|
+| 0 | Licences for WHO guidelines, PMC OA (CC-BY/CC0 only), openFDA labels, DDInter in `data/LICENSES.md` | Every source has a licence and a verified date | ☐ |
+| 1 | Corpus ingestion: fetch, parse, keep section titles and source URLs (`just ingest`) | Doc count; every chunk has URL + section; no duplicates; idempotent | ☐ |
+| 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ☐ |
+| 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ☐ |
+| 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ☐ |
+| 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ☐ |
+| 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ☐ |
+| 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ☐ |
+| 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ☐ |
+| 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ☐ |
+| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ☐ |
+| 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
+| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
+
+Memory estimate: current stack ~2.4 GB + Qdrant, Neo4j and encoders ~3.5 GB ≈ 6 GB (≤ 8 GB budget).
 
 ## Done
 
@@ -212,8 +248,7 @@ Lowest C: free space during the whole run: 2.35 GB.
   output filter hid; the rerun passed. `just lint` clean; `just test` 137 passed (stack required).
 
 ## Next
-- You: review the ADR texts (0001–0004; task 2 asked for your approval of 0001–0003).
-- Then plan Phase 2 (Advanced RAG, SPEC §12) for approval.
+- Phase 2 (Advanced RAG, SPEC §12): plan proposed 2026-10-06, awaiting approval.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 - `just gate 1` from the fresh clone, `just eval latency`; record p50/p95 here; close task 12.
 - Push the CI fix, add the repository secrets, confirm both CI jobs are green; close task 11.
