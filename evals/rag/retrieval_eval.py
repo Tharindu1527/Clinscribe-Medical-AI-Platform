@@ -62,7 +62,43 @@ def dense_system() -> tuple[Retriever, dict[str, Any]]:
     return retriever, meta
 
 
-SYSTEMS: dict[str, Callable[[], tuple[Retriever, dict[str, Any]]]] = {"dense": dense_system}
+def bm25_system() -> tuple[Retriever, dict[str, Any]]:
+    from retrieval.bm25 import BM25Retriever, load_index
+    from retrieval.dense import load_chunks
+
+    started = time.perf_counter()
+    index = load_index()
+    meta = {
+        "bm25": {
+            "k1": index.k1,
+            "b": index.b,
+            "build_seconds": round(time.perf_counter() - started, 1),
+        },
+        "corpus_chunks_sha256": load_chunks()[1],
+    }
+    return BM25Retriever(index), meta
+
+
+def hybrid_system() -> tuple[Retriever, dict[str, Any]]:
+    import yaml
+
+    from retrieval.hybrid import HybridRetriever
+
+    dense, dense_meta = dense_system()
+    bm25, bm25_meta = bm25_system()
+    cfg = yaml.safe_load((ROOT / "config" / "retrieval.yaml").read_text(encoding="utf-8"))
+    return HybridRetriever(dense, bm25, **cfg["hybrid"]), {
+        **dense_meta,
+        **bm25_meta,
+        "hybrid": cfg["hybrid"],
+    }
+
+
+SYSTEMS: dict[str, Callable[[], tuple[Retriever, dict[str, Any]]]] = {
+    "dense": dense_system,
+    "bm25": bm25_system,
+    "hybrid": hybrid_system,
+}
 
 
 def per_question(ranked: Sequence[str], gold: set[str]) -> dict[str, float]:
@@ -211,6 +247,25 @@ def compare(baseline: str, candidate: str, items: list[GoldenItem]) -> Path:
         lines.append(
             f"| {metric} | {mean(a):.3f} | {mean(b):.3f} | {diff:+.3f} | "
             f"[{low:+.3f}, {high:+.3f}] | {verdict} |"
+        )
+    # Which questions each system finds: complementary systems are candidates for fusion or for
+    # a shared candidate pool even when neither wins on its own.
+    lines += ["", "| found within | baseline only | candidate only | both | either |"]
+    lines += ["|---|---|---|---|---|"]
+    by_id = {i.id: i for i in items}
+    for k in (10, STORED_K):
+        found = {
+            n: {
+                i
+                for i in ids
+                if recall_at_k(runs[n]["results"][i]["ranked"], set(by_id[i].gold_chunk_ids), k)
+            }
+            for n in (baseline, candidate)
+        }
+        base, cand = found[baseline], found[candidate]
+        lines.append(
+            f"| top {k} | {len(base - cand)} | {len(cand - base)} | {len(base & cand)} | "
+            f"{len(base | cand)} ({len(base | cand) / len(ids):.3f}) |"
         )
     path = REPORTS / f"compare_{candidate}_vs_{baseline}.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
