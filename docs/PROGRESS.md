@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2 done)**. Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2 and 4 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -100,7 +100,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 1 | Corpus ingestion: fetch, parse, keep section titles and source URLs (`just ingest`) | Doc count; every chunk has URL + section; no duplicates; idempotent | ✅ 2026-10-06: 235 docs, 8,104 chunks; 6/6 corpus tests incl. byte-identical offline rebuild |
 | 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ✅ 2026-10-06: 5/5 rag tests; 8,104 points; stack 3.59 GB |
 | 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ◐ 2026-10-06: 235 items valid; **review sheet waiting for you** |
-| 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ☐ |
+| 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ✅ 2026-10-06: dense recall@10 0.809, nDCG@10 0.583 |
 | 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ☐ |
 | 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ☐ |
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ☐ |
@@ -288,11 +288,25 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   questions): WHO 344424 section titles come from figure bookmarks, and reference lists are indexed as
   chunks. Unit 6/6, integration 1/1; `just lint` clean; `just test` 174 passed.
 
+- 2026-10-06: **Phase 2 task 4** — retrieval harness `evals/rag` (`just eval rag`): recall@1/5/10
+  (answer-level: any gold chunk in the top k), MRR@10, nDCG@10 (binary, all gold chunks), breakdowns by
+  area / source / question type, query latency p50/p95, misses list; rankings saved per system
+  (`evals/reports/rag/runs/`) and `--compare A B` gives a paired bootstrap 95% CI per metric (for the
+  ablation steps). **Dense baseline** (`evals/reports/rag/retrieval_dense.md`, 209 answerable questions):
+  recall@1 0.435, recall@5 0.722, **recall@10 0.809**, **MRR@10 0.562**, **nDCG@10 0.583**; query
+  latency (CPU embed + Qdrant) **p50 94 ms, p95 150 ms**. Weakest: respiratory (recall@10 0.690), diabetes
+  0.750, WHO passages 0.767; best: dose questions 0.958, hypertension 0.930. Median top-1 similarity
+  0.694 answerable vs 0.582 unanswerable (overlapping; not an abstention rule on its own). Spot check of 6
+  of the 40 misses: 2 had a chunk giving the same answer in other words in the top 3 (e.g. idarucizumab),
+  so recall is a lower bound (see Open questions); some misses found the right label but the wrong
+  section (valsartan strengths), which reranking should help. Metric unit tests on hand-worked cases 6/6,
+  harness integration 1/1. `just lint` clean; `just test` 181 passed.
+
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
-- Phase 2 task 4: retrieval harness (recall@10, nDCG@10, MRR) and the dense baseline report; it can start
-  before the review ends (reviewed fixes only change a few items).
+- Phase 2 task 5: BM25 + reciprocal rank fusion (ablation step 2), compared with the dense baseline using
+  the paired bootstrap.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
@@ -312,6 +326,11 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- Gold chunks are quote-based, so a chunk that answers in other words counts as a miss (2 of 6 sampled
+  misses). Options: pooled relevance judgements (judge the union of each system's top 10 once, store as
+  `also_relevant`), or keep quote-based gold and report it as a lower bound. Decide before the ablation
+  report (task 12); a judged pool also helps the faithfulness evaluation.
 
 - Corpus quality (task 1 follow-up): WHO 344424 outline entries are figures ("Fig. 2 Framework for
   analysis"), so its section titles are misleading, and reference-list pages are indexed as chunks.
