@@ -8,12 +8,15 @@ from collections.abc import Callable
 
 from evals.llmops import failover_latency
 from evals.privacy import deid_eval, leak_test
+from evals.rag import retrieval_eval
 
 # `all` runs every suite; `leak` and `latency` need the stack and make real LLM calls
 SUITES: dict[str, list[Callable[[], int]]] = {
     "privacy": [deid_eval.main],
     "leak": [leak_test.main],
     "latency": [failover_latency.main],
+    # needs `just up rag` and `just index`; local encoder only, no LLM calls
+    "rag": [lambda: retrieval_eval.main([])],
 }
 
 
