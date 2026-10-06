@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06).** Exit gate passes from a fresh
-clone; CI green with a proven red path; `main` protected. Next: de-ID fix, then plan Phase 2 (Advanced RAG).
+Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+**Phase 2 — Advanced RAG: planned, awaiting go-ahead** (task list below). Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -75,6 +75,42 @@ Lowest C: free space during the whole run: 2.35 GB.
 | obs (optional) | prometheus, grafana | ~0.4 GB |
 | tools (one-shot) | synthea generator | ~1.0 GB while running |
 | Ollama (Windows host, outside WSL cap) | ~3B Q4 model | ~2.5 GB VRAM + ~1 GB RAM |
+
+## Phase 2 — Advanced RAG (weeks 3–5)
+
+**Phase exit gate (SPEC §12):** the ablation report shows the chosen pipeline beats dense-only on
+**recall@10** and **faithfulness** (paired bootstrap 95% CI for each difference). Run with `just gate 2`.
+
+**Decisions (you, 2026-10-06):** corpus = focused primary care (hypertension, type 2 diabetes, atrial
+fibrillation/anticoagulation, asthma/COPD, common infections; ~200–400 docs, ~5–10k chunks); golden set
+drafted by Claude from source passages (answers quoted, gold chunk ids), 20% sample reviewed by a human and
+recorded; faithfulness on a stratified 60-question subset (dense-only vs best two), judge Groq
+`gpt-oss-120b` via the gateway, cached.
+
+**Defaults (from the plan):** local encoders on CPU first (measure; GPU only if too slow) —
+`jina-embeddings-v2-base-en` (8k context, for dense and late chunking), `ms-marco-MiniLM-L-6-v2`
+cross-encoder, ColBERT via **PyLate** (SPEC names RAGatouille, unmaintained since 2025-05); BM25 with
+`rank-bm25` in-process; own RRF; contextual-retrieval prefixes from local Ollama through the gateway (no
+free-tier quota). Corpus text is public (no PHI); patient-derived queries are de-identified before retrieval
+(ADR-0001). Ablation step 7 (adaptive routing) and Self-RAG/CRAG move to Phase 3 (need the agent loop).
+
+| # | Task | Exit-gate test | Status |
+|---|------|----------------|--------|
+| 0 | Licences for WHO guidelines, PMC OA (CC-BY/CC0 only), openFDA labels, DDInter in `data/LICENSES.md` | Every source has a licence and a verified date | ☐ |
+| 1 | Corpus ingestion: fetch, parse, keep section titles and source URLs (`just ingest`) | Doc count; every chunk has URL + section; no duplicates; idempotent | ☐ |
+| 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ☐ |
+| 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ☐ |
+| 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ☐ |
+| 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ☐ |
+| 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ☐ |
+| 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ☐ |
+| 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ☐ |
+| 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ☐ |
+| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ☐ |
+| 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
+| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
+
+Memory estimate: current stack ~2.4 GB + Qdrant, Neo4j and encoders ~3.5 GB ≈ 6 GB (≤ 8 GB budget).
 
 ## Done
 
