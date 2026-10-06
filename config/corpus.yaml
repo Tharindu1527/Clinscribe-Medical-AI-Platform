@@ -1,0 +1,108 @@
+# Phase 2 RAG corpus scope (decided 2026-10-06): focused adult primary care.
+# Changing scope is a config change; `just ingest` rebuilds data/corpus/ (git-ignored, on D:).
+# Licences per source: data/LICENSES.md. Corpus text is public guidance, not patient data.
+version: 1
+
+topics:
+  - hypertension
+  - type 2 diabetes
+  - atrial fibrillation and anticoagulation
+  - asthma
+  - COPD
+  - common infections
+
+who:  # WHO IRIS handles; CC BY-NC-SA 3.0 IGO, verified via IRIS metadata
+  - handle: "10665/344424"
+    topic: hypertension
+  - handle: "10665/272433"
+    topic: type 2 diabetes
+  - handle: "10665/334186"
+    topic: primary care NCDs (CVD, diabetes, asthma, COPD)
+  - handle: "10665/365237"
+    topic: common infections
+
+openfda:  # one current prescription label per generic name (CC0)
+  sections:
+    - indications_and_usage
+    - dosage_and_administration
+    - dosage_forms_and_strengths
+    - contraindications
+    - warnings_and_cautions
+    - warnings
+    - drug_interactions
+    - use_in_specific_populations
+    - adverse_reactions
+  drugs:
+    # hypertension
+    - lisinopril
+    - enalapril
+    - losartan
+    - valsartan
+    - amlodipine
+    - hydrochlorothiazide
+    - chlorthalidone
+    - metoprolol
+    - bisoprolol
+    - spironolactone
+    # type 2 diabetes
+    - metformin
+    - empagliflozin
+    - dapagliflozin
+    - sitagliptin
+    - semaglutide
+    - liraglutide
+    - glipizide
+    - insulin glargine
+    - pioglitazone
+    # atrial fibrillation and anticoagulation
+    - warfarin
+    - apixaban
+    - rivaroxaban
+    - dabigatran
+    - edoxaban
+    - amiodarone
+    - digoxin
+    - diltiazem
+    # asthma and COPD
+    - albuterol
+    - budesonide
+    - fluticasone propionate
+    - salmeterol
+    - formoterol
+    - tiotropium
+    - montelukast
+    - prednisone
+    # common infections
+    - amoxicillin
+    - amoxicillin and clavulanate potassium
+    - azithromycin
+    - clarithromycin
+    - doxycycline
+    - ciprofloxacin
+    - levofloxacin
+    - nitrofurantoin
+    - sulfamethoxazole and trimethoprim
+    - cephalexin
+    - ceftriaxone
+    - fluconazole
+    - metronidazole
+
+pmc:  # recent review articles, CC BY or CC0 only (re-checked per article)
+  per_query: 20
+  years: "2016:2026"
+  queries:
+    - hypertension management
+    - type 2 diabetes pharmacotherapy
+    - atrial fibrillation anticoagulation
+    - warfarin drug interactions
+    - direct oral anticoagulants
+    - asthma management
+    - COPD management
+    - community-acquired pneumonia
+    - urinary tract infection treatment
+    - antibiotic prescribing primary care
+
+chunking:  # word-based so it does not depend on the embedding model's tokenizer
+  target_words: 220
+  overlap_words: 40
+  min_words: 25

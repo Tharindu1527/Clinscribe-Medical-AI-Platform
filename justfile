@@ -81,6 +81,14 @@ test-unit *args:
 test-live *args:
     uv run pytest -m live {{args}}
 
+# Build the RAG corpus into data/corpus (`just ingest --offline` reuses the raw cache only)
+ingest *args:
+    uv run python -m retrieval.ingest.pipeline {{args}}
+
+# Embed the corpus into the dense Qdrant collection (needs `just up rag`; `--recreate` rebuilds)
+index *args:
+    uv run python -m retrieval.dense {{args}}
+
 # Evaluation suites (`just eval privacy`, or all); reports go to evals/reports/
 eval suite="all":
     uv run python -m evals.run {{suite}}

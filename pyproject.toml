@@ -16,6 +16,10 @@ dependencies = [
     "psycopg[binary]>=3.2",   # Postgres driver (surrogate store, audit table, migrations)
     "opentelemetry-sdk>=1.45",  # tracing with GenAI semantic conventions (SPEC section 7)
     "opentelemetry-exporter-otlp-proto-http>=1.45",  # send spans to the OTel collector
+    "pypdf>=6.0",             # read WHO guideline PDFs (text and bookmarks) for the RAG corpus
+    "fonttools>=4.50",        # pypdf needs it to decode CFF fonts in WHO PDFs (else garbled text)
+    "defusedxml>=0.7",        # safe parsing of downloaded PMC JATS XML (no entity-expansion attacks)
+    "qdrant-client>=1.19",    # vector store client (SPEC section 6); also an in-memory mode for unit tests
 ]
 
 [dependency-groups]
@@ -24,13 +28,27 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.8",
     "types-pyyaml>=6.0",      # type stubs so mypy --strict accepts yaml
+    "types-defusedxml>=0.7",  # type stubs for defusedxml
     "faker>=37",              # seeded fake PHI for the privacy evals and leak test (never real data)
+]
+# Local encoders for retrieval (Phase 2). Kept out of the service image until a service needs them
+# (Dockerfile: --no-default-groups); installed by plain `uv sync` on the host and in CI.
+rag = [
+    "sentence-transformers>=6.1",  # runs the dense embedding model (and later the cross-encoder)
+    "torch>=2.6",                  # CPU build from the PyTorch index (no 2+ GB CUDA wheels)
 ]
 
 [tool.uv]
 package = false
+default-groups = ["dev", "rag"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true  # only torch comes from this index
 
 [tool.uv.sources]
+torch = { index = "pytorch-cpu" }
 en-core-web-md = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.8.0/en_core_web_md-3.8.0-py3-none-any.whl" }
 
 [tool.ruff]

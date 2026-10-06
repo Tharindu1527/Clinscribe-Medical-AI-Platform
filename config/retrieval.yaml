@@ -1,0 +1,12 @@
+# Retrieval settings (Phase 2). Changing the model or its revision builds a new collection,
+# so earlier indexes stay available for the ablation report.
+dense:
+  # Apache-2.0, 8k context (needed for late chunking), loads without trust_remote_code
+  # (jina-embeddings-v2 needs remote code; see ADR-0005).
+  model: nomic-ai/modernbert-embed-base
+  revision: d556a88e332558790b210f7bdbe87da2fa94a8d8  # pinned commit on the Hugging Face Hub
+  query_prefix: "search_query: "      # the model card says both prefixes are required
+  document_prefix: "search_document: "
+  max_seq_length: 1024  # chunks are ~200 words (~300 tokens); late chunking raises this later
+  batch_size: 16
+  collection: chunks_dense_modernbert

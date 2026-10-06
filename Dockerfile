@@ -15,7 +15,7 @@ WORKDIR /app
 
 # Dependencies first, so code changes do not reinstall them
 COPY pyproject.toml uv.lock .python-version ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-default-groups --no-install-project
 
 COPY . .
 
