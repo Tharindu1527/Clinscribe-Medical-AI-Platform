@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: planned, awaiting go-ahead** (task list below). Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: in progress (tasks 0–1 done)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -96,8 +96,8 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 
 | # | Task | Exit-gate test | Status |
 |---|------|----------------|--------|
-| 0 | Licences for WHO guidelines, PMC OA (CC-BY/CC0 only), openFDA labels, DDInter in `data/LICENSES.md` | Every source has a licence and a verified date | ☐ |
-| 1 | Corpus ingestion: fetch, parse, keep section titles and source URLs (`just ingest`) | Doc count; every chunk has URL + section; no duplicates; idempotent | ☐ |
+| 0 | Licences for WHO guidelines, PMC OA (CC-BY/CC0 only), openFDA labels, DDInter in `data/LICENSES.md` | Every source has a licence and a verified date | ✅ 2026-10-06 |
+| 1 | Corpus ingestion: fetch, parse, keep section titles and source URLs (`just ingest`) | Doc count; every chunk has URL + section; no duplicates; idempotent | ✅ 2026-10-06: 235 docs, 8,104 chunks; 6/6 corpus tests incl. byte-identical offline rebuild |
 | 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ☐ |
 | 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ☐ |
 | 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ☐ |

@@ -16,6 +16,9 @@ dependencies = [
     "psycopg[binary]>=3.2",   # Postgres driver (surrogate store, audit table, migrations)
     "opentelemetry-sdk>=1.45",  # tracing with GenAI semantic conventions (SPEC section 7)
     "opentelemetry-exporter-otlp-proto-http>=1.45",  # send spans to the OTel collector
+    "pypdf>=6.0",             # read WHO guideline PDFs (text and bookmarks) for the RAG corpus
+    "fonttools>=4.50",        # pypdf needs it to decode CFF fonts in WHO PDFs (else garbled text)
+    "defusedxml>=0.7",        # safe parsing of downloaded PMC JATS XML (no entity-expansion attacks)
 ]
 
 [dependency-groups]
@@ -24,6 +27,7 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.8",
     "types-pyyaml>=6.0",      # type stubs so mypy --strict accepts yaml
+    "types-defusedxml>=0.7",  # type stubs for defusedxml
     "faker>=37",              # seeded fake PHI for the privacy evals and leak test (never real data)
 ]
 
