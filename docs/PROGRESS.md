@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–1 done)**. Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2 done)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -98,7 +98,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 |---|------|----------------|--------|
 | 0 | Licences for WHO guidelines, PMC OA (CC-BY/CC0 only), openFDA labels, DDInter in `data/LICENSES.md` | Every source has a licence and a verified date | ✅ 2026-10-06 |
 | 1 | Corpus ingestion: fetch, parse, keep section titles and source URLs (`just ingest`) | Doc count; every chunk has URL + section; no duplicates; idempotent | ✅ 2026-10-06: 235 docs, 8,104 chunks; 6/6 corpus tests incl. byte-identical offline rebuild |
-| 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ☐ |
+| 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ✅ 2026-10-06: 5/5 rag tests; 8,104 points; stack 3.59 GB |
 | 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ☐ |
 | 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ☐ |
 | 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ☐ |
@@ -110,7 +110,8 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
 | 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
 
-Memory estimate: current stack ~2.4 GB + Qdrant, Neo4j and encoders ~3.5 GB ≈ 6 GB (≤ 8 GB budget).
+Memory measured 2026-10-06 (core + fhir + rag, index loaded): **3.59 GB** of containers (Neo4j 1,127 MB, Qdrant 251 MB);
+the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 
 ## Done
 
@@ -261,8 +262,23 @@ Memory estimate: current stack ~2.4 GB + Qdrant, Neo4j and encoders ~3.5 GB ≈ 
   `[formula]`. Garbled chunks 0. `just lint` clean; 126 unit tests passed; corpus tests 6/6. Raw cache and
   corpus stay in `data/` (git-ignored, on D:).
 
+- 2026-10-06: **Phase 2 task 2** — `rag` Compose profile: Qdrant v1.19.2 (API key, telemetry off, 1 GB limit) and
+  Neo4j 5.26.31 community (heap 768 MB, page cache 512 MB, 1.5 GB limit), 127.0.0.1 ports, bash TCP healthchecks;
+  `QDRANT_API_KEY`/`NEO4J_PASSWORD` from `just gen-keys`. Dense baseline (`retrieval/dense.py`, `just index`):
+  embedding model changed from jina-v2 to `nomic-ai/modernbert-embed-base` (pinned commit) because jina needs
+  `trust_remote_code` (**ADR-0005, proposed — please review**). CPU torch from the PyTorch index in a `rag`
+  dependency group that the service image does not install. 8,104 chunks embedded in **66.5 min on CPU
+  (2.03 chunks/s)**, upserted in 11 s; vectors cached in resumable 512-chunk shards (the first attempt was lost
+  when the session ended mid-run); rerun with nothing changed: 8 s, 0 upserts. Warm query latency p50 94 ms
+  (5 queries; p95 comes with task 4). Tests: rag 5/5 (`CLINSCRIBE_REQUIRE_RAG=1`), unit 6/6 for the index.
+  Corpus and rag tests now gate on `CLINSCRIBE_REQUIRE_RAG` instead of `CLINSCRIBE_REQUIRE_STACK` (the CI
+  integration job builds no corpus and would have gone red). Incidents: WSL hung (`wsl -l -v` and
+  `wsl --shutdown` never returned); fixed by ending `wslservice.exe` and restarting the service. Memory pressure
+  while pulling images grew the C: page file to 12 GB (C: down to 5.7 GB free); dropping the WSL file cache
+  helped. `just lint` clean; `just test` 167 passed (stack + rag up).
+
 ## Next
-- Phase 2 task 2: `rag` Compose profile (Qdrant, Neo4j) and the dense baseline index.
+- You: review ADR-0005 (embedding model: ModernBERT Embed instead of jina-v2).
 - Phase 2 task 3: golden set v1 (200+), drafted from source passages; you or a reviewer check a 20% sample.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
@@ -283,6 +299,10 @@ Memory estimate: current stack ~2.4 GB + Qdrant, Neo4j and encoders ~3.5 GB ≈ 
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- Embedding speed: CPU gives 2.0 chunks/s (66 min for the corpus). Contextual retrieval (task 7) and late
+  chunking (task 8) re-embed the corpus. Options: the int8 ONNX export in the same model repo (CPU), or CUDA
+  torch on the RTX 3050 (~2.5 GB download). Decide before task 7 with a 500-chunk timing of each.
 
 - Latency: Groq `gpt-oss-20b` answered ~3× faster than the Gemini pool (p95 1.1 s vs 3.8 s), mostly Gemini's
   reasoning time. The Phase 4 voice budget (TTFA p95 < 1.5 s) will need a faster model or a lower thinking
