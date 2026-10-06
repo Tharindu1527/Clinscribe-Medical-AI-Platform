@@ -10,3 +10,11 @@ dense:
   max_seq_length: 1024  # chunks are ~200 words (~300 tokens); late chunking raises this later
   batch_size: 16
   collection: chunks_dense_modernbert
+
+bm25:  # Okapi BM25 over chunk text (retrieval/bm25.py); standard parameters, not tuned
+  k1: 1.2
+  b: 0.75
+
+hybrid:  # reciprocal rank fusion of dense + BM25 (retrieval/hybrid.py)
+  rrf_k: 60  # published default (Cormack et al. 2009); not tuned on the golden set
+  depth: 50  # candidates taken from each list before fusing
