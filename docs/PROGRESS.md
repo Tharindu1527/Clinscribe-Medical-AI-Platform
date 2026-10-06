@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2 and 4 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–5 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -101,7 +101,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 2 | `rag` Compose profile (Qdrant v1.19.2, Neo4j 5.26 LTS) with memory limits; dense baseline index | Health tests; whole stack ≤ 8 GB measured | ✅ 2026-10-06: 5/5 rag tests; 8,104 points; stack 3.59 GB |
 | 3 | Golden set v1 (200+): question, quoted answer, gold chunk ids, category; ≥ 10% unanswerable | Validator: gold chunks exist and contain the answer; reviewed sample recorded | ◐ 2026-10-06: 235 items valid; **review sheet waiting for you** |
 | 4 | Retrieval harness: recall@10, nDCG@10, MRR (`just eval rag`) | Baseline report; metric unit tests on hand-worked cases | ✅ 2026-10-06: dense recall@10 0.809, nDCG@10 0.583 |
-| 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ☐ |
+| 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ✅ 2026-10-06: measured; hybrid not better at top 10 (CI spans 0) |
 | 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ☐ |
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ☐ |
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ☐ |
@@ -302,11 +302,23 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   section (valsartan strengths), which reranking should help. Metric unit tests on hand-worked cases 6/6,
   harness integration 1/1. `just lint` clean; `just test` 181 passed.
 
+- 2026-10-06: **Phase 2 task 5 (ablation step 2)** — `retrieval/bm25.py` (own Okapi BM25, Lucene IDF,
+  k1 1.2, b 0.75, chunk text only like the dense index, stopwords without negations, plural folding; no
+  `rank-bm25`, unmaintained since 2022), `retrieval/hybrid.py` (dense and BM25 in parallel threads, RRF
+  k 60, depth 50, both untuned). Results (`evals/reports/rag/compare_*_vs_dense.md`, paired bootstrap):
+  BM25 alone recall@10 0.699 (−0.110, CI [−0.182, −0.038]); **hybrid recall@10 0.813 (+0.005, CI
+  [−0.048, +0.057]), MRR@10 0.533 (−0.028, CI [−0.074, +0.017]) — not shown better than dense**. The
+  methods are complementary: BM25 finds 19 questions dense misses at 10, either finds 0.900 at 10 and
+  0.943 at 20; hybrid's pool has the answer in its top 20 for 0.904 vs 0.876 dense (+0.029, CI
+  [−0.010, +0.072]). Hybrid latency p50 111 ms, p95 161 ms (BM25 index built in-process from the corpus).
+  Unit tests 7/7 (hand-worked BM25 and RRF values). `just lint` clean; full suite 188 passed (run with
+  `uv run --no-sync`: the internet dropped and `uv run` re-checks the spaCy wheel URL).
+
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
-- Phase 2 task 5: BM25 + reciprocal rank fusion (ablation step 2), compared with the dense baseline using
-  the paired bootstrap.
+- Phase 2 task 6: cross-encoder and ColBERT rerankers (step 3). Rerank both the dense pool and the hybrid
+  pool: that decides whether BM25 stays in the pipeline (its value is candidate recall, not fused order).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
@@ -326,6 +338,11 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- Hybrid (step 2) did not beat dense at the top ranks with plain RRF. Do not tune RRF weights or k on the
+  golden set (that would fit the test set); if a weighted fusion is tried, use 2-fold cross-validation over
+  the questions. The golden questions were written to avoid copying 6+ words from the source, which may
+  slightly disadvantage BM25 against real spoken questions; ASR transcripts in Phase 4 are a second check.
 
 - Gold chunks are quote-based, so a chunk that answers in other words counts as a miss (2 of 6 sampled
   misses). Options: pooled relevance judgements (judge the union of each system's top 10 once, store as
