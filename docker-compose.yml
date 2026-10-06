@@ -1,6 +1,6 @@
 # ClinScribe stack. Profiles and memory budget: docs/adr/0003-compose-profiles-memory-budget.md
 #   just up            -> core + fhir
-#   just up rag        -> core + fhir + rag (later phases)
+#   just up rag        -> core + fhir + rag (Qdrant, Neo4j; Phase 2)
 # Values come from .env (git-ignored). Each service receives only the variables it needs.
 # Ports are bound to 127.0.0.1 only.
 name: clinscribe
@@ -156,6 +156,49 @@ services:
       - "127.0.0.1:8080:8080"
     # Distroless image: no shell for an in-container healthcheck; the stack test polls /fhir/metadata.
 
+  # ---------------------------------------------------------------- rag (Phase 2)
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    profiles: [rag]
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?run just gen-keys}
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"
+    healthcheck:
+      # No curl or wget in the image; bash can open a TCP connection. /readyz is checked by the tests.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  neo4j:
+    image: neo4j:5.26.31-community
+    profiles: [rag]
+    restart: unless-stopped
+    mem_limit: 1536m
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?run just gen-keys}
+      NEO4J_server_memory_heap_initial__size: 768m
+      NEO4J_server_memory_heap_max__size: 768m
+      NEO4J_server_memory_pagecache_size: 512m
+      NEO4J_dbms_usage__report_enabled: "false"
+    volumes:
+      - neo4j_data:/data
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/7687"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+
   # ---------------------------------------------------------------- tools (one-shot)
   # Synthetic patients (Synthea v4.0.0, Apache-2.0). Run by `just fhir-load`, never by `just up`.
   synthea:
@@ -189,3 +232,5 @@ services:
 
 volumes:
   pgdata:
+  qdrant_data:
+  neo4j_data:

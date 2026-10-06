@@ -1,6 +1,7 @@
 """PROGRESS Phase 2 task 1 gate: the built corpus is citable, licensed, de-duplicated, reproducible.
 
-Needs `just ingest` first. Skipped when no corpus has been built, unless CLINSCRIBE_REQUIRE_STACK=1.
+Needs `just ingest` first. Skipped when no corpus has been built (CI does not build one), unless
+CLINSCRIBE_REQUIRE_RAG=1 (the Phase 2 gate).
 """
 
 import json
@@ -19,7 +20,7 @@ ALLOWED_LICENCE = re.compile(r"^(CC BY \d\.\d|CC0 1\.0|CC0 1\.0 \(openFDA\)|CC B
 @pytest.fixture(scope="module")
 def corpus() -> dict[str, list[dict[str, str]]]:
     if not (DATA / "manifest.json").exists():
-        if os.environ.get("CLINSCRIBE_REQUIRE_STACK") == "1":
+        if os.environ.get("CLINSCRIBE_REQUIRE_RAG") == "1":
             pytest.fail("no corpus built (just ingest)")
         pytest.skip("no corpus built (just ingest)")
 

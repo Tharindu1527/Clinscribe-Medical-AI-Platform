@@ -85,6 +85,10 @@ test-live *args:
 ingest *args:
     uv run python -m retrieval.ingest.pipeline {{args}}
 
+# Embed the corpus into the dense Qdrant collection (needs `just up rag`; `--recreate` rebuilds)
+index *args:
+    uv run python -m retrieval.dense {{args}}
+
 # Evaluation suites (`just eval privacy`, or all); reports go to evals/reports/
 eval suite="all":
     uv run python -m evals.run {{suite}}
