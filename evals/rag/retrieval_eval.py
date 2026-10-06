@@ -94,10 +94,49 @@ def hybrid_system() -> tuple[Retriever, dict[str, Any]]:
     }
 
 
+def reranked_system(
+    first_stage: Callable[[], tuple[Retriever, dict[str, Any]]], kind: str
+) -> Callable[[], tuple[Retriever, dict[str, Any]]]:
+    def build() -> tuple[Retriever, dict[str, Any]]:
+        from retrieval.colbert import ColBERTConfig, ColBERTEncoder, build_store
+        from retrieval.dense import load_chunks
+        from retrieval.rerank import (
+            ColBERTReranker,
+            CrossEncoderReranker,
+            RerankedRetriever,
+            Reranker,
+            rerank_config,
+        )
+
+        base, meta = first_stage()
+        cfg = rerank_config()
+        reranker: Reranker
+        if kind == "ce":
+            chunks, _ = load_chunks()
+            reranker = CrossEncoderReranker(
+                {c["id"]: c["text"] for c in chunks}, **cfg["cross_encoder"]
+            )
+        else:
+            col = ColBERTConfig.model_validate(cfg["colbert"])
+            chunks, sha = load_chunks()
+            store, store_meta = build_store(col, chunks, sha, ColBERTEncoder)
+            reranker = ColBERTReranker(ColBERTEncoder(col), store)
+            meta = {**meta, "colbert_store": store_meta}
+        reranker_cfg = cfg["cross_encoder"] if kind == "ce" else cfg["colbert"]
+        meta = {**meta, "reranker": {"kind": kind, "depth": cfg["depth"], **reranker_cfg}}
+        return RerankedRetriever(base, reranker, depth=cfg["depth"]), meta
+
+    return build
+
+
 SYSTEMS: dict[str, Callable[[], tuple[Retriever, dict[str, Any]]]] = {
     "dense": dense_system,
     "bm25": bm25_system,
     "hybrid": hybrid_system,
+    "dense_ce": reranked_system(dense_system, "ce"),
+    "hybrid_ce": reranked_system(hybrid_system, "ce"),
+    "dense_colbert": reranked_system(dense_system, "colbert"),
+    "hybrid_colbert": reranked_system(hybrid_system, "colbert"),
 }
 
 
