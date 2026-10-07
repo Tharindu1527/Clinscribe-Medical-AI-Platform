@@ -192,18 +192,30 @@ def build_index(
 ) -> dict[str, Any]:
     """Make the collection hold exactly one point per chunk; skip work that is already done."""
     vectors, meta = document_vectors(cfg, chunks, chunks_sha256, encoder_factory, index_dir)
+    return {**meta, **load_collection(cfg, client, chunks, vectors, meta["fingerprint"], recreate)}
+
+
+def load_collection(
+    cfg: DenseConfig,
+    client: QdrantClient,
+    chunks: Sequence[dict[str, str]],
+    vectors: NDArray[np.float32],
+    vectors_fingerprint: str,
+    recreate: bool = False,
+) -> dict[str, Any]:
+    """Load one point per chunk into cfg.collection unless it already holds these vectors."""
     exists = client.collection_exists(cfg.collection)
     if exists and not recreate:
         info = client.get_collection(cfg.collection)
         stored = (info.config.metadata or {}).get("fingerprint")
-        if stored == meta["fingerprint"] and info.points_count == len(chunks):
-            return {**meta, "upserted": 0}
+        if stored == vectors_fingerprint and info.points_count == len(chunks):
+            return {"upserted": 0}
     if exists:
         client.delete_collection(cfg.collection)
     client.create_collection(
         cfg.collection,
         vectors_config=VectorParams(size=int(vectors.shape[1]), distance=Distance.COSINE),
-        metadata={"fingerprint": meta["fingerprint"], "model": cfg.model},
+        metadata={"fingerprint": vectors_fingerprint, "model": cfg.model},
     )
     started = time.perf_counter()
     for start in range(0, len(chunks), UPSERT_BATCH):
@@ -220,7 +232,7 @@ def build_index(
             ],
             wait=True,
         )
-    return {**meta, "upserted": len(chunks), "upsert_seconds": round(time.perf_counter() - started)}
+    return {"upserted": len(chunks), "upsert_seconds": round(time.perf_counter() - started)}
 
 
 class DenseRetriever:

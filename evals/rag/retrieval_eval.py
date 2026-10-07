@@ -160,6 +160,9 @@ SYSTEMS: dict[str, System] = {
     "bm25_ctx": bm25_system("contextual"),
     "hybrid_ctx": hybrid_system("contextual"),
     "hybrid_colbert_ctx": reranked_system(hybrid_system("contextual"), "colbert", "contextual"),
+    # ablation step 5: late chunking changes the dense vectors only (compared, not stacked)
+    "dense_late": dense_system("late"),
+    "hybrid_colbert_late": reranked_system(hybrid_system("late"), "colbert", "late"),
 }
 
 
