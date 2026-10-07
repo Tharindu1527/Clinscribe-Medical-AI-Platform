@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-06 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–7 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+Last updated: 2026-10-07 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–8 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -104,7 +104,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 5 | BM25 + RRF (ablation step 2) | RRF unit tests; step 2 vs baseline with CI | ✅ 2026-10-06: measured; hybrid not better at top 10 (CI spans 0) |
 | 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ✅ 2026-10-06: hybrid + ColBERT recall@10 0.876; ADR-0006 proposed |
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ✅ 2026-10-06: hybrid + ColBERT + context recall@10 0.909, MRR 0.680 |
-| 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ☐ |
+| 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ✅ 2026-10-07: measured; worse (dense recall@10 0.727 vs 0.809), rejected |
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ☐ |
 | 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ☐ |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
@@ -348,14 +348,27 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   cache, then ran with a monitor that would pause the job below 1.5 GB (not triggered). A reboot shrinks
   the page file. Unit 6/6 (contextual). `just lint` clean; `just test` 203 passed.
 
+- 2026-10-07: **Phase 2 task 8 (ablation step 5, late chunking)** — `retrieval/late_chunking.py`: the same
+  ModernBERT Embed encodes each whole section ([CLS] "search_document:" section [SEP], ≤ 4,096 tokens;
+  44 longer sections in windows overlapping by 1,024; a chunk longer than the overlap gets its own centred
+  window, found when 10 table chunks of up to 1,753 tokens stopped the first run at shard 12 — cached shards
+  resumed), and each chunk vector is the mean of its own token vectors. Checks: exact parity with
+  sentence-transformers when pooling all tokens (same token ids, cosine 1.000000); single-chunk sections
+  0.989–0.9995 similar to the dense vectors. Build ~70 min on CPU (1.5–2.2 chunks/s), collection
+  `chunks_dense_modernbert_late`. **Result: worse.** dense_late recall@10 0.727 vs dense 0.809 (−0.081, CI
+  [−0.129, −0.038]) and vs dense_ctx 0.842 (−0.115); hybrid + ColBERT + late 0.861 vs + context 0.909
+  (−0.048, CI [−0.091, −0.005]). Cause: chunk vectors of long sections converge (mean within-section cosine
+  0.923 vs 0.706) and the loss grows with section length (sections of > 20 chunks 0.850 → 0.600; 2–5 chunks
+  0.845 → 0.825); ModernBERT Embed was not trained for long-context pooling. **Rejected; contextual retrieval
+  stays.** Note added to ADR-0005. Unit 6/6. `just lint` clean; `just test` 209 passed.
+
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- Phase 2 task 8: late chunking (step 5), compared with contextual retrieval (not stacked, per the plan):
-  ModernBERT Embed encodes a whole section (up to 8k tokens) and pools token vectors per chunk; dense only
-  (late chunking is an embedding method), measured against dense_ctx and then in the full pipeline.
+- Phase 2 task 9: Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6), measured on
+  the interaction-question subset against the best pipeline (hybrid + ColBERT + context).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
