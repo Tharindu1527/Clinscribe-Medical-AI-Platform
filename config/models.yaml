@@ -4,3 +4,6 @@ version: 1
 tasks:
   # Phase 1 pipeline smoke endpoint (task 9)
   dev_complete: clinscribe-default
+  # Phase 2 contextual-retrieval prefixes (retrieval/contextual.py): 8k offline calls, local model only
+  # (no free-tier quota; reached with the batch key, which cannot call cloud aliases)
+  contextual_prefix: clinscribe-fallback-local

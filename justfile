@@ -89,6 +89,14 @@ ingest *args:
 index *args:
     uv run python -m retrieval.dense {{args}}
 
+# Contextual-retrieval prefixes from the local model (hours; resumable): `just contextual --limit 30`
+contextual *args:
+    uv run python -m retrieval.contextual {{args}}
+
+# Precompute ColBERT document token vectors for reranking (resumable; data/index/colbert-*)
+index-colbert *args:
+    uv run python -m retrieval.colbert {{args}}
+
 # Validate the golden Q&A set against the corpus (`just golden --expand` refreshes gold chunk ids)
 golden *args:
     uv run python -m evals.golden.golden {{args}}
