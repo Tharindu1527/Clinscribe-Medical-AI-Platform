@@ -112,14 +112,16 @@ def test_gateway_config_fallback_chain_matches_spec() -> None:
     chain = config["router_settings"]["fallbacks"][0]["clinscribe-default"]
 
     # SPEC section 7 order: Gemini Flash -> Groq -> OpenRouter :free -> local Ollama
-    assert [provider_of[n] for n in names] == [
+    # (aliases outside the chain, such as the evaluation judge, are not fallback targets)
+    assert "clinscribe-judge" not in chain
+    assert [provider_of[n] for n in ["clinscribe-default", *chain]] == [
         {"gemini"},
         {"groq"},
         {"openrouter"},
         {"ollama_chat"},
     ]
-    assert ["clinscribe-default", *chain] == names
-    assert set(ALIASES) == set(names)  # the app key may use every step of the chain
+    assert ["clinscribe-default", *chain] == [n for n in names if n != "clinscribe-judge"]
+    assert set(ALIASES) == set(names)  # the app key may use every alias (chain and judge)
     assert config["general_settings"]["store_prompts_in_spend_logs"] is False
 
 

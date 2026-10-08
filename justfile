@@ -97,6 +97,10 @@ contextual *args:
 index-colbert *args:
     uv run python -m retrieval.colbert {{args}}
 
+# Cited-answer evaluation on the 60-question subset (cached, resumable; free-tier budgets may stop it)
+answers:
+    uv run python -m evals.rag.answer_eval --system dense --system hybrid_colbert_ctx
+
 # Drug-interaction graph: DDInter + RxNorm into Neo4j (needs `just up rag`; `--sources-only` skips Neo4j)
 graph *args:
     uv run python -m retrieval.graph.build {{args}}

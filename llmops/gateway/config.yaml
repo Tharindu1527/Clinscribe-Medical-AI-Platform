@@ -34,6 +34,12 @@ model_list:
       model: groq/openai/gpt-oss-20b
       api_key: os.environ/GROQ_API_KEY
 
+  # Evaluation judge (Phase 2 task 10): a larger model than the generators, never a fallback target
+  - model_name: clinscribe-judge
+    litellm_params:
+      model: groq/openai/gpt-oss-120b
+      api_key: os.environ/GROQ_API_KEY
+
   - model_name: clinscribe-fallback-openrouter
     litellm_params:
       model: openrouter/google/gemma-4-31b-it:free

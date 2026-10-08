@@ -19,6 +19,7 @@ ALIASES = [
     "clinscribe-fallback-groq",
     "clinscribe-fallback-openrouter",
     "clinscribe-fallback-local",
+    "clinscribe-judge",
 ]
 LIMITS = {
     "key_alias": "clinscribe-app",
