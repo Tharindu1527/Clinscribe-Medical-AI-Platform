@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-07 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–8 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+Last updated: 2026-10-08 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–9 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -105,7 +105,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 6 | Cross-encoder and ColBERT rerankers (step 3); ADR on the reranker | Both measured; ADR chooses with numbers | ✅ 2026-10-06: hybrid + ColBERT recall@10 0.876; ADR-0006 proposed |
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ✅ 2026-10-06: hybrid + ColBERT + context recall@10 0.909, MRR 0.680 |
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ✅ 2026-10-07: measured; worse (dense recall@10 0.727 vs 0.809), rejected |
-| 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ☐ |
+| 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
 | 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ☐ |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
 | 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
@@ -362,13 +362,39 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   0.845 → 0.825); ModernBERT Embed was not trained for long-context pooling. **Rejected; contextual retrieval
   stays.** Note added to ADR-0005. Unit 6/6. `just lint` clean; `just test` 209 passed.
 
+- 2026-10-08: CI fix: the ColBERT rerank integration test read `data/corpus` before checking it exists, so
+  the CI integration job (no corpus) failed instead of skipping (not Langfuse). Fixed; CI-like run skips,
+  full local run with `CLINSCRIBE_REQUIRE_RAG=1` 37/37.
+- 2026-10-08: **Phase 2 task 9 (ablation step 6, GraphRAG)** — `retrieval/graph/` (`just graph`):
+  DDInter 2.0, all 14 ATC-group CSVs (the download page links 8; C and J hold the cardiovascular and
+  anti-infective pairs), SHA-256 recorded; 1,971 drugs, **234,981 unique pairs** (Moderate 143,748, Unknown
+  42,415, Major 39,082, Minor 9,736; no level conflicts). RxNorm via RxNav (cached): 1,895 drugs (96%) mapped
+  to an ingredient RxCUI, 1,367 with brand names (29 min at ~1.6 calls/s). Lexicon: DDInter + ingredient
+  names, salt/ester-free aliases (lithium carbonate → lithium, dabigatran etexilate), co-trimoxazole and
+  co-amoxiclav, capitalised brands only; everyday substance words excluded ("glucose", "oxygen") after a
+  first 5%-frequency rule wrongly dropped warfarin (479 chunks). Neo4j via the HTTP API (no driver):
+  `(:Drug)-[:INTERACTS_WITH {level}]-(:Drug)`, `(:Chunk)-[:MENTIONS]->(:Drug)` 8,625 edges over 3,475
+  chunks; load 28 s, idempotent by fingerprint. 46 of 47 corpus drugs are in DDInter (**dabigatran is not**).
+  GraphRAG: a router (two different drugs, or one drug + an interaction cue) adds co-mention and
+  label-interaction-section chunks to the hybrid pool before ColBERT. Router v1 caught 10 of 19 interaction
+  questions; v2 (rules widened after reading the golden questions, so optimistic) 17 of 19, 28 of 209 routed.
+  **Result: no retrieval gain** — interaction subset identical (recall@10 0.895, 17/19, both systems; the 2
+  misses are not routable: dabigatran absent, "insulin" generic); routed subset +1 question (+0.036, CI
+  [0.000, +0.107]); full set recall@10 0.914 vs 0.909 (+0.005, n.s.); +74 ms p50 on routed questions
+  (same-day timing: both systems p50 ~350 ms today vs 144 ms on 2026-10-06, machine load). Every golden
+  question was drafted from a corpus passage, so this set cannot show the graph's main value (pairs the
+  corpus never discusses). **Decision: graph candidates stay out of the default retrieval pipeline; the
+  interaction facts (`GraphRetriever.facts()`) go to task 10 with graph-only questions.** Unit 8/8,
+  integration 5/5. `just lint` clean; `just test` 222 passed.
+
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- Phase 2 task 9: Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6), measured on
-  the interaction-question subset against the best pipeline (hybrid + ColBERT + context).
+- Phase 2 task 10: answer generation with chunk-id citations, citation check and faithfulness (RAGAS through
+  the gateway, Groq `gpt-oss-120b` judge, cached), dense-only vs the best two pipelines on the stratified
+  60-question subset; plus a small graph-only question set for the DDInter facts.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
@@ -388,6 +414,10 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- Langfuse free tier: the task 7 prefix job sent ~8k gateway calls, each traced. If Langfuse stops ingesting
+  this month, only the telemetry and leak tests are affected (a new project key fixes it). Lasting fix: keep
+  batch-key traffic out of LiteLLM's tracing (per-key logging setting) before the next batch job.
 
 - Hybrid (step 2) did not beat dense at the top ranks with plain RRF. Do not tune RRF weights or k on the
   golden set (that would fit the test set); if a weighted fusion is tried, use 2-fold cross-validation over

@@ -97,6 +97,10 @@ contextual *args:
 index-colbert *args:
     uv run python -m retrieval.colbert {{args}}
 
+# Drug-interaction graph: DDInter + RxNorm into Neo4j (needs `just up rag`; `--sources-only` skips Neo4j)
+graph *args:
+    uv run python -m retrieval.graph.build {{args}}
+
 # Validate the golden Q&A set against the corpus (`just golden --expand` refreshes gold chunk ids)
 golden *args:
     uv run python -m evals.golden.golden {{args}}
