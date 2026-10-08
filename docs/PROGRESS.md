@@ -106,7 +106,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ✅ 2026-10-06: hybrid + ColBERT + context recall@10 0.909, MRR 0.680 |
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ✅ 2026-10-07: measured; worse (dense recall@10 0.727 vs 0.809), rejected |
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
-| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ☐ |
+| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ◐ 2026-10-08: tooling done; dense 52/60 answered; waiting for Groq daily budget |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
 | 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
 
@@ -387,14 +387,34 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   interaction facts (`GraphRetriever.facts()`) go to task 10 with graph-only questions.** Unit 8/8,
   integration 5/5. `just lint` clean; `just test` 222 passed.
 
+- 2026-10-08: **Phase 2 task 10 (in progress)** — `retrieval/generate.py` + `prompts/answer_cited.yaml` v1:
+  top-5 chunks labelled [S1]..[S5], JSON sentences each citing labels (mapped to chunk ids), re-validated,
+  one retry with the error, then the safe reply. Judge `prompts/judge_citations.yaml` v1 on a new alias
+  `clinscribe-judge` (Groq gpt-oss-120b; not a fallback target): per-sentence support by the cited and by
+  any chunk, plus whether the answer conveys the golden quote. `evals/rag/answer_eval.py` (`just answers`):
+  seeded stratified 60-question subset (10 answerable + 2 unanswerable per area), contexts from the stored
+  rankings (same passages, no retrieval cost), LLM responses cached in `data/llm_cache/`, waits out per-minute
+  limits, stops cleanly on the daily budget and resumes. Generator Groq gpt-oss-20b for every pipeline (the
+  Gemini pool's 20 requests/day per model would force a mid-run model switch). Measured cost ~2.1k tokens per
+  answer and ~2.5k per judgment; **Groq's free daily budget ran out at ~111k tokens (generator), so ~47
+  answers per model per day** (a 57,600 s wait was requested). Decision (you): keep the same models and
+  finish over the next days. Interim dense baseline, 52 of 60 questions: faithfulness 0.937, citation
+  precision 0.926, correctness 0.76, false abstentions 18% of answerable, correct abstentions 100% of
+  unanswerable, 0 judge errors. Also built: graph-only check (`evals/rag/graph_facts_eval.py`, 10 Major
+  DDInter pairs no chunk names together; DDInter facts as citable `graph:ddinter:` sources) and a RAGAS
+  cross-check (`evals/rag/ragas_check.py`, throwaway env with langchain < 1 because ragas 0.4.3 imports a
+  module removed from langchain-community 0.4; Gemini pool, a different model family from the judge).
+  Unit 7/7 (answers), gateway config test updated for the judge alias. Lint clean; unit tests 187 passed.
+
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- Phase 2 task 10: answer generation with chunk-id citations, citation check and faithfulness (RAGAS through
-  the gateway, Groq `gpt-oss-120b` judge, cached), dense-only vs the best two pipelines on the stratified
-  60-question subset; plus a small graph-only question set for the DDInter facts.
+- Phase 2 task 10, resume when Groq's daily budget resets: `just up` (core) + `just up rag` (Qdrant, Neo4j for
+  the graph check), then `just answers` (finishes dense, then hybrid + ColBERT + context; ~47 answers per day),
+  `uv run python -m evals.rag.graph_facts_eval`, the RAGAS cross-check (command in `evals/rag/ragas_check.py`),
+  and `uv run python -m evals.rag.answer_eval --compare dense hybrid_colbert_ctx`.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
