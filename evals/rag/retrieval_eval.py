@@ -147,6 +147,32 @@ def reranked_system(first_stage: System, kind: str, variant: str = "raw") -> Sys
     return build
 
 
+def graph_system(variant: str = "contextual") -> System:
+    """Best pipeline with the drug graph: hybrid pool + graph candidates, reranked by ColBERT."""
+
+    def build() -> tuple[Retriever, dict[str, Any]]:
+        from retrieval.colbert import ColBERTConfig, ColBERTEncoder, build_store
+        from retrieval.contextual import variant as corpus_variant
+        from retrieval.dense import load_chunks
+        from retrieval.graph.lexicon import DrugLexicon
+        from retrieval.graph.load import GRAPH_DIR, Neo4jHTTP, counts, read_jsonl
+        from retrieval.graph.rag import GraphAugmentedPool, GraphRetriever
+        from retrieval.rerank import ColBERTReranker, RerankedRetriever, rerank_config
+
+        base, meta = hybrid_system(variant)()
+        client = Neo4jHTTP()
+        graph = GraphRetriever(client, DrugLexicon(read_jsonl(GRAPH_DIR / "drugs.jsonl")))
+        cfg = rerank_config()
+        col = ColBERTConfig.model_validate(cfg["colbert"])
+        chunks, sha = load_chunks(corpus_variant(variant)[0])
+        store, store_meta = build_store(col, chunks, sha, ColBERTEncoder)
+        pool = GraphAugmentedPool(base, graph, base_depth=cfg["depth"], graph_depth=20)
+        retriever = RerankedRetriever(pool, ColBERTReranker(ColBERTEncoder(col), store), depth=50)
+        return retriever, {**meta, "colbert_store": store_meta, "graph": counts(client)}
+
+    return build
+
+
 SYSTEMS: dict[str, System] = {
     "dense": dense_system(),
     "bm25": bm25_system(),
@@ -163,6 +189,8 @@ SYSTEMS: dict[str, System] = {
     # ablation step 5: late chunking changes the dense vectors only (compared, not stacked)
     "dense_late": dense_system("late"),
     "hybrid_colbert_late": reranked_system(hybrid_system("late"), "colbert", "late"),
+    # ablation step 6: drug graph candidates for interaction questions (others pass through)
+    "graph_ctx": graph_system("contextual"),
 }
 
 
@@ -287,7 +315,27 @@ def write_report(run: dict[str, Any], summary: dict[str, Any], items: list[Golde
     return path
 
 
-def compare(baseline: str, candidate: str, items: list[GoldenItem]) -> Path:
+def subset(items: list[GoldenItem], only: str | None) -> tuple[list[GoldenItem], str]:
+    """Items for a comparison: all, `qtype=<type>`, `area=<area>` or `routed` (graph router)."""
+    if not only:
+        return items, ""
+    if only == "routed":
+        from retrieval.graph.lexicon import DrugLexicon
+        from retrieval.graph.load import GRAPH_DIR, read_jsonl
+        from retrieval.graph.rag import routed_ids
+
+        keep = routed_ids(items, DrugLexicon(read_jsonl(GRAPH_DIR / "drugs.jsonl")))
+        return [i for i in items if i.id in keep or not i.answerable], "_routed"
+    field, _, value = only.partition("=")
+    if field not in ("qtype", "area") or not value:
+        raise SystemExit("--only takes qtype=<type>, area=<area> or routed")
+    return [i for i in items if getattr(i, field) == value or not i.answerable], f"_{value}"
+
+
+def compare(
+    baseline: str, candidate: str, items: list[GoldenItem], only: str | None = None
+) -> Path:
+    items, suffix = subset(items, only)
     runs = {
         n: json.loads((RUNS / f"{n}.json").read_text(encoding="utf-8"))
         for n in (baseline, candidate)
@@ -299,7 +347,9 @@ def compare(baseline: str, candidate: str, items: list[GoldenItem]) -> Path:
     lines = [
         f"# `{candidate}` vs `{baseline}`",
         "",
-        f"Paired bootstrap over {len(ids)} answerable questions (10,000 resamples, seed 42).",
+        f"Paired bootstrap over {len(ids)} answerable questions"
+        + (f" (subset: {only})" if only else "")
+        + " (10,000 resamples, seed 42).",
         "",
         "| metric | baseline | candidate | difference | 95% CI | better? |",
         "|---|---|---|---|---|---|",
@@ -332,7 +382,7 @@ def compare(baseline: str, candidate: str, items: list[GoldenItem]) -> Path:
             f"| top {k} | {len(base - cand)} | {len(cand - base)} | {len(base & cand)} | "
             f"{len(base | cand)} ({len(base | cand) / len(ids):.3f}) |"
         )
-    path = REPORTS / f"compare_{candidate}_vs_{baseline}.md"
+    path = REPORTS / f"compare_{candidate}_vs_{baseline}{suffix}.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     return path
 
@@ -341,11 +391,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Retrieval evaluation on the golden set")
     parser.add_argument("--system", default="dense", choices=sorted(SYSTEMS))
     parser.add_argument("--compare", nargs=2, metavar=("BASELINE", "CANDIDATE"))
+    parser.add_argument("--only", help="compare on a subset: qtype=<type>, area=<area>, routed")
     args = parser.parse_args(argv)
     items = load_items()
     if args.compare:
         baseline, candidate = args.compare
-        print(compare(baseline, candidate, items).read_text(encoding="utf-8"))
+        print(compare(baseline, candidate, items, args.only).read_text(encoding="utf-8"))
         return 0
     run = run_system(args.system, items)
     RUNS.mkdir(parents=True, exist_ok=True)

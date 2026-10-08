@@ -1,6 +1,6 @@
 # Retrieval evaluation: `hybrid_colbert_ctx`
 
-Run 2026-10-06T15:20:18+00:00 · golden set `9a9e231f27e0` (209 answerable questions) · corpus `4892616568b8` · model `nomic-ai/modernbert-embed-base` @ `d556a88e3325`
+Run 2026-10-08T11:47:33+00:00 · golden set `9a9e231f27e0` (209 answerable questions) · corpus `4892616568b8` · model `nomic-ai/modernbert-embed-base` @ `d556a88e3325`
 
 Recall@k is answer-level: a question counts as found when any chunk containing its quoted
 answer is in the top k. MRR@10 and nDCG@10 use every gold chunk (binary relevance).
@@ -11,7 +11,7 @@ other words counts as a miss: these numbers are a lower bound for every system.
 |---|---|---|---|---|---|---|
 | all | 209 | 0.565 | 0.828 | 0.909 | 0.680 | 0.695 |
 
-Query latency (embed + search, warm, n=235): p50 144 ms, p95 191 ms.
+Query latency (embed + search, warm, n=235): p50 350 ms, p95 480 ms.
 
 Median top-1 similarity: answerable 30.829, unanswerable 30.330 (a first look at whether a score threshold could support abstention; not used yet).
 
