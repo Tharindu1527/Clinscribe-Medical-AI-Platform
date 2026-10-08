@@ -112,3 +112,17 @@ class GraphAugmentedPool:
 def routed_ids(items: Sequence[Any], lexicon: DrugLexicon) -> set[str]:
     """Golden-set item ids whose question the router sends to the graph."""
     return {item.id for item in items if route(item.question, lexicon)}
+
+
+def fact_sources(facts: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
+    """Graph facts as citable sources for the answer step; ids start with "graph:ddinter:"."""
+    return [
+        {
+            "id": f"graph:ddinter:{f['a']}|{f['b']}",
+            "title": "DDInter 2.0 drug-drug interaction database",
+            "section": "Interaction severity",
+            "text": f"{f['a']} and {f['b']}: {f['level']} interaction (DDInter 2.0). "
+            "The database records the pair and its severity, not the mechanism or management.",
+        }
+        for f in facts
+    ]

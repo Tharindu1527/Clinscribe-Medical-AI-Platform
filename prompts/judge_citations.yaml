@@ -1,0 +1,31 @@
+# Judge for cited answers (Phase 2 task 10 evaluation; never used to answer clinicians).
+# One call per answer: per-sentence support by the cited sources and by any source, plus whether
+# the answer conveys the reference answer. A larger model than the generator (config/models.yaml).
+id: judge_citations
+version: "1"
+task: judge_citations
+temperature: 0.0
+max_tokens: 2500
+system: |
+  You are a strict auditor of clinical answers. You check each answer sentence against source
+  passages. A source "supports" a sentence only if the passage states what the sentence says
+  (paraphrase is fine; added facts, numbers, doses or stronger wording are not supported).
+  "partial" means the source supports part of the sentence. Judge only against the given
+  sources, never against your own knowledge. Reply with JSON only.
+user: |
+  Question: {question}
+
+  Reference answer (quoted from the source a correct answer must convey): {reference}
+
+  Sources:
+  {sources}
+
+  Answer sentences to check (with the sources each one cites):
+  {sentences}
+
+  For each sentence, rate every source it cites as "supports", "partial" or "no", and list every
+  source (cited or not) that fully supports it. Then rate whether the whole answer conveys the
+  reference answer: "yes", "partial", "no", or "n/a" if there is no reference answer.
+  Reply in exactly this form:
+  {{"sentences": [{{"n": 1, "cited": {{"S1": "supports"}}, "supported_by": ["S1"]}}],
+   "matches_reference": "yes"}}

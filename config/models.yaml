@@ -7,3 +7,8 @@ tasks:
   # Phase 2 contextual-retrieval prefixes (retrieval/contextual.py): 8k offline calls, local model only
   # (no free-tier quota; reached with the batch key, which cannot call cloud aliases)
   contextual_prefix: clinscribe-fallback-local
+  # Phase 2 task 10: cited answers and their evaluation. One generator for every compared pipeline
+  # (Groq gpt-oss-20b: the Gemini pool's 20 requests/day per model would force a mid-run model switch);
+  # the judge is a larger model, never a fallback target.
+  answer_cited: clinscribe-fallback-groq
+  judge_citations: clinscribe-judge

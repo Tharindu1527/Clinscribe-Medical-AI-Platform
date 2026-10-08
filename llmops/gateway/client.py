@@ -120,6 +120,7 @@ class GatewayClient:
         *,
         temperature: float = 0.0,
         max_tokens: int = 512,
+        response_format: dict[str, object] | None = None,
     ) -> Completion:
         for message in messages:
             if not isinstance(message.content, DeidentifiedText):
@@ -133,6 +134,8 @@ class GatewayClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        if response_format is not None:  # e.g. {"type": "json_object"}; absent keeps old cache keys
+            payload["response_format"] = response_format
         key = ReplayCache.key(payload)
         # GenAI semantic conventions; message content is never put on the span
         with _tracer.start_as_current_span(f"chat {model}", kind=SpanKind.CLIENT) as span:
