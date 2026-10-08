@@ -246,9 +246,14 @@ if __name__ == "__main__":
 
 
 def variant(name: str) -> tuple[Path, str]:
-    """Corpus folder and index-name suffix for a corpus variant: "raw" or "contextual"."""
+    """Corpus folder and dense-index suffix for a variant: "raw", "contextual" or "late".
+
+    "late" (late chunking) changes only the dense vectors: BM25 and ColBERT read the raw corpus.
+    """
     if name == "raw":
         return CORPUS, ""
+    if name == "late":
+        return CORPUS, "_late"
     if name == "contextual":
         spec = load_prompt()
         return output_dir(spec), f"_ctx_v{spec.version}"

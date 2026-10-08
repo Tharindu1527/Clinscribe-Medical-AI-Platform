@@ -42,3 +42,11 @@ dependency group, which the service image does not install yet.
   (no remote code, licence recorded).
 - A model change creates a new Qdrant collection (the name includes the model), so older indexes stay
   available for the ablation report.
+
+## Update 2026-10-07: late chunking measured
+
+Late chunking with this model (Phase 2 task 8, `retrieval/late_chunking.py`) lowered dense recall@10 from
+0.809 to 0.727 (CI [−0.129, −0.038]). Chunk vectors of long sections converge (mean within-section cosine
+0.923 vs 0.706), and the loss grows with section length. ModernBERT Embed was not trained to pool long
+contexts, so the 8k context does not help through late chunking. The choice of model stands on its
+baseline results and on loading without remote code; contextual retrieval (ADR-0006 pipeline) is used instead.
