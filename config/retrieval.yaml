@@ -33,6 +33,6 @@ rerank:  # ablation step 3 (retrieval/rerank.py); both models Apache-2.0, no rem
 
 late_chunking:  # ablation step 5 (retrieval/late_chunking.py); same model as dense
   max_tokens: 4096  # per encoded window; 8,192 would need ~3 GB per global-attention layer on CPU
-  overlap_tokens: 1024  # larger than any chunk, so every chunk fits whole in some window
+  overlap_tokens: 1024  # longer chunks (10 table chunks, up to 1,753) get their own window
   batch_tokens: 8192  # padded tokens per forward pass
   collection_suffix: _late

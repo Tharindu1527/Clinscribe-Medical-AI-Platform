@@ -36,15 +36,27 @@ def test_colbert_store_matches_the_corpus_and_reranks_a_drug_question() -> None:
     from privacy.deid.types import issue
     from retrieval.colbert import ColBERTEncoder, build_store, store_dir
     from retrieval.colbert import load_config as colbert_config
-    from retrieval.dense import DenseRetriever, SentenceTransformerEncoder, load_chunks
+    from retrieval.dense import CORPUS, DenseRetriever, SentenceTransformerEncoder, load_chunks
     from retrieval.rerank import ColBERTReranker, RerankedRetriever
 
+    def require(ready: bool, reason: str) -> None:
+        if not ready:
+            if os.environ.get("CLINSCRIBE_REQUIRE_RAG") == "1":
+                pytest.fail(reason)
+            pytest.skip(reason)
+
+    # CI builds no corpus: check every prerequisite before reading anything
+    require((CORPUS / "manifest.json").exists(), "no corpus built (just ingest)")
     cfg = colbert_config()
     chunks, sha = load_chunks()
-    if not (store_dir(cfg, sha) / "meta.json").exists():
-        if os.environ.get("CLINSCRIBE_REQUIRE_RAG") == "1":
-            pytest.fail("ColBERT store not built (just index-colbert)")
-        pytest.skip("ColBERT store not built (just index-colbert)")
+    require(
+        (store_dir(cfg, sha) / "meta.json").exists(), "ColBERT store not built (just index-colbert)"
+    )
+    try:
+        index_ready = connect().collection_exists(load_config().collection)
+    except Exception:  # noqa: BLE001 - Qdrant down or unreachable
+        index_ready = False
+    require(index_ready, "dense index not available (just up rag; just index)")
     store, meta = build_store(cfg, chunks, sha, ColBERTEncoder)  # loads; never re-encodes here
     assert meta["chunks"] == len(chunks)
     dense_cfg = load_config()
