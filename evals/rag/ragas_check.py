@@ -3,13 +3,16 @@
 RAGAS splits each answer into claims and checks each claim against the retrieved contexts. It runs
 through the gateway (ADR-0001) on the Gemini pool (`clinscribe-default`), a different model family
 from our judge (`clinscribe-judge`, gpt-oss-120b): agreement means more than one model agreeing
-with itself. RAGAS and LangChain are not project dependencies; run in a throwaway env
-(langchain < 1, because ragas 0.4.3 imports a module that langchain-community 0.4 removed):
+with itself. Each system's sample is scored and saved separately (the systems' answers may finish on
+different days), and the report combines whatever has been scored. RAGAS and LangChain are not
+project dependencies; run in a throwaway env (langchain < 1, because ragas 0.4.3 imports a module
+that langchain-community 0.4 removed):
 
-  uv run --with "ragas==0.4.3" --with "langchain-community<0.4" --with "langchain-openai<1" \
-         --with "langchain<1" --with "langchain-core<1" python -m evals.rag.ragas_check
+  uv run --with "ragas==0.4.3" --with "langchain-community<0.4" --with "langchain-openai<1" \\
+         --with "langchain<1" --with "langchain-core<1" python -m evals.rag.ragas_check [--system X]
 """
 
+import argparse
 import importlib
 import json
 import random
@@ -46,7 +49,8 @@ def spearman(a: list[float], b: list[float]) -> float:
     return cov / var if var else float("nan")
 
 
-def main() -> int:
+def score_system(system: str) -> Path:
+    """RAGAS faithfulness for PER_SYSTEM seeded answered rows of one system, saved per system."""
     from config.settings import Settings
     from evals.golden.golden import load_items
 
@@ -60,21 +64,17 @@ def main() -> int:
         (c := json.loads(line))["id"]: c["text"]
         for line in (ROOT / "data" / "corpus" / "chunks.jsonl").read_text("utf-8").splitlines()
     }
-    rng = random.Random(SEED)
-    picked: list[tuple[str, dict[str, Any]]] = []
-    for system in SYSTEMS:
-        rows = [
-            json.loads(x) for x in (ANSWERS / f"{system}.jsonl").read_text("utf-8").splitlines()
-        ]
-        rows = [r for r in {r["id"]: r for r in rows}.values() if "faithfulness" in r["metrics"]]
-        picked += [(system, r) for r in rng.sample(sorted(rows, key=lambda r: r["id"]), PER_SYSTEM)]
+    rows = [json.loads(x) for x in (ANSWERS / f"{system}.jsonl").read_text("utf-8").splitlines()]
+    rows = [r for r in {r["id"]: r for r in rows}.values() if "faithfulness" in r["metrics"]]
+    rng = random.Random(f"{SEED}-{system}")  # each system's sample is fixed independently
+    picked = rng.sample(sorted(rows, key=lambda r: r["id"]), PER_SYSTEM)
     samples = [
         ragas.SingleTurnSample(
             user_input=questions[r["id"]],
             response=" ".join(s["text"] for s in r["answer"]["sentences"]),
             retrieved_contexts=[corpus[c] for c in r["chunk_ids"]],
         )
-        for _, r in picked
+        for r in picked
     ]
     llm = llms.LangchainLLMWrapper(
         lc_openai.ChatOpenAI(
@@ -90,17 +90,35 @@ def main() -> int:
         ragas.EvaluationDataset(samples=samples), metrics=[metrics_mod.Faithfulness()], llm=llm
     )
     scores = [float(s) for s in result.to_pandas()["faithfulness"]]
-    ours = [float(r["metrics"]["faithfulness"]) for _, r in picked]
-    pairs = [(a, b) for a, b in zip(scores, ours, strict=True) if a == a]  # drop NaN (RAGAS failed)
+    out = ANSWERS / f"ragas_{system}.jsonl"
+    lines = [
+        json.dumps(
+            {"id": r["id"], "system": system, "ragas": a, "ours": r["metrics"]["faithfulness"]}
+        )
+        for r, a in zip(picked, scores, strict=True)
+    ]
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return out
+
+
+def report() -> Path:
+    rows = [
+        json.loads(line)
+        for system in SYSTEMS
+        if (ANSWERS / f"ragas_{system}.jsonl").exists()
+        for line in (ANSWERS / f"ragas_{system}.jsonl").read_text("utf-8").splitlines()
+    ]
+    pairs = [(r["ragas"], r["ours"]) for r in rows if r["ragas"] == r["ragas"]]  # drop NaN
     agree = sum((a == 1.0) == (b == 1.0) for a, b in pairs)
+    done = sorted({r["system"] for r in rows})
     lines = [
         "# Judge cross-check: our judge vs RAGAS faithfulness",
         "",
-        f"{len(picked)} answered questions ({PER_SYSTEM} per system: {', '.join(SYSTEMS)}). "
-        f"RAGAS 0.4.3 faithfulness through the gateway alias `{ALIAS}` (Gemini pool); our judge is "
-        "`clinscribe-judge` (gpt-oss-120b, prompts/judge_citations.yaml).",
+        f"{len(rows)} answered questions ({PER_SYSTEM} per system: {', '.join(done)}). "
+        f"RAGAS 0.4.3 faithfulness through the gateway alias `{ALIAS}` (Gemini pool); our judge "
+        "is `clinscribe-judge` (gpt-oss-120b, prompts/judge_citations.yaml).",
         "",
-        f"- scored by RAGAS: {len(pairs)} of {len(picked)}",
+        f"- scored by RAGAS: {len(pairs)} of {len(rows)}",
         f"- mean faithfulness: RAGAS {sum(a for a, _ in pairs) / len(pairs):.3f}, "
         f"ours {sum(b for _, b in pairs) / len(pairs):.3f}",
         f"- Spearman correlation: {spearman([a for a, _ in pairs], [b for _, b in pairs]):.2f}",
@@ -108,14 +126,20 @@ def main() -> int:
         "",
         "| id | system | RAGAS | ours |",
         "|---|---|---|---|",
-        *[
-            f"| {r['id']} | {system} | {a:.2f} | {r['metrics']['faithfulness']:.2f} |"
-            for (system, r), a in zip(picked, scores, strict=True)
-        ],
+        *[f"| {r['id']} | {r['system']} | {r['ragas']:.2f} | {r['ours']:.2f} |" for r in rows],
     ]
     path = ROOT / "evals" / "reports" / "rag" / "ragas_calibration.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
-    print(path.read_text(encoding="utf-8"))
+    return path
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="RAGAS cross-check of the answer judge")
+    parser.add_argument("--system", action="append", choices=SYSTEMS)
+    args = parser.parse_args(argv)
+    for system in args.system or SYSTEMS:
+        print(f"scored: {score_system(system)}")
+    print(report().read_text(encoding="utf-8"))
     return 0
 
 

@@ -405,6 +405,12 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   cross-check (`evals/rag/ragas_check.py`, throwaway env with langchain < 1 because ragas 0.4.3 imports a
   module removed from langchain-community 0.4; Gemini pool, a different model family from the judge).
   Unit 7/7 (answers), gateway config test updated for the judge alias. Lint clean; unit tests 187 passed.
+- 2026-10-08: The app key hit its **$1/30-day LiteLLM budget** ($1.30 notional; LiteLLM prices free-tier calls
+  at list price, $0 billed) and refused RAGAS calls. Raised to a **$25 notional usage cap** (`just gateway-keys`;
+  comment in `scripts/gateway_keys.py`); the free tiers' daily limits stay the real ceiling. **RAGAS cross-check,
+  dense half** (`evals/reports/rag/ragas_calibration.md`, 10 answers, Gemini pool): agreement on "fully
+  faithful" 10/10, Spearman 1.00, mean faithfulness RAGAS 0.970 vs our judge 0.925 (ours is stricter: whole
+  sentences vs RAGAS's smaller claims). Groq budget resets ~10:30 on 2026-10-09.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;

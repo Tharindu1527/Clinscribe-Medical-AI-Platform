@@ -24,7 +24,11 @@ ALIASES = [
 LIMITS = {
     "key_alias": "clinscribe-app",
     "models": ALIASES,
-    "max_budget": 1.0,  # USD per budget period; free tiers should stay near 0
+    # LiteLLM prices every call at the provider's list price even on free tiers, so this is a usage
+    # cap in list-price dollars, not real spend (all providers are free tiers). $1 was hit on
+    # 2026-10-08 by ~100 evaluation answers + judgments ($1.30 notional, $0 billed); the providers'
+    # own free-tier daily limits remain the real ceiling.
+    "max_budget": 25.0,
     "budget_duration": "30d",
     "rpm_limit": 30,
 }
