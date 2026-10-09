@@ -65,7 +65,12 @@ def score_system(system: str) -> Path:
         for line in (ROOT / "data" / "corpus" / "chunks.jsonl").read_text("utf-8").splitlines()
     }
     rows = [json.loads(x) for x in (ANSWERS / f"{system}.jsonl").read_text("utf-8").splitlines()]
-    rows = [r for r in {r["id"]: r for r in rows}.values() if "faithfulness" in r["metrics"]]
+    # answerable questions only, so the sample does not depend on how unanswerable ones went
+    rows = [
+        r
+        for r in {r["id"]: r for r in rows}.values()
+        if r["metrics"]["answerable"] and "faithfulness" in r["metrics"]
+    ]
     rng = random.Random(f"{SEED}-{system}")  # each system's sample is fixed independently
     picked = rng.sample(sorted(rows, key=lambda r: r["id"]), PER_SYSTEM)
     samples = [

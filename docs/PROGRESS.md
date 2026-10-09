@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-08 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-09 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–9 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -106,7 +106,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ✅ 2026-10-06: hybrid + ColBERT + context recall@10 0.909, MRR 0.680 |
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ✅ 2026-10-07: measured; worse (dense recall@10 0.727 vs 0.809), rejected |
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
-| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ◐ 2026-10-08: tooling done; dense 52/60 answered; waiting for Groq daily budget |
+| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ◐ 2026-10-09: dense 60/60, best 57/60 (3 unanswerable left); correctness +0.150 (CI excludes 0), faithfulness equal (0.937 vs 0.941, not shown better); graph-only check waits for Groq |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
 | 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
 
@@ -411,16 +411,35 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   dense half** (`evals/reports/rag/ragas_calibration.md`, 10 answers, Gemini pool): agreement on "fully
   faithful" 10/10, Spearman 1.00, mean faithfulness RAGAS 0.970 vs our judge 0.925 (ours is stricter: whole
   sentences vs RAGAS's smaller claims). Groq budget resets ~10:30 on 2026-10-09.
+- 2026-10-09: **Phase 2 task 10, answers measured** (Groq gpt-oss-20b generator, gpt-oss-120b judge, cached).
+  Dense finished 60/60: faithfulness 0.937, citation precision 0.926, correctness 0.76, false abstentions 18%
+  of answerable, correct abstentions 100%. Best pipeline (hybrid + ColBERT + context) 57/60 before Groq asked
+  for a 6 h wait (all 50 answerable done; 3 unanswerable left, they only change the abstention rate).
+  Paired comparison (`evals/reports/rag/answers_hybrid_colbert_ctx_vs_dense.md`, 95% bootstrap):
+  **correctness 0.760 → 0.910 (+0.150, CI [+0.050, +0.260])**, false abstentions 18% → 2%, answered 41 → 49
+  of 57; **faithfulness 0.937 vs 0.941 (+0.004, CI [−0.049, +0.069], not shown better)** on the 41 questions
+  both answered; citation precision 0.926 vs 0.875 (−0.051, CI [−0.124, +0.028], not shown worse). The dip is
+  mostly "partial" links on sentences citing 2+ sources (best 21 partial / 5 no of 140 links; dense 7 / 2 of
+  102), i.e. over-attribution rather than unsupported claims. Reading: better retrieval turns abstentions into
+  correct answers; faithfulness is at a ceiling for both because the generator abstains rather than guesses.
+  **RAGAS cross-check complete** (`evals/reports/rag/ragas_calibration.md`, 20 answers, Gemini pool):
+  "fully faithful" agreement 20/20, means RAGAS 0.985 vs ours 0.963; Spearman 1.00 rests on only 2 non-perfect
+  scores, so it is weak evidence of ranking agreement. RAGAS sampling now draws from answerable questions only
+  (dense sample unchanged, checked). `just lint` clean; `just test` 229 passed (stack + rag up).
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- Phase 2 task 10, resume when Groq's daily budget resets: `just up` (core) + `just up rag` (Qdrant, Neo4j for
-  the graph check), then `just answers` (finishes dense, then hybrid + ColBERT + context; ~47 answers per day),
-  `uv run python -m evals.rag.graph_facts_eval`, the RAGAS cross-check (command in `evals/rag/ragas_check.py`),
-  and `uv run python -m evals.rag.answer_eval --compare dense hybrid_colbert_ctx`.
+- **You: decide the Phase 2 gate wording.** SPEC §12 asks the chosen pipeline to beat dense-only on recall@10
+  and faithfulness. Recall@10 passes (+0.100, CI excludes 0); faithfulness is equal, not better (both ~0.94,
+  the generator abstains instead of guessing). Options: (a) gate on correctness / answer rate with faithfulness
+  as non-inferiority (difference CI lower bound above −0.05; now −0.049, borderline), (b) keep the wording and
+  report the gate as not met on faithfulness, (c) more questions for a tighter CI (~47 answers per day).
+- Phase 2 task 10, after Groq's wait ends (after ~20:17 on 2026-10-09): `just up rag`, `just answers` (3
+  unanswerable questions left), `uv run python -m evals.rag.graph_facts_eval` (graph-only check), then rerun
+  `uv run python -m evals.rag.answer_eval --compare dense hybrid_colbert_ctx`.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
