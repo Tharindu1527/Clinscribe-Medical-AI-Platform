@@ -106,7 +106,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ✅ 2026-10-06: hybrid + ColBERT + context recall@10 0.909, MRR 0.680 |
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ✅ 2026-10-07: measured; worse (dense recall@10 0.727 vs 0.809), rejected |
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
-| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ◐ 2026-10-09: dense 60/60, best 57/60 (3 unanswerable left); correctness +0.150 (CI excludes 0), faithfulness equal (0.937 vs 0.941, not shown better); graph-only check waits for Groq |
+| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ◐ 2026-10-09: dense and best 60/60; correctness +0.150 (CI excludes 0), faithfulness equal (not shown better); graph facts 10/10 vs text 4/10; runner-up (hybrid + ColBERT) in progress |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
 | 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
 
@@ -426,6 +426,13 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   "fully faithful" agreement 20/20, means RAGAS 0.985 vs ours 0.963; Spearman 1.00 rests on only 2 non-perfect
   scores, so it is weak evidence of ranking agreement. RAGAS sampling now draws from answerable questions only
   (dense sample unchanged, checked). `just lint` clean; `just test` 229 passed (stack + rag up).
+- 2026-10-09: Groq's daily limit is a **rolling window** (a probe 3 h before the stated wait succeeded). Best
+  pipeline finished 60/60 (the last 3 unanswerable, all correct abstentions); the comparison is unchanged.
+  **Graph-only check** (`evals/reports/rag/answers_graph_facts.md`, 10 Major DDInter pairs that no chunk names
+  together): text only answered 4/10 (interaction stated 0.40, faithfulness 0.62; one answer, diltiazem +
+  edoxaban, stated the interaction while citing a chunk that does not support it, faithfulness 0 — the
+  hazard the citation check exists for); text + DDInter facts answered 10/10, stated 1.00, cited the graph
+  10/10, faithfulness 0.95. Small n, illustrative; supports giving the agent the graph facts in Phase 3.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -437,9 +444,9 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   the generator abstains instead of guessing). Options: (a) gate on correctness / answer rate with faithfulness
   as non-inferiority (difference CI lower bound above −0.05; now −0.049, borderline), (b) keep the wording and
   report the gate as not met on faithfulness, (c) more questions for a tighter CI (~47 answers per day).
-- Phase 2 task 10, after Groq's wait ends (after ~20:17 on 2026-10-09): `just up rag`, `just answers` (3
-  unanswerable questions left), `uv run python -m evals.rag.graph_facts_eval` (graph-only check), then rerun
-  `uv run python -m evals.rag.answer_eval --compare dense hybrid_colbert_ctx`.
+- Phase 2 task 10, last arm: runner-up `hybrid_colbert` answers (`uv run python -m evals.rag.answer_eval
+  --system hybrid_colbert`, resumable), then `--compare dense hybrid_colbert` and
+  `--compare hybrid_colbert hybrid_colbert_ctx`.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers

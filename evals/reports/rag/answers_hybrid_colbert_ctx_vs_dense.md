@@ -1,6 +1,6 @@
 # Answers: `hybrid_colbert_ctx` vs `dense`
 
-57 questions (stratified subset of the golden set); generator and judge per prompts/answer_cited.yaml and prompts/judge_citations.yaml; 95% paired bootstrap.
+60 questions (stratified subset of the golden set); generator and judge per prompts/answer_cited.yaml and prompts/judge_citations.yaml; 95% paired bootstrap.
 
 | metric | baseline | candidate | difference | 95% CI | n pairs | better? |
 |---|---|---|---|---|---|---|
@@ -10,5 +10,5 @@
 
 | system | answered | false abstain (answerable) | correct abstain (unanswerable) | judge errors |
 |---|---|---|---|---|
-| dense | 41/57 | 0.18 | 1.0 | 0 |
-| hybrid_colbert_ctx | 49/57 | 0.02 | 1.0 | 0 |
+| dense | 41/60 | 0.18 | 1.0 | 0 |
+| hybrid_colbert_ctx | 49/60 | 0.02 | 1.0 | 0 |
