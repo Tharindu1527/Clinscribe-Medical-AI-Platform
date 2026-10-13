@@ -20,6 +20,7 @@ ALIASES = [
     "clinscribe-fallback-openrouter",
     "clinscribe-fallback-local",
     "clinscribe-judge",
+    "clinscribe-mock",  # load tests only (Phase 6)
 ]
 LIMITS = {
     "key_alias": "clinscribe-app",

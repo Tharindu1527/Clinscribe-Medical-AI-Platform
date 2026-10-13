@@ -76,6 +76,9 @@ services:
       OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
       # Empty = the provider's default endpoint. Set only by `just chaos primary-down on`.
       GEMINI_API_BASE: ${GEMINI_API_BASE_OVERRIDE:-}
+      # Set only by `just chaos cloud-down on` (with the Gemini override): Phase 5 exit gate
+      GROQ_API_BASE: ${GROQ_API_BASE_OVERRIDE:-}
+      OPENROUTER_API_BASE: ${OPENROUTER_API_BASE_OVERRIDE:-}
       # Gateway spans go to the collector (redaction, then Langfuse); no message content
       OTEL_EXPORTER: otlp_http
       OTEL_ENDPOINT: http://otel-collector:4318/v1/traces
@@ -134,6 +137,7 @@ services:
       APPROVAL_TOKEN_KEY: ${APPROVAL_TOKEN_KEY:?run just gen-keys}
       AUTH_TOKEN_KEY: ${AUTH_TOKEN_KEY:?run just gen-keys}
       DEV_LOGIN: ${DEV_LOGIN:-false}
+      CLINSCRIBE_MODEL_OVERRIDE: ${CLINSCRIBE_MODEL_OVERRIDE:-}  # load tests: clinscribe-mock
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:

@@ -153,7 +153,10 @@ def test_gateway_config_fallback_chain_matches_spec() -> None:
         {"openrouter"},
         {"ollama_chat"},
     ]
-    assert ["clinscribe-default", *chain] == [n for n in names if n != "clinscribe-judge"]
+    assert "clinscribe-mock" not in chain  # load-test alias, never a fallback
+    assert ["clinscribe-default", *chain] == [
+        n for n in names if n not in ("clinscribe-judge", "clinscribe-mock")
+    ]
     assert set(ALIASES) == set(names)  # the app key may use every alias (chain and judge)
     assert config["general_settings"]["store_prompts_in_spend_logs"] is False
 

@@ -15,6 +15,8 @@ from agents.schemas import (
     Evidence,
     GetPatientContextInput,
     InteractionReport,
+    LabParseResult,
+    ParseLabReportInput,
     PatientSummary,
     SearchGuidelinesInput,
     WriteFhirInput,
@@ -68,4 +70,8 @@ class McpTools:
 
     def write(self, request: WriteFhirInput) -> WriteFhirResult:
         result: WriteFhirResult = self._call("fhir", "write_fhir", request, WriteFhirResult)
+        return result
+
+    def parse_lab(self, request: ParseLabReportInput) -> LabParseResult:
+        result: LabParseResult = self._call("fhir", "parse_lab_report", request, LabParseResult)
         return result

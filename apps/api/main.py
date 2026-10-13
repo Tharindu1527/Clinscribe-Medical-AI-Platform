@@ -39,7 +39,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.deid = deid
     app.state.audit = audit
     app.state.graph = Agents(gateway, tools).build(InMemorySaver())
+    app.state.tools = tools
     app.state.drafts = {}
+    app.state.labs = {}
     app.state.pipeline = Pipeline(
         deid=deid,
         gateway=gateway,

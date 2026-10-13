@@ -261,3 +261,88 @@ def audit_log(
         dict(zip(columns, (str(v) if v is not None else None for v in row), strict=True))
         for row in rows
     ]
+
+
+class LabParseRequest(BaseModel):
+    patient_id: str = Field(pattern=ID)
+    pdf_base64: str = Field(min_length=10, max_length=7_000_000)
+
+
+class LabConfirmRequest(BaseModel):
+    birth_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    family_name: str = Field(min_length=1)
+    indexes: list[int] | None = None  # which parsed values the doctor confirms; None = all
+
+
+@router.post("/lab/parse")
+def lab_parse(body: LabParseRequest, request: Request, who: Doctor) -> dict[str, Any]:
+    """Lab-report PDF -> preliminary Observations with flags, pending the doctor's confirmation."""
+    from agents.schemas import ParseLabReportInput
+    from agents.tools import ToolError
+
+    try:
+        parsed = request.app.state.tools.parse_lab(
+            ParseLabReportInput(
+                pdf_base64=body.pdf_base64,
+                patient_id=body.patient_id,
+                requested_by=who.user,
+                role=who.role,
+            )
+        )
+    except ToolError as exc:
+        raise HTTPException(422, str(exc)) from None
+    lab_id = f"lab-{uuid.uuid4().hex[:16]}"
+    request.app.state.labs[lab_id] = {"patient_id": body.patient_id, **parsed.model_dump()}
+    return {"lab_id": lab_id, **parsed.model_dump()}
+
+
+@router.post("/lab/{lab_id}/confirm")
+def lab_confirm(
+    lab_id: str, body: LabConfirmRequest, request: Request, who: Doctor
+) -> dict[str, Any]:
+    """Writes the confirmed Observations (final), each with its own approval for exact content."""
+    from agents.schemas import PatientIdentifiers, WriteFhirInput
+    from agents.tools import ToolError
+
+    pending = request.app.state.labs.get(lab_id)
+    if pending is None:
+        raise HTTPException(404, "no such lab report")
+    if not all(pending["identity"].values()):
+        raise HTTPException(409, f"report does not match the patient record: {pending['identity']}")
+    chosen = range(len(pending["observations"])) if body.indexes is None else body.indexes
+    identifiers = PatientIdentifiers.model_validate(
+        {
+            "patient_id": pending["patient_id"],
+            "birth_date": body.birth_date,
+            "family_name": body.family_name,
+        }
+    )
+    written, refused = [], []
+    for index in chosen:
+        if not 0 <= index < len(pending["observations"]):
+            raise HTTPException(422, f"no parsed value {index}")
+        resource = {**pending["observations"][index], "status": "final"}
+        token = approve(
+            f"{lab_id}-{index}",
+            resource,
+            pending["patient_id"],
+            who.user,
+            Settings().approval_token_key,
+        )
+        try:
+            result = request.app.state.tools.write(
+                WriteFhirInput(resource=resource, approval=token, identifiers=identifiers)
+            )
+            written.append(result.resource_id)
+        except ToolError as exc:
+            refused.append(f"{index}: {exc}")
+    _audit(
+        request,
+        who,
+        "lab.confirm",
+        resource_type="Observation",
+        resource_id=lab_id,
+        details={"written": len(written), "refused": len(refused)},
+    )
+    request.app.state.labs.pop(lab_id, None)
+    return {"lab_id": lab_id, "written": written, "refused": refused}

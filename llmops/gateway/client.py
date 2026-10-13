@@ -7,6 +7,7 @@
 
 import hashlib
 import json
+import os
 import time
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
@@ -87,7 +88,11 @@ class ReplayCache:
 
 
 def alias_for(task: str, models_file: Path = MODELS_FILE) -> str:
-    """The gateway alias configured for a task in config/models.yaml."""
+    """The gateway alias configured for a task in config/models.yaml, unless
+    CLINSCRIBE_MODEL_OVERRIDE is set (load tests point every task at `clinscribe-mock`)."""
+    override = os.environ.get("CLINSCRIBE_MODEL_OVERRIDE")
+    if override:
+        return override
     config = yaml.safe_load(models_file.read_text(encoding="utf-8"))
     return str(config["tasks"][task])
 
