@@ -72,7 +72,7 @@ Lowest C: free space during the whole run: 2.35 GB.
 | core | postgres, otel-collector, litellm, deid, api | ~3.0 GB |
 | fhir | hapi-fhir (JVM heap capped at 1.25 GB) | ~2.0 GB |
 | `just up` (core + fhir, Phase 1) | | **~5.0 GB** |
-| rag (Phase 2) | qdrant, neo4j (heap 768 MB + page cache 512 MB), local encoders in api | ~3.5 GB |
+| rag (Phase 2–3) | qdrant, neo4j (heap 768 MB + page cache 512 MB), guidelines-mcp (encoders, 0.62 GB measured) | ~3.5 GB |
 | voice (Phase 4) | livekit-server, voice-agent, web | ~1.7 GB |
 | obs (optional) | prometheus, grafana | ~0.4 GB |
 | tools (one-shot) | synthea generator | ~1.0 GB while running |
@@ -130,7 +130,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | 0 | Dependencies (`langgraph`, `mcp`) with reasons; ACI-Bench licence | Licences recorded; lint + tests green | ✅ 2026-10-13 |
 | 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ✅ 2026-10-13: 9/9 |
 | 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ✅ 2026-10-13: unit 14, stdio 4/4 |
-| 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ☐ |
+| 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ✅ 2026-10-13: HTTP 2/2; stack 4.0 GB; p50 244–261 / p95 288–326 ms warm |
 | 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ☐ |
 | 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ☐ |
 | 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ☐ |
@@ -545,6 +545,19 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   the de-ID service again before the encoders. Tests: unit 14 (servers in-process with fakes) + 5 (approval);
   stdio integration 4/4 against the stack (real HAPI read + audited, approved write + replay + wrong-family
   refusal, Neo4j, retrieval with the models; 58 s). `just lint` clean; `just test` 272 passed, 3 skipped.
+- 2026-10-13: **Phase 3 task 3 (retrieval as a service).** Dockerfile now has two targets: `app` (default,
+  unchanged for every existing service; CI builds only this one) and `rag` (adds the CPU torch group;
+  2.7 GB vs 0.97 GB). `guidelines-mcp` service in the `rag` profile serves `search_guidelines` over
+  streamable HTTP on 127.0.0.1:8010 (2.5 GB limit), models from the host Hugging Face cache and the corpus/
+  indexes from `./data`, both read-only, offline mode; one warm-up query before the port opens (first query
+  14 s → 1.3 s). Found and fixed before commit: a required `HF_HOME` in the mount broke every `--profile "*"`
+  command (CI has no HF_HOME); it now defaults to `./data/hf-cache`. Latency over HTTP, 40 golden questions,
+  including the de-ID round trip: **first pass after start p50 457 / p95 756 ms, warm p50 244–261 / p95
+  288–326 ms**; host over stdio p50 215 / p95 358 ms. Tried and dropped: a Docker volume instead of the bind
+  mount (warm 245/288 ms, same as bind) and prefetching the ColBERT store at start-up (first pass unchanged),
+  so the cold first pass is not file I/O; cause not isolated (likely per-shape warm-up in torch). Memory with
+  core + fhir + rag: **4.0 GB** (guidelines-mcp 0.62 GB). Integration 2/2 (HTTP, contract rejection).
+  `just lint` clean; `just test` 274 passed, 3 skipped.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;

@@ -199,6 +199,50 @@ services:
       retries: 40
       start_period: 20s
 
+  # Retrieval as an MCP service (Phase 3 task 3): the only container with torch and the encoders.
+  # Models come from the host's Hugging Face cache and the corpus/indexes from ./data, both
+  # read-only; offline mode, so nothing is downloaded at run time.
+  guidelines-mcp:
+    build:
+      context: .
+      target: rag
+    image: clinscribe-python-rag:dev
+    profiles: [rag]
+    restart: unless-stopped
+    mem_limit: 2560m
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      deid:
+        condition: service_healthy
+        required: false  # core profile; `just up rag` starts it too
+    command: ["python", "-m", "mcp_servers.guidelines_mcp", "--http", "0.0.0.0:8010"]
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?run just gen-keys}
+      DEID_URL: http://deid:8001
+      HF_HOME: /hf-cache
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      # long form: a Windows path in HF_HOME contains a colon. Not `:?`: every `--profile "*"`
+      # command (just ps/down, CI logs) interpolates this service, and CI has no HF_HOME
+      - type: bind
+        source: ${HF_HOME:-./data/hf-cache}
+        target: /hf-cache
+        read_only: true
+      - ./data:/app/data:ro
+    ports:
+      - "127.0.0.1:8010:8010"
+    healthcheck:
+      # loading the encoders and the BM25 index takes about a minute on CPU
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8010), 3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
   # Vector-store comparison only (task 11, ADR-0007): Postgres + pgvector, separate from the core
   # Postgres so the comparison cannot touch app, LiteLLM or HAPI data.
   pgvector:

@@ -9,7 +9,8 @@ The query is sent through the de-ID service again before it reaches the encoders
 only hold de-identified text, and this keeps that true even if a caller gets it wrong (ADR-0001).
 The returned text is the original chunk (not the contextual prefix the index was built with).
 
-  uv run python -m mcp_servers.guidelines_mcp     (stdio; needs `just up` + `just up rag`)
+  uv run python -m mcp_servers.guidelines_mcp              (stdio; needs `just up` + `just up rag`)
+  python -m mcp_servers.guidelines_mcp --http 0.0.0.0:8010 (streamable HTTP; the rag container)
 """
 
 from collections.abc import Callable, Mapping
@@ -18,7 +19,7 @@ from typing import Any, Protocol
 from mcp.server.mcpserver import MCPServer
 
 from agents.schemas import Evidence, SearchGuidelinesInput
-from privacy.deid.types import DeidentifiedText
+from privacy.deid.types import DeidentifiedText, issue
 from retrieval.dense import Hit
 
 FILTER_DEPTH = 50
@@ -75,16 +76,29 @@ def build_server(
     return server
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    import argparse
+
     from config.settings import Settings
     from privacy.deid.client import DeidClient
     from retrieval.dense import load_chunks
     from retrieval.pipeline import build_chosen
 
+    parser = argparse.ArgumentParser(description="guidelines-mcp")
+    parser.add_argument("--http", metavar="HOST:PORT", help="serve streamable HTTP, not stdio")
+    args = parser.parse_args(argv)
     settings = Settings()
     deid = DeidClient(settings.deid_url)
     chunks = {c["id"]: c for c in load_chunks()[0]}  # original text, not the contextual variant
+    searcher = build_chosen()
+    # the first query loads model weights (~14 s cold without this); run it before the port opens,
+    # so the healthcheck passes only once queries are fast
+    searcher.search(issue("warm-up query about warfarin dosing", "synthetic-test-fixture"), k=1)
     server = build_server(
-        build_chosen(), chunks, lambda text: deid.deidentify(text, "guidelines-mcp").text
+        searcher, chunks, lambda text: deid.deidentify(text, "guidelines-mcp").text
     )
-    server.run("stdio")
+    if args.http:
+        host, port = args.http.rsplit(":", 1)
+        server.run("streamable-http", host=host, port=int(port))
+    else:
+        server.run("stdio")

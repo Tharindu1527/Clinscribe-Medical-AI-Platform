@@ -1,6 +1,6 @@
 """The chosen retrieval pipeline (Phase 2, `evals/reports/rag/ablation.md`): dense + BM25 fused
 with RRF over the contextual corpus, reranked by ColBERT. Built once per process; loading the
-encoders and the BM25 index takes tens of seconds and ~1.5 GB of memory."""
+encoders and the BM25 index takes tens of seconds and ~0.6 GB of memory."""
 
 from typing import Any
 
