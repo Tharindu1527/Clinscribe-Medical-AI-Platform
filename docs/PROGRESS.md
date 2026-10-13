@@ -129,13 +129,13 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 |---|------|----------------|--------|
 | 0 | Dependencies (`langgraph`, `mcp`) with reasons; ACI-Bench licence | Licences recorded; lint + tests green | ✅ 2026-10-13 |
 | 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ✅ 2026-10-13: 9/9 |
-| 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ☐ |
+| 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ✅ 2026-10-13: unit 14, stdio 4/4 |
 | 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ☐ |
 | 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ☐ |
 | 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ☐ |
 | 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ☐ |
 | 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ☐ |
-| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ☐ |
+| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ◐ 2026-10-13: token + checks in `write_fhir` (done with task 2); the API that issues tokens comes with task 9/10 |
 | 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ☐ |
 | 10 | Review UI (React + Vite): drafts, unsupported statements highlighted, approve / edit / reject; edits saved as before/after pairs | End-to-end test; screenshots | ☐ |
 | 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ☐ |
@@ -530,6 +530,21 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   (`SoapNote.unsupported()`); every answer sentence cites; `PatientSummary` has no name, birth date or
   address and caps age at 90; a FHIR write carries an approval token (doctor only, expiry after issue, draft
   SHA-256) and two identifiers naming the same patient; drafts are always `ai_generated`. Unit 9/9.
+- 2026-10-13: **Phase 3 task 2 (MCP servers)** on the mcp 2.x SDK (`MCPServer`, `ToolError` so refusal
+  reasons reach the model). `fhir-mcp`: `get_patient_context` (age capped at 90, sex, active conditions and
+  medications, allergies; no name, birth date or address) audits every read with the requesting user
+  (`requested_by` + role added to the contract); `write_fhir` refuses, with the reason and an audit row,
+  unless the approval token (`agents/approval.py`: HMAC-SHA-256 over canonical claims with
+  `APPROVAL_TOKEN_KEY`, constant-time compare, 10-min expiry, bound to the SHA-256 of the exact resource)
+  verifies, the resource type is writable, both identifiers (id + birth date + family name) match the record
+  and the resource is about that patient; the create is conditional on the draft id, so a replayed token
+  writes once (`fhir.write.duplicate`). `druggraph-mcp`: `check_interactions` returns DDInter pairs with
+  citable ids and **the names it could not match** (`InteractionReport.unknown_drugs`, e.g. dabigatran), so
+  "no interaction" never hides "unknown drug". `guidelines-mcp`: `search_guidelines` over the chosen pipeline
+  (`retrieval/pipeline.py build_chosen()`), source/topic filters, original chunk text; the query goes through
+  the de-ID service again before the encoders. Tests: unit 14 (servers in-process with fakes) + 5 (approval);
+  stdio integration 4/4 against the stack (real HAPI read + audited, approved write + replay + wrong-family
+  refusal, Neo4j, retrieval with the models; 58 s). `just lint` clean; `just test` 272 passed, 3 skipped.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;

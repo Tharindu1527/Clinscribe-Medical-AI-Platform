@@ -70,9 +70,20 @@ class Interaction(Contract):
         return self
 
 
+class InteractionReport(Contract):
+    """Pairs found, and the names that matched no drug in the graph: "no interaction found" must
+    never hide "drug unknown" (dabigatran, for example, is not in DDInter)."""
+
+    interactions: list[Interaction]
+    unknown_drugs: list[str] = []
+
+
 # --- get_patient_context (fhir-mcp)
 class GetPatientContextInput(Contract):
     patient_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9\-.]+$")
+    # the authenticated user the agent acts for; every read is audited with it (task 9 adds auth)
+    requested_by: str = Field(min_length=1)
+    role: Role
 
 
 class CodedItem(Contract):

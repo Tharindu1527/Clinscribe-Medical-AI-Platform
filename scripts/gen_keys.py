@@ -25,6 +25,7 @@ GENERATORS: dict[str, Callable[[], str]] = {
     # Fernet keys are 32 random bytes, urlsafe-base64 encoded
     "DEID_MAPPING_KEY": lambda: base64.urlsafe_b64encode(os.urandom(32)).decode(),
     "AUDIT_CHAIN_KEY": lambda: secrets.token_hex(32),
+    "APPROVAL_TOKEN_KEY": lambda: secrets.token_hex(32),
     "QDRANT_API_KEY": lambda: secrets.token_urlsafe(32),
     "NEO4J_PASSWORD": lambda: secrets.token_urlsafe(24),
     "PGVECTOR_PASSWORD": lambda: secrets.token_urlsafe(24),
