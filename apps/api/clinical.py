@@ -7,8 +7,10 @@ Drafts live in the graph's checkpointer (in memory: a restart drops pending draf
 """
 
 import uuid
+from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
+import httpx
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Request
 from langgraph.types import Command
@@ -66,6 +68,16 @@ def _config(thread: str) -> dict[str, Any]:
     return {"configurable": {"thread_id": thread}}
 
 
+def _run(step: Callable[[], Any]) -> Any:
+    """Run a graph step; model-gateway failures become 504/502 with a message, not a bare 500."""
+    try:
+        return step()
+    except httpx.TimeoutException:
+        raise HTTPException(504, "the model gateway timed out; please try again") from None
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"the model gateway failed: {type(exc).__name__}") from None
+
+
 @router.post("/dev/login")
 def dev_login(body: LoginRequest) -> dict[str, str]:
     """Token for a synthetic demo user; enabled only with DEV_LOGIN=true (local demo)."""
@@ -80,9 +92,11 @@ def dev_login(body: LoginRequest) -> dict[str, str]:
 @router.post("/ask")
 def ask(body: AskRequest, request: Request, who: Doctor) -> dict[str, Any]:
     deid = request.app.state.deid.deidentify(body.question, body.encounter_id)
-    out = request.app.state.graph.invoke(
-        {"mode": "ask", "encounter_id": body.encounter_id, "question": deid.text.text},
-        _config(f"ask-{uuid.uuid4().hex}"),
+    out = _run(
+        lambda: request.app.state.graph.invoke(
+            {"mode": "ask", "encounter_id": body.encounter_id, "question": deid.text.text},
+            _config(f"ask-{uuid.uuid4().hex}"),
+        )
     )
     if out.get("result", {}).get("status") == "refused":
         raise HTTPException(422, out["result"]["reason"])
@@ -124,14 +138,16 @@ def create_draft(body: DraftRequest, request: Request, who: Doctor) -> dict[str,
         for t in body.transcript
     ]
     draft_id = f"draft-{uuid.uuid4().hex[:16]}"
-    out = request.app.state.graph.invoke(
-        {
-            "mode": "scribe",
-            "encounter_id": body.encounter_id,
-            "patient_id": body.patient_id,
-            "transcript": turns,
-        },
-        _config(draft_id),
+    out = _run(
+        lambda: request.app.state.graph.invoke(
+            {
+                "mode": "scribe",
+                "encounter_id": body.encounter_id,
+                "patient_id": body.patient_id,
+                "transcript": turns,
+            },
+            _config(draft_id),
+        )
     )
     if "__interrupt__" not in out:
         raise HTTPException(422, (out.get("result") or {}).get("reason", "no draft produced"))
@@ -202,7 +218,7 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
                 "family_name": body.family_name,
             },
         }
-    out = graph.invoke(Command(resume=resume), _config(draft_id))
+    out = _run(lambda: graph.invoke(Command(resume=resume), _config(draft_id)))
     result = out.get("result", {})
     _audit(
         request,

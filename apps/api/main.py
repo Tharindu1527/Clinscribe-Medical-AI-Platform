@@ -32,7 +32,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     provider = configure_tracing(SERVICE, settings.otel_exporter_otlp_endpoint)
     prompt = load_prompt("dev_complete")
     deid = DeidClient(settings.deid_url)
-    gateway = GatewayClient(settings.gateway_url, settings.litellm_app_key)
+    # 300 s: a long note on the free tier takes up to ~3 min (ACI-Bench p95 179 s: 503s + fallback)
+    gateway = GatewayClient(settings.gateway_url, settings.litellm_app_key, timeout=300.0)
     audit = AuditLog(app_conninfo(settings), settings.audit_chain_key)
     tools = McpTools(settings.guidelines_mcp_url, settings.druggraph_mcp_url, settings.fhir_mcp_url)
     app.state.deid = deid

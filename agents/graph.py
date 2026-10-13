@@ -47,6 +47,7 @@ from agents.tools import ToolError, Tools
 from llmops.gateway.client import ChatMessage, Completion, alias_for
 from privacy.deid.types import issue
 from retrieval.generate import AnswerGenerator, source_block
+from retrieval.graph.rag import CUE
 
 COMPARISON = re.compile(
     r"\b(compare|comparison|versus|vs\.?|difference between|better than|which is (better|safer)|"
@@ -151,8 +152,15 @@ class State(TypedDict, total=False):
 
 
 def route_question(question: str) -> Literal["fast", "agentic"]:
-    """Agentic for interaction / comparison wording, several questions, or long questions."""
-    if COMPARISON.search(question) or question.count("?") > 1 or len(question.split()) > 30:
+    """Agentic for comparison or interaction wording (incl. the Phase 2 graph router's cues, e.g.
+    "a patient on X"), several questions, or long questions. Measured on the golden set
+    (evals/reports/agents/router.md): interaction recall 14/20, other questions agentic 25/215."""
+    if (
+        COMPARISON.search(question)
+        or CUE.search(question)
+        or question.count("?") > 1
+        or len(question.split()) > 30
+    ):
         return "agentic"
     return "fast"
 
@@ -202,7 +210,8 @@ class Agents:
             ],
             temperature=prompt.temperature,
             max_tokens=prompt.max_tokens,
-            response_format={"type": "json_object"},
+            # no provider JSON mode: Groq's validator rejected long notes that were valid JSON
+            # (json_validate_failed, 2026-10-13); the reply is parsed and re-validated here instead
         )
         return reply.text
 

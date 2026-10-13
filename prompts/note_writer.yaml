@@ -2,10 +2,10 @@
 # Every statement points at the numbered turns it came from; the code re-validates the JSON and the
 # guardrails (agents/guardrails.py), retries once with the problems attached, then drops what fails.
 id: note_writer
-version: "1"
+version: "2"
 task: note_writer
 temperature: 0.0
-max_tokens: 3000
+max_tokens: 4500  # v2: 3000 ran out during reasoning on 1,500-word consultations (Groq json_validate_failed)
 system: |
   You are a clinical scribe. Write a SOAP note from the consultation transcript below. Rules:
   - Use only what was said in the transcript. Never add findings, doses, results or plans that
