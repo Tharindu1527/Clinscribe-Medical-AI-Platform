@@ -1,7 +1,9 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-13 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–11 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
+**Phase 3 — Agents + safety: in progress (started 2026-10-13 with your waiver of the phase-order rule)**.
+Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -113,6 +115,32 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 
 Memory measured 2026-10-06 (core + fhir + rag, index loaded): **3.59 GB** of containers (Neo4j 1,127 MB, Qdrant 251 MB);
 the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
+
+## Phase 3 — Agents + safety (weeks 6–7)
+
+**Phase exit gate (SPEC §12):** the red-team suite passes 100%; no FHIR write without approval (tested).
+Run with `just gate 3`.
+
+**Decisions (you, 2026-10-13):** start Phase 3 before the Phase 2 golden review is in (waiver of the
+phase-order rule; Phase 2 closes when the review lands). Review UI: minimal React (Vite) with plain CSS.
+Free-tier budget: every LLM response cached; development on small subsets, as in Phase 2.
+
+| # | Task | Exit-gate test | Status |
+|---|------|----------------|--------|
+| 0 | Dependencies (`langgraph`, `mcp`) with reasons; ACI-Bench licence | Licences recorded; lint + tests green | ✅ 2026-10-13 |
+| 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ☐ |
+| 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ☐ |
+| 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ☐ |
+| 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ☐ |
+| 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ☐ |
+| 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ☐ |
+| 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ☐ |
+| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ☐ |
+| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ☐ |
+| 10 | Review UI (React + Vite): drafts, unsupported statements highlighted, approve / edit / reject; edits saved as before/after pairs | End-to-end test; screenshots | ☐ |
+| 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ☐ |
+| 12 | ADRs: orchestrator (LangGraph vs Pydantic AI vs OpenAI Agents SDK on one task, isolated project) and A2A | ADRs with numbers | ☐ |
+| 13 | `just gate 3` | Red-team 100%; no write without approval | ☐ |
 
 ## Done
 
@@ -489,6 +517,13 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   "Ingestion suspended" refusal (any other failure still fails). The local-export test keeps checking that
   spans carry no PHI. `just gate 2`: lint, full suite (240 passed, 3 skipped: Langfuse + 2 pgvector), golden
   validator, CI fixture and the gate criteria all PASS; **only the golden review (task 3) FAILS**.
+- 2026-10-13: **Phase 3 task 0.** `langgraph` 1.2.12 and `mcp` 2.2.0 (both MIT, released ≥ 2 weeks before
+  adding), `langgraph-checkpoint` held at 4.2.0 (4.3.0 was a day old); added with `uv lock --upgrade-package
+  <pkg>==<ver>` so no existing package moved (a plain `uv add` had also upgraded 26 unrelated packages,
+  including ruff and pydantic, and was reverted). New transitive packages include `langsmith` (pulled by
+  langchain-core); it only sends data when `LANGSMITH_TRACING` is set, which this project never sets.
+  ACI-Bench: CC BY 4.0 per its README (no LICENSE file); how the dialogues were produced is checked against
+  the paper before ingest.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
