@@ -9,6 +9,7 @@ from collections.abc import Callable
 from evals.llmops import failover_latency
 from evals.privacy import deid_eval, leak_test
 from evals.rag import retrieval_eval
+from evals.redteam import run as redteam
 
 # `all` runs every suite; `leak` and `latency` need the stack and make real LLM calls
 SUITES: dict[str, list[Callable[[], int]]] = {
@@ -17,6 +18,8 @@ SUITES: dict[str, list[Callable[[], int]]] = {
     "latency": [failover_latency.main],
     # needs `just up rag` and `just index`; local encoder only, no LLM calls
     "rag": [lambda: retrieval_eval.main([])],
+    # Phase 3 gate: adversarial model, real graph/guardrails/fhir-mcp code, no LLM calls
+    "redteam": [lambda: redteam.main([])],
 }
 
 
