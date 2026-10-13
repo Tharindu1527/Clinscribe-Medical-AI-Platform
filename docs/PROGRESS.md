@@ -1,7 +1,9 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-13 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–11 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
+**Phase 3 — Agents + safety: in progress (started 2026-10-13 with your waiver of the phase-order rule)**.
+Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -70,7 +72,7 @@ Lowest C: free space during the whole run: 2.35 GB.
 | core | postgres, otel-collector, litellm, deid, api | ~3.0 GB |
 | fhir | hapi-fhir (JVM heap capped at 1.25 GB) | ~2.0 GB |
 | `just up` (core + fhir, Phase 1) | | **~5.0 GB** |
-| rag (Phase 2) | qdrant, neo4j (heap 768 MB + page cache 512 MB), local encoders in api | ~3.5 GB |
+| rag (Phase 2–3) | qdrant, neo4j (heap 768 MB + page cache 512 MB), guidelines-mcp (encoders, 0.62 GB measured) | ~3.5 GB |
 | voice (Phase 4) | livekit-server, voice-agent, web | ~1.7 GB |
 | obs (optional) | prometheus, grafana | ~0.4 GB |
 | tools (one-shot) | synthea generator | ~1.0 GB while running |
@@ -109,10 +111,36 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
 | 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ✅ 2026-10-10: dense vs best two, 60 questions each: correctness better for both (+0.150 and +0.100, CIs exclude 0), faithfulness and citation precision not different (all ~0.93–0.94 / 0.87–0.93); graph facts 10/10 vs text 4/10 |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ✅ 2026-10-13: recall@10 tie (0.842) when exact or ef ≥ 100; p95 < 20 ms for all indexed options; keep Qdrant (ADR-0007 proposed) |
-| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ◐ 2026-10-13: fixture + ablation report + gate built; criteria PASS; gate FAIL only on the golden review (task 3) and the Langfuse test |
+| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ◐ 2026-10-13: fixture + ablation report + gate built; every check PASS except the golden review (task 3) |
 
 Memory measured 2026-10-06 (core + fhir + rag, index loaded): **3.59 GB** of containers (Neo4j 1,127 MB, Qdrant 251 MB);
 the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
+
+## Phase 3 — Agents + safety (weeks 6–7)
+
+**Phase exit gate (SPEC §12):** the red-team suite passes 100%; no FHIR write without approval (tested).
+Run with `just gate 3`.
+
+**Decisions (you, 2026-10-13):** start Phase 3 before the Phase 2 golden review is in (waiver of the
+phase-order rule; Phase 2 closes when the review lands). Review UI: minimal React (Vite) with plain CSS.
+Free-tier budget: every LLM response cached; development on small subsets, as in Phase 2.
+
+| # | Task | Exit-gate test | Status |
+|---|------|----------------|--------|
+| 0 | Dependencies (`langgraph`, `mcp`) with reasons; ACI-Bench licence | Licences recorded; lint + tests green | ✅ 2026-10-13 |
+| 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ✅ 2026-10-13: 9/9 |
+| 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ✅ 2026-10-13: unit 14, stdio 4/4 |
+| 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ✅ 2026-10-13: HTTP 2/2; stack 4.0 GB; p50 244–261 / p95 288–326 ms warm |
+| 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ☐ |
+| 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ☐ |
+| 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ☐ |
+| 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ☐ |
+| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ◐ 2026-10-13: token + checks in `write_fhir` (done with task 2); the API that issues tokens comes with task 9/10 |
+| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ☐ |
+| 10 | Review UI (React + Vite): drafts, unsupported statements highlighted, approve / edit / reject; edits saved as before/after pairs | End-to-end test; screenshots | ☐ |
+| 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ☐ |
+| 12 | ADRs: orchestrator (LangGraph vs Pydantic AI vs OpenAI Agents SDK on one task, isolated project) and A2A | ADRs with numbers | ☐ |
+| 13 | `just gate 3` | Red-team 100%; no write without approval | ☐ |
 
 ## Done
 
@@ -484,27 +512,69 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   the pgvector tests used the rag flag, so they errored with the `vectorstore` profile stopped; they now use
   `CLINSCRIBE_REQUIRE_VECTORSTORE`. Unit tests +6 (regression 4, ablation 2). `just lint` clean; `just test`
   240 passed, 2 skipped (pgvector off), 1 failed (Langfuse ingestion suspended).
+- 2026-10-13: **Langfuse treated as non-essential (you).** The current keys stay; the Langfuse delivery test
+  now probes the ingestion endpoint first and skips, with the reason, only on Langfuse's exact
+  "Ingestion suspended" refusal (any other failure still fails). The local-export test keeps checking that
+  spans carry no PHI. `just gate 2`: lint, full suite (240 passed, 3 skipped: Langfuse + 2 pgvector), golden
+  validator, CI fixture and the gate criteria all PASS; **only the golden review (task 3) FAILS**.
+- 2026-10-13: **Phase 3 task 0.** `langgraph` 1.2.12 and `mcp` 2.2.0 (both MIT, released ≥ 2 weeks before
+  adding), `langgraph-checkpoint` held at 4.2.0 (4.3.0 was a day old); added with `uv lock --upgrade-package
+  <pkg>==<ver>` so no existing package moved (a plain `uv add` had also upgraded 26 unrelated packages,
+  including ruff and pydantic, and was reverted). New transitive packages include `langsmith` (pulled by
+  langchain-core); it only sends data when `LANGSMITH_TRACING` is set, which this project never sets.
+  ACI-Bench: CC BY 4.0 per its README (no LICENSE file); how the dialogues were produced is checked against
+  the paper before ingest.
+- 2026-10-13: **Phase 3 task 1.** `agents/schemas.py`: strict Pydantic contracts (unknown fields are errors)
+  for the four Phase 3 tools and the agent outputs. Safety rules live in the models: a note statement needs
+  transcript turns or a citation; assessment/plan statements without a citation are listed for the doctor
+  (`SoapNote.unsupported()`); every answer sentence cites; `PatientSummary` has no name, birth date or
+  address and caps age at 90; a FHIR write carries an approval token (doctor only, expiry after issue, draft
+  SHA-256) and two identifiers naming the same patient; drafts are always `ai_generated`. Unit 9/9.
+- 2026-10-13: **Phase 3 task 2 (MCP servers)** on the mcp 2.x SDK (`MCPServer`, `ToolError` so refusal
+  reasons reach the model). `fhir-mcp`: `get_patient_context` (age capped at 90, sex, active conditions and
+  medications, allergies; no name, birth date or address) audits every read with the requesting user
+  (`requested_by` + role added to the contract); `write_fhir` refuses, with the reason and an audit row,
+  unless the approval token (`agents/approval.py`: HMAC-SHA-256 over canonical claims with
+  `APPROVAL_TOKEN_KEY`, constant-time compare, 10-min expiry, bound to the SHA-256 of the exact resource)
+  verifies, the resource type is writable, both identifiers (id + birth date + family name) match the record
+  and the resource is about that patient; the create is conditional on the draft id, so a replayed token
+  writes once (`fhir.write.duplicate`). `druggraph-mcp`: `check_interactions` returns DDInter pairs with
+  citable ids and **the names it could not match** (`InteractionReport.unknown_drugs`, e.g. dabigatran), so
+  "no interaction" never hides "unknown drug". `guidelines-mcp`: `search_guidelines` over the chosen pipeline
+  (`retrieval/pipeline.py build_chosen()`), source/topic filters, original chunk text; the query goes through
+  the de-ID service again before the encoders. Tests: unit 14 (servers in-process with fakes) + 5 (approval);
+  stdio integration 4/4 against the stack (real HAPI read + audited, approved write + replay + wrong-family
+  refusal, Neo4j, retrieval with the models; 58 s). `just lint` clean; `just test` 272 passed, 3 skipped.
+- 2026-10-13: **Phase 3 task 3 (retrieval as a service).** Dockerfile now has two targets: `app` (default,
+  unchanged for every existing service; CI builds only this one) and `rag` (adds the CPU torch group;
+  2.7 GB vs 0.97 GB). `guidelines-mcp` service in the `rag` profile serves `search_guidelines` over
+  streamable HTTP on 127.0.0.1:8010 (2.5 GB limit), models from the host Hugging Face cache and the corpus/
+  indexes from `./data`, both read-only, offline mode; one warm-up query before the port opens (first query
+  14 s → 1.3 s). Found and fixed before commit: a required `HF_HOME` in the mount broke every `--profile "*"`
+  command (CI has no HF_HOME); it now defaults to `./data/hf-cache`. Latency over HTTP, 40 golden questions,
+  including the de-ID round trip: **first pass after start p50 457 / p95 756 ms, warm p50 244–261 / p95
+  288–326 ms**; host over stdio p50 215 / p95 358 ms. Tried and dropped: a Docker volume instead of the bind
+  mount (warm 245/288 ms, same as bind) and prefetching the ColBERT store at start-up (first pass unchanged),
+  so the cold first pass is not file I/O; cause not isolated (likely per-shape warm-up in torch). Memory with
+  core + fhir + rag: **4.0 GB** (guidelines-mcp 0.62 GB). Integration 2/2 (HTTP, contract rejection).
+  `just lint` clean; `just test` 274 passed, 3 skipped.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- **You: Langfuse.** Ingestion is suspended for the month (free-tier usage threshold). Options: a new free
-  Langfuse organisation + project and new keys in `.env` (the limit is per organisation), or wait for the
-  monthly reset. Eval and batch traffic is now kept out of Langfuse (2026-10-13).
 - **You: review ADR-0007** (vector store) and the ADR-0006 BM25 update.
-- **Phase 2 closes when `just gate 2` passes:** it needs the golden review sheet (first item) and Langfuse
-  ingestion back (new organisation keys in `.env`, or the monthly reset). Optional: a throwaway PR that breaks
-  the BM25 tokenizer, to see CI go red on GitHub (shown locally).
+- **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
+  Optional: a throwaway PR that breaks the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
 
-- **Langfuse Cloud ingestion suspended (2026-10-10).** HTTP 403 "Usage threshold exceeded" on
-  `/api/public/otel/v1/traces`; the collector drops Langfuse batches (local file export unaffected, so the PHI
-  leak scan of the file sink still works). Fails `test_trace_arrives_in_langfuse_without_phi` locally and the
-  CI integration job. Cause: ~8k contextual-prefix calls (task 7) plus ~500 answer/judge calls (task 10),
+- **Langfuse Cloud ingestion suspended (2026-10-10; non-blocking since 2026-10-13).** HTTP 403 "Usage
+  threshold exceeded" on `/api/public/otel/v1/traces`; the collector drops Langfuse batches (local file
+  export unaffected, so the PHI leak scan of the file sink still works). The Langfuse delivery test skips
+  with that reason until the monthly reset. Cause: ~8k contextual-prefix calls (task 7) plus ~500 answer/judge calls (task 10),
   each traced with several observations.
 
 - **C: space (resolved 2026-10-06).** Moved the Ubuntu WSL distro to `D:\WSL\Ubuntu` (`wsl --manage --move`,

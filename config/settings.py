@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     deid_mapping_key: SecretStr = SecretStr("")
     deid_spacy_model: str = "en_core_web_md"
     audit_chain_key: SecretStr = SecretStr("")
+    approval_token_key: SecretStr = SecretStr("")  # signs approvals of clinical writes
 
     # Retrieval (Phase 2)
     qdrant_url: str = "http://127.0.0.1:6333"
