@@ -386,7 +386,9 @@ The build takes about 12 weeks in six phases, and each phase ends with a measura
 1. **Foundations (weeks 1–2):** HAPI FHIR + Synthea patients; PHI de-ID service; LiteLLM gateway with failover; Langfuse + OpenTelemetry with redaction; hash-chained audit table; CI with lint and tests.
    **Exit:** gateway answers when the primary provider fails; leak test finds 0 PHI in traces and logs; Synthea patients queryable from FHIR.
 2. **Advanced RAG (weeks 3–5):** hybrid search + RRF, cross-encoder and ColBERT rerankers; contextual retrieval + late chunking; Neo4j drug graph; golden set + eval in CI.
-   **Exit:** ablation report shows the chosen pipeline beats dense-only on recall@10 and faithfulness.
+   **Exit:** ablation report shows the chosen pipeline beats dense-only on recall@10 and answer correctness,
+   with faithfulness not worse by more than 0.05 (95% paired bootstrap intervals; wording changed 2026-10-13
+   because faithfulness sits near 0.94 for every pipeline: the generator abstains rather than guesses).
 3. **Agents + safety (weeks 6–7):** LangGraph graph, MCP servers, structured outputs, guardrails, HITL review UI.
    **Exit:** red-team suite passes 100%; no FHIR write without approval (tested).
 4. **Voice (weeks 8–9):** cascaded + speech-to-speech; turn detection, barge-in, AEC; medical WER benchmark.
