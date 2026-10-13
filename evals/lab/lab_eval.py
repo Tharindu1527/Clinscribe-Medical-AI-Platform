@@ -32,14 +32,18 @@ def fetch(client: httpx.Client, path: str, **params: str) -> list[dict[str, Any]
 
 def latest_panel(observations: list[dict[str, Any]], known: set[str]) -> list[dict[str, Any]]:
     numeric = [
-        o for o in observations
-        if o.get("valueQuantity") and o["code"]["coding"][0]["code"] in known
+        o
+        for o in observations
+        if o.get("valueQuantity")
+        and o["code"]["coding"][0]["code"] in known
         and o.get("effectiveDateTime")
     ]
     if not numeric:
         return []
     day = max(o["effectiveDateTime"][:10] for o in numeric)
-    panel = {o["code"]["coding"][0]["code"]: o for o in numeric if o["effectiveDateTime"][:10] == day}
+    panel = {
+        o["code"]["coding"][0]["code"]: o for o in numeric if o["effectiveDateTime"][:10] == day
+    }
     return list(panel.values())
 
 
@@ -49,7 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     ref = reference()
     client = httpx.Client(
-        base_url=Settings().fhir_base_url.rstrip("/") + "/", timeout=60,
+        base_url=Settings().fhir_base_url.rstrip("/") + "/",
+        timeout=60,
         headers={"Cache-Control": "no-cache"},
     )
     patients = fetch(client, "Patient")
@@ -71,8 +76,14 @@ def main(argv: list[str] | None = None) -> int:
             code = obs["code"]["coding"][0]["code"]
             info = ref[code]
             value = obs["valueQuantity"]["value"]
-            printed.append((info["name"], f"{value:g}", obs["valueQuantity"]["unit"],
-                            f"{info['low']:g} - {info['high']:g}"))
+            printed.append(
+                (
+                    info["name"],
+                    f"{value:g}",
+                    obs["valueQuantity"]["unit"],
+                    f"{info['low']:g} - {info['high']:g}",
+                )
+            )
         collected = panel[0]["effectiveDateTime"][:10]
         report = parse(write_pdf(report_lines(name, patient["birthDate"], collected, printed)))
         by_name = {r.name: r for r in report.results}
@@ -95,7 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         counts["identity_ok"] += all(identity.values())
         other = cases[(n + 1) % len(cases)][0]  # wrong-patient control
         counts["wrong_patient_caught"] += not all(identity_matches(report, other).values())
-        rows.append((patient["id"], len(panel), collected, sum(r.flag in ("H", "L") for r in report.results)))
+        flagged = sum(r.flag in ("H", "L") for r in report.results)
+        rows.append((patient["id"], len(panel), collected, flagged))
     total = counts["values"]
     lines = [
         "# Lab mode: report PDF -> FHIR Observations (Phase 5)",
@@ -112,11 +124,13 @@ def main(argv: list[str] | None = None) -> int:
         f"| unit as expected | {counts['unit']} | {total} |",
         f"| H/L/N flag | {counts['flag']} | {total} ({counts['abnormal']} abnormal) |",
         f"| report identity matches its patient | {counts['identity_ok']} | {counts['reports']} |",
-        f"| wrong-patient control caught | {counts['wrong_patient_caught']} | {counts['reports']} |",
+        f"| wrong-patient control caught | {counts['wrong_patient_caught']} "
+        f"| {counts['reports']} |",
         f"| unreadable rows | {counts['unreadable']} | — |",
         "",
-        "Limits: one synthetic layout; no scanned images, handwriting, multi-column or vendor-specific",
-        "layouts. A real deployment needs OCR (Docling or Tesseract) and a layout test set per lab.",
+        "Limits: one synthetic layout; no scanned images, handwriting, multi-column or",
+        "vendor-specific layouts. A real deployment needs OCR (Docling or Tesseract) and a layout",
+        "test set per lab.",
         "",
         "| patient | tests | collected | flagged H/L |",
         "|---|---|---|---|",

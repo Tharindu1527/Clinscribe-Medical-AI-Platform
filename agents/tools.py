@@ -8,6 +8,7 @@ from typing import Any, Protocol, TypeVar
 
 import anyio
 from mcp import Client
+from opentelemetry import trace
 from pydantic import BaseModel, TypeAdapter
 
 from agents.schemas import (
@@ -24,6 +25,7 @@ from agents.schemas import (
 )
 
 T = TypeVar("T")
+_tracer = trace.get_tracer("clinscribe.tools")
 
 
 class ToolError(Exception):
@@ -50,7 +52,9 @@ class McpTools:
             content = result.structured_content or {}
             return TypeAdapter(out).validate_python(content.get("result", content))
 
-        return anyio.run(run)
+        # one span per tool call, so a slow step shows up in the trace (incident 3 drill)
+        with _tracer.start_as_current_span(f"mcp {tool}"):
+            return anyio.run(run)
 
     def search(self, request: SearchGuidelinesInput) -> list[Evidence]:
         result: list[Evidence] = self._call(

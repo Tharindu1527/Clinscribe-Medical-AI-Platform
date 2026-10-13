@@ -125,7 +125,8 @@ services:
       POSTGRES_HOST: postgres
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       AUDIT_CHAIN_KEY: ${AUDIT_CHAIN_KEY:?run just gen-keys}
-      LITELLM_APP_KEY: ${LITELLM_APP_KEY:?run just gen-keys}
+      # load tests swap in the mock-only key (evals/load/load_test.py); otherwise the app key
+      LITELLM_APP_KEY: ${LITELLM_APP_KEY_OVERRIDE:-${LITELLM_APP_KEY:?run just gen-keys}}
       GATEWAY_URL: http://litellm:4000
       DEID_URL: http://deid:8001
       FHIR_BASE_URL: http://hapi-fhir:8080/fhir
@@ -276,6 +277,7 @@ services:
       DEID_URL: http://deid:8001
       HF_HOME: /hf-cache
       HF_HUB_OFFLINE: "1"
+      CHAOS_SEARCH_DELAY_MS: ${CHAOS_SEARCH_DELAY_MS:-}  # incident drill only (docs/postmortems)
       TRANSFORMERS_OFFLINE: "1"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     volumes:

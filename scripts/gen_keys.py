@@ -18,6 +18,7 @@ GENERATORS: dict[str, Callable[[], str]] = {
     "LITELLM_SALT_KEY": lambda: secrets.token_urlsafe(32),
     "LITELLM_APP_KEY": lambda: "sk-" + secrets.token_urlsafe(32),
     "LITELLM_BATCH_KEY": lambda: "sk-" + secrets.token_urlsafe(32),
+    "LITELLM_LOAD_KEY": lambda: "sk-" + secrets.token_urlsafe(32),
     "POSTGRES_PASSWORD": lambda: secrets.token_urlsafe(24),
     "APP_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
     "LITELLM_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
