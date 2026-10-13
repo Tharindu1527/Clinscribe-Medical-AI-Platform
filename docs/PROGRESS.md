@@ -128,7 +128,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | # | Task | Exit-gate test | Status |
 |---|------|----------------|--------|
 | 0 | Dependencies (`langgraph`, `mcp`) with reasons; ACI-Bench licence | Licences recorded; lint + tests green | ✅ 2026-10-13 |
-| 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ☐ |
+| 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ✅ 2026-10-13: 9/9 |
 | 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ☐ |
 | 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ☐ |
 | 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ☐ |
@@ -524,6 +524,12 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   langchain-core); it only sends data when `LANGSMITH_TRACING` is set, which this project never sets.
   ACI-Bench: CC BY 4.0 per its README (no LICENSE file); how the dialogues were produced is checked against
   the paper before ingest.
+- 2026-10-13: **Phase 3 task 1.** `agents/schemas.py`: strict Pydantic contracts (unknown fields are errors)
+  for the four Phase 3 tools and the agent outputs. Safety rules live in the models: a note statement needs
+  transcript turns or a citation; assessment/plan statements without a citation are listed for the doctor
+  (`SoapNote.unsupported()`); every answer sentence cites; `PatientSummary` has no name, birth date or
+  address and caps age at 90; a FHIR write carries an approval token (doctor only, expiry after issue, draft
+  SHA-256) and two identifiers naming the same patient; drafts are always `ai_generated`. Unit 9/9.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
