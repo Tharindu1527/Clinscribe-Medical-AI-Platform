@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-08 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–9 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+Last updated: 2026-10-10 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–10 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -106,7 +106,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 7 | Contextual retrieval with local-LLM prefixes (step 4) | Prefixes cached; step 4 vs best so far | ✅ 2026-10-06: hybrid + ColBERT + context recall@10 0.909, MRR 0.680 |
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ✅ 2026-10-07: measured; worse (dense recall@10 0.727 vs 0.809), rejected |
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
-| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ◐ 2026-10-08: tooling done; dense 52/60 answered; waiting for Groq daily budget |
+| 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ✅ 2026-10-10: dense vs best two, 60 questions each: correctness better for both (+0.150 and +0.100, CIs exclude 0), faithfulness and citation precision not different (all ~0.93–0.94 / 0.87–0.93); graph facts 10/10 vs text 4/10 |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
 | 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
 
@@ -405,19 +405,67 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   cross-check (`evals/rag/ragas_check.py`, throwaway env with langchain < 1 because ragas 0.4.3 imports a
   module removed from langchain-community 0.4; Gemini pool, a different model family from the judge).
   Unit 7/7 (answers), gateway config test updated for the judge alias. Lint clean; unit tests 187 passed.
+- 2026-10-08: The app key hit its **$1/30-day LiteLLM budget** ($1.30 notional; LiteLLM prices free-tier calls
+  at list price, $0 billed) and refused RAGAS calls. Raised to a **$25 notional usage cap** (`just gateway-keys`;
+  comment in `scripts/gateway_keys.py`); the free tiers' daily limits stay the real ceiling. **RAGAS cross-check,
+  dense half** (`evals/reports/rag/ragas_calibration.md`, 10 answers, Gemini pool): agreement on "fully
+  faithful" 10/10, Spearman 1.00, mean faithfulness RAGAS 0.970 vs our judge 0.925 (ours is stricter: whole
+  sentences vs RAGAS's smaller claims). Groq budget resets ~10:30 on 2026-10-09.
+- 2026-10-09: **Phase 2 task 10, answers measured** (Groq gpt-oss-20b generator, gpt-oss-120b judge, cached).
+  Dense finished 60/60: faithfulness 0.937, citation precision 0.926, correctness 0.76, false abstentions 18%
+  of answerable, correct abstentions 100%. Best pipeline (hybrid + ColBERT + context) 57/60 before Groq asked
+  for a 6 h wait (all 50 answerable done; 3 unanswerable left, they only change the abstention rate).
+  Paired comparison (`evals/reports/rag/answers_hybrid_colbert_ctx_vs_dense.md`, 95% bootstrap):
+  **correctness 0.760 → 0.910 (+0.150, CI [+0.050, +0.260])**, false abstentions 18% → 2%, answered 41 → 49
+  of 57; **faithfulness 0.937 vs 0.941 (+0.004, CI [−0.049, +0.069], not shown better)** on the 41 questions
+  both answered; citation precision 0.926 vs 0.875 (−0.051, CI [−0.124, +0.028], not shown worse). The dip is
+  mostly "partial" links on sentences citing 2+ sources (best 21 partial / 5 no of 140 links; dense 7 / 2 of
+  102), i.e. over-attribution rather than unsupported claims. Reading: better retrieval turns abstentions into
+  correct answers; faithfulness is at a ceiling for both because the generator abstains rather than guesses.
+  **RAGAS cross-check complete** (`evals/reports/rag/ragas_calibration.md`, 20 answers, Gemini pool):
+  "fully faithful" agreement 20/20, means RAGAS 0.985 vs ours 0.963; Spearman 1.00 rests on only 2 non-perfect
+  scores, so it is weak evidence of ranking agreement. RAGAS sampling now draws from answerable questions only
+  (dense sample unchanged, checked). `just lint` clean; `just test` 229 passed (stack + rag up).
+- 2026-10-09: Groq's daily limit is a **rolling window** (a probe 3 h before the stated wait succeeded). Best
+  pipeline finished 60/60 (the last 3 unanswerable, all correct abstentions); the comparison is unchanged.
+  **Graph-only check** (`evals/reports/rag/answers_graph_facts.md`, 10 Major DDInter pairs that no chunk names
+  together): text only answered 4/10 (interaction stated 0.40, faithfulness 0.62; one answer, diltiazem +
+  edoxaban, stated the interaction while citing a chunk that does not support it, faithfulness 0 — the
+  hazard the citation check exists for); text + DDInter facts answered 10/10, stated 1.00, cited the graph
+  10/10, faithfulness 0.95. Small n, illustrative; supports giving the agent the graph facts in Phase 3.
+- 2026-10-10: **Phase 2 task 10 done.** Runner-up `hybrid_colbert` 60/60. vs dense: correctness 0.760 →
+  0.860 (+0.100, CI [+0.010, +0.190]), false abstentions 18% → 6%, faithfulness +0.006 (CI [−0.073, +0.085]),
+  citation precision −0.056 (CI [−0.150, +0.042]). Context prefixes on top (`hybrid_colbert_ctx` vs
+  `hybrid_colbert`): correctness +0.050 (CI [−0.030, +0.140], not shown), false abstentions 6% → 2%,
+  faithfulness and citation precision unchanged. Reports `evals/reports/rag/answers_*.md`. Summary: retrieval
+  quality shows up as **correctness and answer rate**; faithfulness sits at ~0.94 for every pipeline because
+  the generator abstains rather than guesses. `just lint` clean; `just test` 228 passed, **1 failed**:
+  `test_trace_arrives_in_langfuse_without_phi`, because Langfuse Cloud answers ingestion with 403 "Ingestion
+  suspended: Usage threshold exceeded" (keys valid, reads return 200; see Blockers).
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- Phase 2 task 10, resume when Groq's daily budget resets: `just up` (core) + `just up rag` (Qdrant, Neo4j for
-  the graph check), then `just answers` (finishes dense, then hybrid + ColBERT + context; ~47 answers per day),
-  `uv run python -m evals.rag.graph_facts_eval`, the RAGAS cross-check (command in `evals/rag/ragas_check.py`),
-  and `uv run python -m evals.rag.answer_eval --compare dense hybrid_colbert_ctx`.
+- **You: decide the Phase 2 gate wording.** SPEC §12 asks the chosen pipeline to beat dense-only on recall@10
+  and faithfulness. Recall@10 passes (+0.100, CI excludes 0); faithfulness is equal, not better (both ~0.94,
+  the generator abstains instead of guessing). Options: (a) gate on correctness / answer rate with faithfulness
+  as non-inferiority (difference CI lower bound above −0.05; now −0.049, borderline), (b) keep the wording and
+  report the gate as not met on faithfulness, (c) more questions for a tighter CI (~47 answers per day).
+- **You: Langfuse.** Ingestion is suspended for the month (free-tier usage threshold). Options: a new free
+  Langfuse organisation + project and new keys in `.env` (the limit is per organisation), or wait for the
+  monthly reset. Before more batch jobs, I keep eval and batch traffic out of Langfuse (see Open questions).
+- Phase 2 task 11 (vector-store ADR, Qdrant vs pgvector): needs a plan approval (> 3 files); no LLM budget.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
+
+- **Langfuse Cloud ingestion suspended (2026-10-10).** HTTP 403 "Usage threshold exceeded" on
+  `/api/public/otel/v1/traces`; the collector drops Langfuse batches (local file export unaffected, so the PHI
+  leak scan of the file sink still works). Fails `test_trace_arrives_in_langfuse_without_phi` locally and the
+  CI integration job. Cause: ~8k contextual-prefix calls (task 7) plus ~500 answer/judge calls (task 10),
+  each traced with several observations.
 
 - **C: space (resolved 2026-10-06).** Moved the Ubuntu WSL distro to `D:\WSL\Ubuntu` (`wsl --manage --move`,
   10 GB) and VS Code extensions to `D:\devcache\vscode\extensions` (junction at the old path, 59,066 files
@@ -435,8 +483,7 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 
 ## Open questions
 
-- Langfuse free tier: the task 7 prefix job sent ~8k gateway calls, each traced. If Langfuse stops ingesting
-  this month, only the telemetry and leak tests are affected (a new project key fixes it). Lasting fix: keep
+- Langfuse free tier (happened 2026-10-10, see Blockers): the task 7 prefix job sent ~8k gateway calls, each traced. With ingestion stopped, only the telemetry and leak tests are affected (a new project key fixes it). Lasting fix: keep
   batch-key traffic out of LiteLLM's tracing (per-key logging setting) before the next batch job.
 
 - Hybrid (step 2) did not beat dense at the top ranks with plain RRF. Do not tune RRF weights or k on the
