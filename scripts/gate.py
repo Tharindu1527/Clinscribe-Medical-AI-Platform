@@ -122,12 +122,22 @@ CHECKS_BY_PHASE["5"] = [
         ["uv", "run", "pytest", "-q", "tests/integration/test_lab_api.py"],
     ),
 ]
+CHECKS_BY_PHASE["6"] = [
+    ("lint", ["uv", "run", "ruff", "check", "."]),
+    ("full test suite (stack and rag required)", ["uv", "run", "pytest", "-q"]),
+    ("red-team suite: 100% of cases pass", ["uv", "run", "python", "-m", "evals.run", "redteam"]),
+    (
+        "SPEC section 14: every deliverable done",
+        ["uv", "run", "python", "-m", "scripts.deliverables"],
+    ),
+]
 # a missing service fails the gate instead of skipping its tests
 REQUIRE = {
     "1": ["CLINSCRIBE_REQUIRE_STACK"],
     "2": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
     "3": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
     "5": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
+    "6": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
 }
 
 

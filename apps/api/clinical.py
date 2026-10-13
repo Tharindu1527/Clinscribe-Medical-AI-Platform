@@ -6,6 +6,7 @@ FHIR resource the reviewed note becomes, and fhir-mcp verifies it again before w
 Drafts live in the graph's checkpointer (in memory: a restart drops pending drafts; see PROGRESS).
 """
 
+import logging
 import uuid
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
@@ -25,6 +26,7 @@ from config.db import app_conninfo
 from config.settings import Settings
 
 router = APIRouter(prefix="/v1")
+log = logging.getLogger(__name__)
 ID = r"^[A-Za-z0-9._-]{1,64}$"
 Doctor = Annotated[Principal, Depends(require("doctor"))]
 
@@ -73,8 +75,12 @@ def _run(step: Callable[[], Any]) -> Any:
     try:
         return step()
     except httpx.TimeoutException:
+        log.warning("model gateway timeout")
         raise HTTPException(504, "the model gateway timed out; please try again") from None
     except httpx.HTTPError as exc:
+        # status and type only: provider error text can echo (de-identified) prompt content
+        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        log.warning("model gateway failure: %s status=%s", type(exc).__name__, status)
         raise HTTPException(502, f"the model gateway failed: {type(exc).__name__}") from None
 
 

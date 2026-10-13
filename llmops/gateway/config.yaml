@@ -70,6 +70,11 @@ router_settings:
         - clinscribe-fallback-groq
         - clinscribe-fallback-openrouter
         - clinscribe-fallback-local
+    # Incident drill 0001 (2026-10-14): answers are bound to the Groq alias (task answer_cited); with
+    # the primary down all traffic lands on Groq, and one Groq failure failed the whole request.
+    - clinscribe-fallback-groq:
+        - clinscribe-fallback-openrouter
+        - clinscribe-fallback-local
   num_retries: 1
   timeout: 60
 
