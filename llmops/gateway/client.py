@@ -101,7 +101,11 @@ class GatewayClient:
         cache: ReplayCache | None = None,
         transport: httpx.BaseTransport | None = None,
         timeout: float = 120.0,
+        trace: bool = True,
     ) -> None:
+        # trace=False (eval and batch jobs) asks LiteLLM to skip its logging callbacks ("no-log"),
+        # so bulk calls do not use up the tracing backend's quota; spend logs still record them
+        self._trace = trace
         self._http = httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key.get_secret_value()}"},
@@ -154,7 +158,8 @@ class GatewayClient:
             headers: dict[str, str] = {}
             propagate.inject(headers)  # the gateway's spans join this trace
             started = time.perf_counter()
-            response = self._http.post("/v1/chat/completions", json=payload, headers=headers)
+            body_out = payload if self._trace else {**payload, "no-log": True}  # not in the key
+            response = self._http.post("/v1/chat/completions", json=body_out, headers=headers)
             latency_ms = (time.perf_counter() - started) * 1000
             span.set_attribute("http.response.status_code", response.status_code)
             response.raise_for_status()

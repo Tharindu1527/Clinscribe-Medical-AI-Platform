@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-10 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-13 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–10 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -442,6 +442,16 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   the generator abstains rather than guesses. `just lint` clean; `just test` 228 passed, **1 failed**:
   `test_trace_arrives_in_langfuse_without_phi`, because Langfuse Cloud answers ingestion with 403 "Ingestion
   suspended: Usage threshold exceeded" (keys valid, reads return 200; see Blockers).
+- 2026-10-13: Docker stopped starting (`HCS_E_HYPERV_NOT_INSTALLED`): the Windows hypervisor had not launched
+  since 2026-10-11 (`hypervisorlaunchtype` off). You set it back to auto; stack, volumes and data were intact.
+- 2026-10-13: **Tracing volume cut** (Langfuse quota). Measured per gateway call in the collector file: LiteLLM
+  sent 7–8 spans, 5–6 of them internal service spans (auth, proxy_pre_call, router ×2, self, postgres,
+  batch_write_to_db) with no GenAI data. Collector `filter/litellm_internal` now keeps only `litellm_request` and
+  `Received Proxy Server Request` (2 spans per call). LiteLLM's per-key callback disabling is Enterprise-only,
+  but the request flag `"no-log": true` works in OSS: `GatewayClient(trace=False)` sends it (outside the cache
+  key, so cached responses still replay) for the contextual-prefix batch job, the answer, graph-facts and RAGAS
+  evals; measured 0 spans per call, spend logs still recorded. Unit tests +2. `just lint` clean; `just test` 230
+  passed, 1 failed (Langfuse ingestion still suspended).
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -455,7 +465,7 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   report the gate as not met on faithfulness, (c) more questions for a tighter CI (~47 answers per day).
 - **You: Langfuse.** Ingestion is suspended for the month (free-tier usage threshold). Options: a new free
   Langfuse organisation + project and new keys in `.env` (the limit is per organisation), or wait for the
-  monthly reset. Before more batch jobs, I keep eval and batch traffic out of Langfuse (see Open questions).
+  monthly reset. Eval and batch traffic is now kept out of Langfuse (2026-10-13).
 - Phase 2 task 11 (vector-store ADR, Qdrant vs pgvector): needs a plan approval (> 3 files); no LLM budget.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
@@ -483,8 +493,8 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 
 ## Open questions
 
-- Langfuse free tier (happened 2026-10-10, see Blockers): the task 7 prefix job sent ~8k gateway calls, each traced. With ingestion stopped, only the telemetry and leak tests are affected (a new project key fixes it). Lasting fix: keep
-  batch-key traffic out of LiteLLM's tracing (per-key logging setting) before the next batch job.
+- Langfuse free tier: resolved for the future on 2026-10-13 (collector filter + `no-log` for bulk calls); the
+  current month stays suspended until a new organisation key or the reset.
 
 - Hybrid (step 2) did not beat dense at the top ranks with plain RRF. Do not tune RRF weights or k on the
   golden set (that would fit the test set); if a weighted fusion is tried, use 2-fold cross-validation over

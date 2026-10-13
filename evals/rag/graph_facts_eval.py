@@ -85,6 +85,7 @@ def main() -> int:
         settings.litellm_app_key,
         cache=ReplayCache(CACHE, "record"),
         timeout=180.0,
+        trace=False,  # bulk eval calls stay out of Langfuse (no-log)
     )
     client = PatientClient(gateway)
     spec = load_spec()
