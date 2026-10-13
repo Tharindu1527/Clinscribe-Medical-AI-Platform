@@ -28,3 +28,6 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# review UI build output
+apps/web/dist/
