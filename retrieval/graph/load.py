@@ -20,15 +20,17 @@ from retrieval.graph.lexicon import DrugLexicon
 ROOT = Path(__file__).resolve().parents[2]
 GRAPH_DIR = ROOT / "data" / "graph"
 CORPUS = ROOT / "data" / "corpus"
-NEO4J_HTTP = "http://127.0.0.1:7474"
 INTERACTION_SECTION = re.compile(r"interaction", re.IGNORECASE)
 BATCH = 5000
 
 
 class Neo4jHTTP:
-    def __init__(self, url: str = NEO4J_HTTP, settings: Settings | None = None) -> None:
-        password = (settings or Settings()).neo4j_password.get_secret_value()
-        self._http = httpx.Client(base_url=url, auth=("neo4j", password), timeout=300)
+    def __init__(self, url: str | None = None, settings: Settings | None = None) -> None:
+        settings = settings or Settings()
+        password = settings.neo4j_password.get_secret_value()
+        self._http = httpx.Client(
+            base_url=url or settings.neo4j_http_url, auth=("neo4j", password), timeout=300
+        )
 
     def run(self, statement: str, **parameters: Any) -> list[dict[str, Any]]:
         """Run one statement; rows as dicts keyed by the RETURN columns."""

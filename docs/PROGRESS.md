@@ -131,12 +131,12 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ✅ 2026-10-13: 9/9 |
 | 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ✅ 2026-10-13: unit 14, stdio 4/4 |
 | 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ✅ 2026-10-13: HTTP 2/2; stack 4.0 GB; p50 244–261 / p95 288–326 ms warm |
-| 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ☐ |
+| 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ✅ 2026-10-13: 11/11 incl. resume on a new graph instance |
 | 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ☐ |
 | 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ☐ |
-| 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ☐ |
-| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ◐ 2026-10-13: token + checks in `write_fhir` (done with task 2); the API that issues tokens comes with task 9/10 |
-| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ☐ |
+| 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ✅ 2026-10-13: 6/6 |
+| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ✅ 2026-10-13: fhir-mcp checks (task 2) + API signs the token for the exact resource at review; live approve → write |
+| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ✅ 2026-10-13: 6/6 (401 no/forged/expired token, 403 by role) |
 | 10 | Review UI (React + Vite): drafts, unsupported statements highlighted, approve / edit / reject; edits saved as before/after pairs | End-to-end test; screenshots | ☐ |
 | 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ☐ |
 | 12 | ADRs: orchestrator (LangGraph vs Pydantic AI vs OpenAI Agents SDK on one task, isolated project) and A2A | ADRs with numbers | ☐ |
@@ -558,6 +558,24 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   so the cold first pass is not file I/O; cause not isolated (likely per-shape warm-up in torch). Memory with
   core + fhir + rag: **4.0 GB** (guidelines-mcp 0.62 GB). Integration 2/2 (HTTP, contract rejection).
   `just lint` clean; `just test` 274 passed, 3 skipped.
+- 2026-10-13: **Phase 3 tasks 4, 7, 8, 9 (+ the runtime of 5 and 6).** `agents/graph.py` (LangGraph): intake
+  (structured-PHI re-check) → router → fast path or agentic loop (CRAG-style grading, one query rewrite, DDInter
+  facts for drug questions) → cited answer → guardrails (one retry with the violations, then the safe reply);
+  scribe: note_writer → guardrails (one retry, then failing statements removed and listed) → `interrupt()` for
+  the doctor → commit via `write_fhir`. Guardrails (`config/guardrails.yaml`, `agents/guardrails.py`): PHI in
+  model input, injection in evidence (passage dropped before any model sees it), unsourced doses (number +
+  unit must appear in a cited source or, for notes, in the cited transcript turn), invented citations,
+  diagnosis wording, unknown transcript turns. New prompts `note_writer`, `grade_evidence`, `rewrite_query`
+  (v1). All three MCP servers run as HTTP services (`fhir-mcp` in `fhir`, `druggraph-mcp` and
+  `guidelines-mcp` in `rag`). API: HMAC bearer tokens with roles from `config/users.yaml` (synthetic demo
+  users; `just token <user>`; `/v1/dev/login` only with `DEV_LOGIN=true`), `/v1/ask`, `/v1/scribe/drafts`,
+  `/v1/drafts/{id}`, `/v1/drafts/{id}/review` (the API signs the approval for the exact FHIR resource the
+  reviewed note becomes; fhir-mcp re-verifies), `/v1/audit` (admin/operator). Drafts live in an in-memory
+  checkpointer (an API restart drops pending drafts; see Open questions). **Live end-to-end 2/2**: a cited Ask
+  answer, and a synthetic consultation → draft → doctor approval → DocumentReference in HAPI, with the audit
+  chain `ask`, `draft.create`, `fhir.write`, `draft.approve`. Mistake caught and fixed: the agent-graph tests
+  first overwrote Phase 2's `tests/unit/test_graph.py`; restored as `test_drug_graph.py`, new tests in
+  `test_agent_graph.py`. Unit +17, integration +6, live +2. `just lint` clean.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -592,6 +610,11 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- Pending drafts live in LangGraph's in-memory checkpointer, so an API restart loses drafts awaiting review.
+  A durable checkpointer (Postgres) is the fix when it matters; FHIR writes and the audit log are unaffected.
+- Drafts and answers are shown in surrogate form (PATIENT_1); re-identification on the doctor's screen needs
+  the deid `/reidentify` route behind the new doctor-only auth.
 
 - Langfuse free tier: resolved for the future on 2026-10-13 (collector filter + `no-log` for bulk calls); the
   current month stays suspended until a new organisation key or the reset.

@@ -1,12 +1,18 @@
-"""ClinScribe API. Phase 1: health and the pipeline smoke endpoint (de-ID -> LLM -> audit)."""
+"""ClinScribe API. Phase 1: health and the pipeline smoke endpoint (de-ID -> LLM -> audit).
+Phase 3: auth, Ask, Scribe drafts with the doctor's review, audit log (apps/api/clinical.py)."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header
+from fastapi.middleware.cors import CORSMiddleware
+from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import BaseModel, Field
 
+from agents.graph import Agents
+from agents.tools import McpTools
 from apps.api.audit import AuditLog
+from apps.api.clinical import router as clinical
 from apps.api.pipeline import Pipeline
 from config.db import app_conninfo
 from config.settings import Settings
@@ -27,10 +33,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     prompt = load_prompt("dev_complete")
     deid = DeidClient(settings.deid_url)
     gateway = GatewayClient(settings.gateway_url, settings.litellm_app_key)
+    audit = AuditLog(app_conninfo(settings), settings.audit_chain_key)
+    tools = McpTools(settings.guidelines_mcp_url, settings.druggraph_mcp_url, settings.fhir_mcp_url)
+    app.state.deid = deid
+    app.state.audit = audit
+    app.state.graph = Agents(gateway, tools).build(InMemorySaver())
+    app.state.drafts = {}
     app.state.pipeline = Pipeline(
         deid=deid,
         gateway=gateway,
-        audit=AuditLog(app_conninfo(settings), settings.audit_chain_key),
+        audit=audit,
         prompt=prompt,
         alias=alias_for(prompt.task),
     )
@@ -42,6 +54,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="ClinScribe API", version="0.1.0", lifespan=lifespan)
 instrument(app, SERVICE)
+app.include_router(clinical)
+app.add_middleware(  # the review UI's dev server (apps/web)
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 
 class CompleteRequest(BaseModel):

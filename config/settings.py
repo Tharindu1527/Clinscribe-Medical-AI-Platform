@@ -46,13 +46,21 @@ class Settings(BaseSettings):
     deid_spacy_model: str = "en_core_web_md"
     audit_chain_key: SecretStr = SecretStr("")
     approval_token_key: SecretStr = SecretStr("")  # signs approvals of clinical writes
+    auth_token_key: SecretStr = SecretStr("")  # signs API bearer tokens (user + role)
+    dev_login: bool = False  # /v1/dev/login issues tokens for the synthetic demo users
 
     # Retrieval (Phase 2)
     qdrant_url: str = "http://127.0.0.1:6333"
     qdrant_api_key: SecretStr = SecretStr("")
     neo4j_password: SecretStr = SecretStr("")
+    neo4j_http_url: str = "http://127.0.0.1:7474"
     pgvector_url: str = "postgresql://vectors@127.0.0.1:5433/vectors"  # task 11 comparison
     pgvector_password: SecretStr = SecretStr("")
+
+    # Agent tools (Phase 3): MCP servers over streamable HTTP
+    guidelines_mcp_url: str = "http://127.0.0.1:8010/mcp"
+    druggraph_mcp_url: str = "http://127.0.0.1:8011/mcp"
+    fhir_mcp_url: str = "http://127.0.0.1:8012/mcp"
 
     # Observability
     langfuse_public_key: SecretStr = SecretStr("")

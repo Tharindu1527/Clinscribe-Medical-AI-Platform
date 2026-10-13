@@ -9,7 +9,7 @@ Tools
   resource is about that patient. The create is conditional on the draft id, so replaying a token
   does not write twice. Every write is audited; refusals are audited too.
 
-  uv run python -m mcp_servers.fhir_mcp      (stdio; needs the stack: HAPI FHIR, Postgres)
+  uv run python -m mcp_servers.fhir_mcp [--http HOST:PORT]   (needs HAPI FHIR and Postgres)
 """
 
 from collections.abc import Callable
@@ -222,15 +222,17 @@ def build_server(
     return server
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     from apps.api.audit import AuditLog
     from config.db import app_conninfo
     from config.settings import Settings
+    from mcp_servers.serve import http_address, run
 
+    address = http_address(argv, "fhir-mcp")
     settings = Settings()
     server = build_server(
         HttpFhirStore(settings.fhir_base_url),
         AuditLog(app_conninfo(settings), settings.audit_chain_key),
         settings.approval_token_key,
     )
-    server.run("stdio")
+    run(server, address)
