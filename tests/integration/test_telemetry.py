@@ -83,6 +83,18 @@ def test_trace_arrives_in_langfuse_without_phi(trace_id: str) -> None:
     )
     if not auth[0]:
         pytest.fail("Langfuse keys are empty in .env")
+    # The free tier suspends ingestion for the rest of the month once its usage threshold is
+    # reached (2026-10-10). That is an account limit, not a defect: skip with the reason, and only
+    # for that exact refusal. The local export test above still checks the redaction.
+    probe = httpx.post(
+        f"{settings.langfuse_host}/api/public/otel/v1/traces",
+        content=b"",
+        headers={"Content-Type": "application/x-protobuf"},
+        auth=auth,
+        timeout=30,
+    )
+    if probe.status_code == 403 and "Ingestion suspended" in probe.text:
+        pytest.skip(f"Langfuse ingestion suspended by the free tier: {probe.text[:120]}")
     # Langfuse retired GET /api/public/traces for organisations created after 2026-09-16;
     # the v2 observations API is the supported way to read spans back.
     now = datetime.now(UTC)

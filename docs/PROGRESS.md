@@ -109,7 +109,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
 | 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ✅ 2026-10-10: dense vs best two, 60 questions each: correctness better for both (+0.150 and +0.100, CIs exclude 0), faithfulness and citation precision not different (all ~0.93–0.94 / 0.87–0.93); graph facts 10/10 vs text 4/10 |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ✅ 2026-10-13: recall@10 tie (0.842) when exact or ef ≥ 100; p95 < 20 ms for all indexed options; keep Qdrant (ADR-0007 proposed) |
-| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ◐ 2026-10-13: fixture + ablation report + gate built; criteria PASS; gate FAIL only on the golden review (task 3) and the Langfuse test |
+| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ◐ 2026-10-13: fixture + ablation report + gate built; every check PASS except the golden review (task 3) |
 
 Memory measured 2026-10-06 (core + fhir + rag, index loaded): **3.59 GB** of containers (Neo4j 1,127 MB, Qdrant 251 MB);
 the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
@@ -484,27 +484,28 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   the pgvector tests used the rag flag, so they errored with the `vectorstore` profile stopped; they now use
   `CLINSCRIBE_REQUIRE_VECTORSTORE`. Unit tests +6 (regression 4, ablation 2). `just lint` clean; `just test`
   240 passed, 2 skipped (pgvector off), 1 failed (Langfuse ingestion suspended).
+- 2026-10-13: **Langfuse treated as non-essential (you).** The current keys stay; the Langfuse delivery test
+  now probes the ingestion endpoint first and skips, with the reason, only on Langfuse's exact
+  "Ingestion suspended" refusal (any other failure still fails). The local-export test keeps checking that
+  spans carry no PHI. `just gate 2`: lint, full suite (240 passed, 3 skipped: Langfuse + 2 pgvector), golden
+  validator, CI fixture and the gate criteria all PASS; **only the golden review (task 3) FAILS**.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- **You: Langfuse.** Ingestion is suspended for the month (free-tier usage threshold). Options: a new free
-  Langfuse organisation + project and new keys in `.env` (the limit is per organisation), or wait for the
-  monthly reset. Eval and batch traffic is now kept out of Langfuse (2026-10-13).
 - **You: review ADR-0007** (vector store) and the ADR-0006 BM25 update.
-- **Phase 2 closes when `just gate 2` passes:** it needs the golden review sheet (first item) and Langfuse
-  ingestion back (new organisation keys in `.env`, or the monthly reset). Optional: a throwaway PR that breaks
-  the BM25 tokenizer, to see CI go red on GitHub (shown locally).
+- **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
+  Optional: a throwaway PR that breaks the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
 
-- **Langfuse Cloud ingestion suspended (2026-10-10).** HTTP 403 "Usage threshold exceeded" on
-  `/api/public/otel/v1/traces`; the collector drops Langfuse batches (local file export unaffected, so the PHI
-  leak scan of the file sink still works). Fails `test_trace_arrives_in_langfuse_without_phi` locally and the
-  CI integration job. Cause: ~8k contextual-prefix calls (task 7) plus ~500 answer/judge calls (task 10),
+- **Langfuse Cloud ingestion suspended (2026-10-10; non-blocking since 2026-10-13).** HTTP 403 "Usage
+  threshold exceeded" on `/api/public/otel/v1/traces`; the collector drops Langfuse batches (local file
+  export unaffected, so the PHI leak scan of the file sink still works). The Langfuse delivery test skips
+  with that reason until the monthly reset. Cause: ~8k contextual-prefix calls (task 7) plus ~500 answer/judge calls (task 10),
   each traced with several observations.
 
 - **C: space (resolved 2026-10-06).** Moved the Ubuntu WSL distro to `D:\WSL\Ubuntu` (`wsl --manage --move`,
