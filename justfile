@@ -101,6 +101,10 @@ index-colbert *args:
 answers:
     uv run python -m evals.rag.answer_eval --system dense --system hybrid_colbert_ctx
 
+# Qdrant vs pgvector on recall and latency (ADR-0007); needs `just up rag` and `just up vectorstore`
+vectorstore:
+    uv run python -m evals.rag.vectorstore_eval
+
 # Drug-interaction graph: DDInter + RxNorm into Neo4j (needs `just up rag`; `--sources-only` skips Neo4j)
 graph *args:
     uv run python -m retrieval.graph.build {{args}}

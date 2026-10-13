@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://127.0.0.1:6333"
     qdrant_api_key: SecretStr = SecretStr("")
     neo4j_password: SecretStr = SecretStr("")
+    pgvector_url: str = "postgresql://vectors@127.0.0.1:5433/vectors"  # task 11 comparison
+    pgvector_password: SecretStr = SecretStr("")
 
     # Observability
     langfuse_public_key: SecretStr = SecretStr("")

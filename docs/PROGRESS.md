@@ -1,7 +1,7 @@
 # ClinScribe — Progress
 
 Last updated: 2026-10-13 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
-**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–10 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
+**Phase 2 — Advanced RAG: in progress (tasks 0–2, 4–11 done; 3 awaiting review)**. Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
 
@@ -107,7 +107,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 8 | Late chunking (step 5), compared with contextual, not stacked | Step 5 vs best so far | ✅ 2026-10-07: measured; worse (dense recall@10 0.727 vs 0.809), rejected |
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
 | 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ✅ 2026-10-10: dense vs best two, 60 questions each: correctness better for both (+0.150 and +0.100, CIs exclude 0), faithfulness and citation precision not different (all ~0.93–0.94 / 0.87–0.93); graph facts 10/10 vs text 4/10 |
-| 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ☐ |
+| 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ✅ 2026-10-13: recall@10 tie (0.842) when exact or ef ≥ 100; p95 < 20 ms for all indexed options; keep Qdrant (ADR-0007 proposed) |
 | 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
 
 Memory measured 2026-10-06 (core + fhir + rag, index loaded): **3.59 GB** of containers (Neo4j 1,127 MB, Qdrant 251 MB);
@@ -452,6 +452,18 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   key, so cached responses still replay) for the contextual-prefix batch job, the answer, graph-facts and RAGAS
   evals; measured 0 spans per call, spend logs still recorded. Unit tests +2. `just lint` clean; `just test` 230
   passed, 1 failed (Langfuse ingestion still suspended).
+- 2026-10-13: **Phase 2 task 11 (vector store).** `pgvector` service (`pgvector/pgvector:0.8.6-pg16`, own
+  `vectorstore` profile, 768 MB limit, `PGVECTOR_PASSWORD` from `just gen-keys`), `retrieval/pgvector_store.py`
+  (COPY of the cached contextual vectors, cosine HNSW, exact search with index scans off),
+  `evals/rag/vectorstore_eval.py` (`just vectorstore`, report `evals/reports/rag/vectorstore.md`). Found: the
+  deployed Qdrant collection is **not HNSW-indexed** (6 segments below the 10 MB indexing threshold, 0 of
+  8,104 indexed), so every Phase 2 dense result is exact search. Four runs, same query vectors, HNSW m 16 /
+  ef_construct 100 in both: recall@10 0.842 for Qdrant (exact and HNSW) and pgvector (exact and HNSW
+  ef_search 100); pgvector at its default ef_search 40 loses 0.014–0.024. Store-only p95: Qdrant 12.6–16.8 ms,
+  Qdrant HNSW 12.1–16.4 ms, pgvector HNSW ef100 8.4–11.9 ms, pgvector exact 88–115 ms. Memory: pgvector 114
+  MB vs Qdrant 468–533 MB (four collections). **ADR-0007 (proposed — please review): keep Qdrant**; pgvector
+  with ef_search ≥ 100 is the measured fallback if Phase 4 memory forces a service out. Unit 3/3,
+  integration 2/2. `just lint` clean; `just test` 236 passed, 1 failed (Langfuse ingestion suspended).
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -466,7 +478,9 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 - **You: Langfuse.** Ingestion is suspended for the month (free-tier usage threshold). Options: a new free
   Langfuse organisation + project and new keys in `.env` (the limit is per organisation), or wait for the
   monthly reset. Eval and batch traffic is now kept out of Langfuse (2026-10-13).
-- Phase 2 task 11 (vector-store ADR, Qdrant vs pgvector): needs a plan approval (> 3 files); no LLM budget.
+- **You: review ADR-0007** (vector store: keep Qdrant, pgvector as the measured fallback).
+- Phase 2 task 12 next: CI retrieval regression on a committed mini fixture index + `just gate 2`; needs the
+  gate-wording decision above and a plan approval.
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
@@ -539,7 +553,8 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   with a measurement.
 
 - Core + fhir + rag + voice is ~10.2 GB, above the 10 GB WSL cap, so the Phase 4 demo won't fit as is.
-  Options: raise the cap to 12 GB, trim the HAPI heap to 1 GB, or stop `rag` services that voice does not need.
+  Options: raise the cap to 12 GB, trim the HAPI heap to 1 GB, stop `rag` services that voice does not need,
+  drop unused Qdrant collections, or move dense vectors to pgvector in the core Postgres (ADR-0007 numbers).
   Decide in Phase 4.
 - The package name `agents/` clashes with the OpenAI Agents SDK import name (`agents`). The Phase 3
   framework comparison should run in its own isolated project under `evals/agents/`.
