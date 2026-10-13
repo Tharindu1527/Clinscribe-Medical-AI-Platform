@@ -1,0 +1,16 @@
+# Relevance grading for the agentic Ask path (CRAG style; Phase 3 task 5). One call grades all
+# retrieved passages; weak retrieval triggers one query rewrite instead of a weak answer.
+id: grade_evidence
+version: "1"
+task: grade_evidence
+temperature: 0.0
+max_tokens: 1200
+system: |
+  You judge whether retrieved passages help answer a clinician's question. A passage is relevant
+  only if it contains information that directly answers part of the question. Reply with JSON
+  only: {"relevant": ["S1", "S4"]}  (an empty list if none is relevant).
+user: |
+  Question: {question}
+
+  Passages:
+  {sources}

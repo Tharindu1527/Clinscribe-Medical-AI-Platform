@@ -1,0 +1,32 @@
+# Guardrail rules (SPEC section 5; Phase 3 task 7). Rules are data so they are versioned and
+# reviewed like prompts; agents/guardrails.py applies them. Regexes are case-insensitive.
+version: "1"
+
+input:
+  # Instructions hidden in retrieved passages or uploaded documents (prompt injection). A passage
+  # that matches is dropped before it reaches a model, and the drop is reported.
+  injection_patterns:
+    - '\bignore (all |any |the )?(previous|prior|above|earlier) (instructions|rules|prompts?)\b'
+    - '\bdisregard (all |any |the )?(previous|prior|above|system) (instructions|rules|prompts?)\b'
+    - '\b(new|updated|override) (system )?instructions?\s*:'
+    - '\byou are now\b'
+    - '\b(reveal|print|show|repeat) (your |the )?(system prompt|instructions|hidden prompt)\b'
+    - '\b(act|pretend) as (an?|the) (unrestricted|jailbroken|different)\b'
+    - '<\s*/?\s*(system|assistant|instructions?)\s*>'
+    - '\bdo not cite\b'
+    - '\b(always|instead) (answer|say|recommend|prescribe)\b'
+
+output:
+  # A dose: a number with a unit. A sentence that states one must cite a source that contains the
+  # same number and unit (CLAUDE.md: every clinical claim cited; SPEC: any dose needs a source).
+  dose_pattern: '(\d+(?:[.,]\d+)?)\s*(?:-|to|–)?\s*(?:\d+(?:[.,]\d+)?\s*)?(mg|mcg|µg|micrograms?|g|grams?|units?|iu|ml|mmol|meq)\b'
+  # Definitive diagnosis or individual treatment decisions: the system suggests, never decides.
+  diagnosis_patterns:
+    - '\b(the|your|this) (patient )?(definitely|certainly|clearly) (has|is suffering from)\b'
+    - '\bthe diagnosis is\b'
+    - '\b(i|we) (diagnose|confirm the diagnosis)\b'
+    - '\bconfirms? (a |the )?diagnosis of\b'
+    - '\byou (have|are suffering from)\b'
+    - '\b(you|the patient) (must|should) (start|stop|take|be prescribed)\b'
+  safe_reply: "I cannot answer this with evidence. Please review the sources directly."
+  max_attempts: 2  # first answer + one retry with the violations attached
