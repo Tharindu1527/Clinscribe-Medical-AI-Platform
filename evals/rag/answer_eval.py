@@ -355,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
         settings.litellm_app_key,
         cache=ReplayCache(CACHE, "record"),
         timeout=180.0,
+        trace=False,  # bulk eval calls stay out of Langfuse (no-log)
     )
     items = (
         stratified_subset(load_items())[: args.limit]

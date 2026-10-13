@@ -199,6 +199,28 @@ services:
       retries: 40
       start_period: 20s
 
+  # Vector-store comparison only (task 11, ADR-0007): Postgres + pgvector, separate from the core
+  # Postgres so the comparison cannot touch app, LiteLLM or HAPI data.
+  pgvector:
+    image: pgvector/pgvector:0.8.6-pg16
+    profiles: [vectorstore]  # `just up vectorstore`; not part of `just up rag`
+    restart: unless-stopped
+    mem_limit: 768m
+    environment:
+      POSTGRES_USER: vectors
+      POSTGRES_PASSWORD: ${PGVECTOR_PASSWORD:?run just gen-keys}
+      POSTGRES_DB: vectors
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "maintenance_work_mem=256MB"]
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "vectors", "-d", "vectors"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   # ---------------------------------------------------------------- tools (one-shot)
   # Synthetic patients (Synthea v4.0.0, Apache-2.0). Run by `just fhir-load`, never by `just up`.
   synthea:
@@ -234,3 +256,4 @@ volumes:
   pgdata:
   qdrant_data:
   neo4j_data:
+  pgvector_data:

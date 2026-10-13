@@ -22,6 +22,14 @@ processors:
   memory_limiter:
     check_interval: 1s
     limit_mib: 200
+  # LiteLLM's internal service spans (auth, router, proxy_pre_call, self, postgres, ...) carry no
+  # GenAI data and were most of its span volume, which used up the Langfuse free tier. Keep only
+  # its request spans. Eval and batch calls send "no-log", which drops those too.
+  filter/litellm_internal:
+    error_mode: ignore
+    traces:
+      span:
+        - 'instrumentation_scope.name == "litellm" and name != "litellm_request" and name != "Received Proxy Server Request"'
   redaction:
     allow_all_keys: false
     # Must equal ALLOWED_KEYS in llmops/telemetry/redaction.py (checked by a unit test)
@@ -68,5 +76,5 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, redaction, batch]
+      processors: [memory_limiter, filter/litellm_internal, redaction, batch]
       exporters: [file/traces, otlphttp/langfuse]

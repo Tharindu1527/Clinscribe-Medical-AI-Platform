@@ -192,7 +192,9 @@ def gateway_generator(spec: PromptSpec) -> tuple[str, Generate]:
     settings = Settings()
     if not settings.litellm_batch_key.get_secret_value():
         raise SystemExit("LITELLM_BATCH_KEY is empty: run `just gen-keys` and `just gateway-keys`")
-    client = GatewayClient(settings.gateway_url, settings.litellm_batch_key, timeout=180.0)
+    client = GatewayClient(
+        settings.gateway_url, settings.litellm_batch_key, timeout=180.0, trace=False
+    )
     model = alias_for(spec.task)
 
     def generate(system: str, user: str) -> dict[str, Any]:

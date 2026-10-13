@@ -86,6 +86,39 @@ def test_replay_cache_hit_makes_zero_network_calls(tmp_path: Path) -> None:
     assert replayed.text == "Hello."
 
 
+def test_untraced_client_sends_no_log_without_changing_the_cache_key(tmp_path: Path) -> None:
+    calls: list[httpx.Request] = []
+    traced = _client(_ok_transport(calls))
+    traced.complete("clinscribe-default", HELLO)
+    assert "no-log" not in json.loads(calls[0].content)
+
+    untraced = GatewayClient(
+        "http://gateway",
+        SecretStr("sk-test"),
+        cache=ReplayCache(tmp_path, "record"),
+        transport=_ok_transport(calls),
+        trace=False,
+    )
+    untraced.complete("clinscribe-default", HELLO)
+    assert json.loads(calls[1].content)["no-log"] is True
+    # a response recorded by an untraced client replays for a traced one (same key)
+    replayed = _client(_fail_transport(), ReplayCache(tmp_path, "replay")).complete(
+        "clinscribe-default", HELLO
+    )
+    assert replayed.cached
+
+
+def test_collector_keeps_only_litellm_request_spans() -> None:
+    collector = Path(__file__).resolve().parents[2] / "llmops" / "telemetry" / "collector.yaml"
+    config = yaml.safe_load(collector.read_text(encoding="utf-8"))
+    (condition,) = config["processors"]["filter/litellm_internal"]["traces"]["span"]
+    assert 'instrumentation_scope.name == "litellm"' in condition
+    for kept in ("litellm_request", "Received Proxy Server Request"):
+        assert f'name != "{kept}"' in condition
+    processors = config["service"]["pipelines"]["traces"]["processors"]
+    assert processors.index("filter/litellm_internal") < processors.index("batch")
+
+
 def test_replay_cache_miss_raises_without_network(tmp_path: Path) -> None:
     with pytest.raises(CacheMissError):
         _client(_fail_transport(), ReplayCache(tmp_path, "replay")).complete(

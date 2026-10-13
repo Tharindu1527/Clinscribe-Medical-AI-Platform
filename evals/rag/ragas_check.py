@@ -89,6 +89,7 @@ def score_system(system: str) -> Path:
             temperature=0.0,
             max_retries=6,
             timeout=180,
+            extra_body={"no-log": True},  # bulk eval calls stay out of Langfuse
         )
     )
     result = ragas.evaluate(
