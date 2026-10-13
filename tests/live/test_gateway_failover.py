@@ -105,3 +105,19 @@ def test_local_model_answers(gateway: GatewayClient) -> None:
         pytest.skip("llama3.2:3b not pulled yet")
     result = gateway.complete("clinscribe-fallback-local", PROMPT, max_tokens=MAX_TOKENS)
     assert result.text.strip()
+
+
+def test_turn_succeeds_with_every_cloud_provider_down(gateway: GatewayClient) -> None:
+    """Phase 5 exit gate (SPEC section 12): all cloud providers disabled, the turn completes on the
+    local Ollama model, and the spend log records it."""
+    set_fault("cloud-down", on=True)
+    try:
+        result = gateway.complete("clinscribe-default", PROMPT, max_tokens=MAX_TOKENS)
+    finally:
+        set_fault("cloud-down", on=False)
+
+    assert result.text.strip()
+    assert result.response_id
+    recorded = _spend_log_entry(result.response_id)
+    assert recorded is not None, "local-model call not found in LiteLLM spend logs"
+    assert recorded.endswith("|clinscribe-fallback-local"), recorded

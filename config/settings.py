@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     litellm_salt_key: SecretStr = SecretStr("")
     litellm_app_key: SecretStr = SecretStr("")
     litellm_batch_key: SecretStr = SecretStr("")  # offline jobs; local model only
+    litellm_load_key: SecretStr = SecretStr("")  # load tests; mock alias only
     gateway_url: str = "http://127.0.0.1:4000"
 
     # Postgres (databases: clinscribe, litellm, hapi)

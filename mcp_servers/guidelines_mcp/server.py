@@ -13,6 +13,8 @@ The returned text is the original chunk (not the contextual prefix the index was
   python -m mcp_servers.guidelines_mcp --http 0.0.0.0:8010 (streamable HTTP; the rag container)
 """
 
+import os
+import time
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol
 
@@ -29,12 +31,20 @@ class Searcher(Protocol):
     def search(self, query: DeidentifiedText, k: int = 10) -> list[Hit]: ...
 
 
+def _chaos_delay() -> None:
+    """Incident drill only: CHAOS_SEARCH_DELAY_MS adds latency to every search."""
+    delay = int(os.environ.get("CHAOS_SEARCH_DELAY_MS") or 0)
+    if delay:
+        time.sleep(delay / 1000)
+
+
 def search(
     request: SearchGuidelinesInput,
     searcher: Searcher,
     chunks: Mapping[str, Mapping[str, Any]],
     deidentify: Callable[[str], DeidentifiedText],
 ) -> list[Evidence]:
+    _chaos_delay()
     query = deidentify(request.query)
     filters = request.filters
     depth = FILTER_DEPTH if filters else request.k

@@ -1,8 +1,10 @@
 """Chaos switches for incident practice (SPEC section 7).
 
-Usage: uv run python -m scripts.chaos primary-down on|off
+Usage: uv run python -m scripts.chaos primary-down|cloud-down on|off
 primary-down: points the primary provider (Gemini) at an address that refuses connections, then
 recreates the gateway container. Turns should still succeed through the fallback chain.
+cloud-down: the same for every cloud provider (Gemini, Groq, OpenRouter): only the local Ollama
+model is left (Phase 5 exit gate).
 """
 
 import os
@@ -15,7 +17,14 @@ import httpx
 from config.settings import Settings
 
 DEAD_ADDRESS = "http://127.0.0.1:9"  # nothing listens here inside the container
-FAULTS = {"primary-down": "GEMINI_API_BASE_OVERRIDE"}
+FAULTS = {
+    "primary-down": ["GEMINI_API_BASE_OVERRIDE"],
+    "cloud-down": [
+        "GEMINI_API_BASE_OVERRIDE",
+        "GROQ_API_BASE_OVERRIDE",
+        "OPENROUTER_API_BASE_OVERRIDE",
+    ],
+}
 
 
 def wait_for_gateway(url: str, timeout_s: float = 180) -> None:
@@ -32,7 +41,8 @@ def wait_for_gateway(url: str, timeout_s: float = 180) -> None:
 
 def set_fault(fault: str, on: bool) -> None:
     env = dict(os.environ)
-    env[FAULTS[fault]] = DEAD_ADDRESS if on else ""
+    for variable in FAULTS[fault]:
+        env[variable] = DEAD_ADDRESS if on else ""
     subprocess.run(
         [
             "docker",

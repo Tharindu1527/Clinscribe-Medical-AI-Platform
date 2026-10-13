@@ -76,6 +76,9 @@ services:
       OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
       # Empty = the provider's default endpoint. Set only by `just chaos primary-down on`.
       GEMINI_API_BASE: ${GEMINI_API_BASE_OVERRIDE:-}
+      # Set only by `just chaos cloud-down on` (with the Gemini override): Phase 5 exit gate
+      GROQ_API_BASE: ${GROQ_API_BASE_OVERRIDE:-}
+      OPENROUTER_API_BASE: ${OPENROUTER_API_BASE_OVERRIDE:-}
       # Gateway spans go to the collector (redaction, then Langfuse); no message content
       OTEL_EXPORTER: otlp_http
       OTEL_ENDPOINT: http://otel-collector:4318/v1/traces
@@ -97,8 +100,9 @@ services:
   deid:
     <<: *python-service
     profiles: [core]
-    mem_limit: 1536m
-    command: ["uvicorn", "privacy.deid.app:app", "--host", "0.0.0.0", "--port", "8001"]
+    mem_limit: 2560m  # 3 workers x ~0.4-0.5 GB (spaCy model per process)
+    # 3 workers (Phase 6 load test): one process queued to p95 26 s at 10+ sessions
+    command: ["uvicorn", "privacy.deid.app:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "3"]
     environment:
       POSTGRES_HOST: postgres
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
@@ -122,7 +126,8 @@ services:
       POSTGRES_HOST: postgres
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       AUDIT_CHAIN_KEY: ${AUDIT_CHAIN_KEY:?run just gen-keys}
-      LITELLM_APP_KEY: ${LITELLM_APP_KEY:?run just gen-keys}
+      # load tests swap in the mock-only key (evals/load/load_test.py); otherwise the app key
+      LITELLM_APP_KEY: ${LITELLM_APP_KEY_OVERRIDE:-${LITELLM_APP_KEY:?run just gen-keys}}
       GATEWAY_URL: http://litellm:4000
       DEID_URL: http://deid:8001
       FHIR_BASE_URL: http://hapi-fhir:8080/fhir
@@ -134,6 +139,7 @@ services:
       APPROVAL_TOKEN_KEY: ${APPROVAL_TOKEN_KEY:?run just gen-keys}
       AUTH_TOKEN_KEY: ${AUTH_TOKEN_KEY:?run just gen-keys}
       DEV_LOGIN: ${DEV_LOGIN:-false}
+      CLINSCRIBE_MODEL_OVERRIDE: ${CLINSCRIBE_MODEL_OVERRIDE:-}  # load tests: clinscribe-mock
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -272,6 +278,7 @@ services:
       DEID_URL: http://deid:8001
       HF_HOME: /hf-cache
       HF_HUB_OFFLINE: "1"
+      CHAOS_SEARCH_DELAY_MS: ${CHAOS_SEARCH_DELAY_MS:-}  # incident drill only (docs/postmortems)
       TRANSFORMERS_OFFLINE: "1"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     volumes:

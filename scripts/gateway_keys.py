@@ -20,6 +20,7 @@ ALIASES = [
     "clinscribe-fallback-openrouter",
     "clinscribe-fallback-local",
     "clinscribe-judge",
+    "clinscribe-mock",  # load tests only (Phase 6)
 ]
 LIMITS = {
     "key_alias": "clinscribe-app",
@@ -40,6 +41,16 @@ BATCH_LIMITS = {
     "max_budget": 0.1,  # the local model costs nothing; a cloud charge here would be a bug
     "budget_duration": "30d",
     "rpm_limit": 240,
+}
+
+
+# Load tests (Phase 6): the canned mock alias only, so a load run can never spend free-tier quota
+LOAD_LIMITS = {
+    "key_alias": "clinscribe-load",
+    "models": ["clinscribe-mock"],
+    "max_budget": 0.01,
+    "budget_duration": "30d",
+    "rpm_limit": 20000,
 }
 
 
@@ -64,6 +75,8 @@ def main() -> int:
     keys = [(settings.litellm_app_key.get_secret_value(), LIMITS)]
     if settings.litellm_batch_key.get_secret_value():
         keys.append((settings.litellm_batch_key.get_secret_value(), BATCH_LIMITS))
+    if settings.litellm_load_key.get_secret_value():
+        keys.append((settings.litellm_load_key.get_secret_value(), LOAD_LIMITS))
     with httpx.Client(
         base_url=settings.gateway_url, headers={"Authorization": f"Bearer {master}"}, timeout=60
     ) as client:

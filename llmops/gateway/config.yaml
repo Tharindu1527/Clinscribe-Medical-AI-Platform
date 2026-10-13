@@ -33,6 +33,7 @@ model_list:
     litellm_params:
       model: groq/openai/gpt-oss-20b
       api_key: os.environ/GROQ_API_KEY
+      api_base: os.environ/GROQ_API_BASE  # empty normally; `just chaos cloud-down on` breaks it
 
   # Evaluation judge (Phase 2 task 10): a larger model than the generators, never a fallback target
   - model_name: clinscribe-judge
@@ -44,6 +45,14 @@ model_list:
     litellm_params:
       model: openrouter/google/gemma-4-31b-it:free
       api_key: os.environ/OPENROUTER_API_KEY
+      api_base: os.environ/OPENROUTER_API_BASE  # empty normally; broken by `cloud-down`
+
+  # Load tests only (Phase 6): a canned cited answer, no provider call, no quota. Never a fallback.
+  - model_name: clinscribe-mock
+    litellm_params:
+      model: openai/mock
+      api_key: mock
+      mock_response: '{"abstain": false, "sentences": [{"text": "Canned answer for load testing.", "sources": ["S1"]}]}'
 
   - model_name: clinscribe-fallback-local
     litellm_params:
@@ -59,6 +68,11 @@ router_settings:
   fallbacks:
     - clinscribe-default:
         - clinscribe-fallback-groq
+        - clinscribe-fallback-openrouter
+        - clinscribe-fallback-local
+    # Incident drill 0001 (2026-10-14): answers are bound to the Groq alias (task answer_cited); with
+    # the primary down all traffic lands on Groq, and one Groq failure failed the whole request.
+    - clinscribe-fallback-groq:
         - clinscribe-fallback-openrouter
         - clinscribe-fallback-local
   num_retries: 1

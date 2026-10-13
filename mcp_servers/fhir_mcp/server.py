@@ -4,6 +4,8 @@ Tools
 - get_patient_context: the minimum necessary summary of one patient (age band, sex, active
   conditions, active medications, allergies); no name, birth date or address leaves this server.
   Every read is written to the audit log with the requesting user.
+- parse_lab_report: reads a lab-report PDF into preliminary Observations with H/L flags and checks
+  the report's name and birth date against the record; writes nothing (the doctor confirms first).
 - write_fhir: creates a resource only with a valid approval token for exactly this resource, after
   checking two patient identifiers (id + birth date + family name) against the record and that the
   resource is about that patient. The create is conditional on the draft id, so replaying a token
@@ -12,6 +14,7 @@ Tools
   uv run python -m mcp_servers.fhir_mcp [--http HOST:PORT]   (needs HAPI FHIR and Postgres)
 """
 
+import base64
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
@@ -20,11 +23,15 @@ import httpx
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import SecretStr
+from pypdf.errors import PdfReadError
 
 from agents.approval import ApprovalError, verify
+from agents.lab.parser import identity_matches, parse, to_observation
 from agents.schemas import (
     CodedItem,
     GetPatientContextInput,
+    LabParseResult,
+    ParseLabReportInput,
     PatientIdentifiers,
     PatientSummary,
     WriteFhirInput,
@@ -169,6 +176,45 @@ def build_server(
             )
         )
         return summary
+
+    @server.tool()
+    def parse_lab_report(request: ParseLabReportInput) -> LabParseResult:
+        """Lab-report PDF -> preliminary Observations pending confirmation. Writes nothing."""
+        patient = store.read("Patient", request.patient_id)
+        if patient is None:
+            raise ToolError(f"no patient {request.patient_id}")
+        try:
+            report = parse(base64.b64decode(request.pdf_base64, validate=True))
+        except (ValueError, PdfReadError) as exc:
+            raise ToolError(f"not a readable PDF: {exc}") from None
+        observations, not_mapped = [], []
+        for result in report.results:
+            try:
+                observations.append(to_observation(result, request.patient_id, report.collected))
+            except ValueError as exc:
+                not_mapped.append(str(exc))
+        audit.append(
+            AuditEntry(
+                actor=request.requested_by,
+                role=request.role,
+                action="lab.parse",
+                resource_type="Patient",
+                resource_id=request.patient_id,
+                details={"observations": len(observations), "not_mapped": len(not_mapped)},
+            )
+        )
+        return LabParseResult(
+            observations=observations,
+            abnormal=[
+                f"{r.name} {r.value:g} {r.unit} ({r.flag})"
+                for r in report.results
+                if r.flag in ("H", "L")
+            ],
+            not_mapped=not_mapped,
+            unreadable_rows=report.unreadable_rows,
+            identity=identity_matches(report, patient),
+            collected=report.collected,
+        )
 
     @server.tool()
     def write_fhir(request: WriteFhirInput) -> WriteFhirResult:

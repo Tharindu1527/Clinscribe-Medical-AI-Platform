@@ -3,6 +3,9 @@
 Last updated: 2026-10-14 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
+**Phase 4 — Voice: NOT STARTED (needs speech-provider keys)**.
+**Phase 5 — Lab + open models: COMPLETE (2026-10-14, `just gate 5` PASS)**; LoRA training is yours (Colab).
+**Phase 6 — Hardening: done except the voice evidence and the demo video (`just gate 6` lists them)**.
 Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -141,6 +144,24 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ✅ 2026-10-13: 63/63; negative control 23/63 |
 | 12 | ADRs: orchestrator (LangGraph vs Pydantic AI vs OpenAI Agents SDK on one task, isolated project) and A2A | ADRs with numbers | ✅ 2026-10-14: ADR-0008 (LangGraph; footprint + approval mechanisms measured, same-task build not done), ADR-0009 (A2A at the edge only) — proposed |
 | 13 | `just gate 3` | Red-team 100%; no write without approval | ✅ 2026-10-14: `just gate 3` 5/5 PASS |
+
+## Phases 5 and 6 (done before Phase 4 with your approval, 2026-10-14)
+
+**Phase 5 exit gate (SPEC §12):** a turn completes with all cloud providers disabled — **PASS**
+(`just gate 5`, together with the lab checks).
+**Phase 6 exit gate:** every SPEC §14 item done — `just gate 6` runs the deliverables check
+(`scripts/deliverables.py`); pending: voice WER and latency evidence, the voice ADRs, the demo video.
+
+| Item | Status |
+|---|---|
+| All-cloud-down failover to local Ollama (`just chaos cloud-down`) | ✅ live: turn served by `clinscribe-fallback-local` |
+| Lab mode: PDF → preliminary Observations, flags, confirm → final (`/v1/lab/*`, `parse_lab_report`) | ✅ 162/162 values, wrong-patient 20/20 |
+| LoRA fine-tune of the de-ID tagger (`finetune/`) | ◐ data generator + Colab notebook ready; training and integration are yours |
+| Load test p50/p95 at 10 / 50 / 100 sessions (`evals/load`) | ✅ with before/after of the de-ID fix |
+| Three injected incidents + postmortems (`evals/incidents`, `docs/postmortems`) | ✅ outage (found and fixed a fallback gap), drift, latency |
+| Cost per consultation by model (`evals/llmops/cost_report.py`) | ✅ |
+| Compliance pack, runbooks, contributor guide, README, write-up draft | ✅ |
+| Voice (Phase 4): pipelines, WER benchmark, TTFA, voice ADRs, demo video | ☐ needs speech keys |
 
 ## Done
 
@@ -605,6 +626,29 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   first run failed the live step: the API's gateway client timed out at 120 s while a note waited out Gemini
   503s and the fallback chain (it returned a bare 500). Fixed: 300 s timeout for the API's model calls, and
   gateway timeouts / failures now return 504 / 502 with a message. **Phase 3 complete.**
+- 2026-10-14: **Phase 5.** `just chaos cloud-down` (Gemini, Groq, OpenRouter pointed at a dead address):
+  a live turn completed on local Ollama and the spend log records `clinscribe-fallback-local` (~2 min with
+  the cold model load). Lab mode: `agents/lab` (a ~40-line PDF writer, deterministic pypdf parser; no model
+  sees lab values), `config/lab_reference.yaml` (illustrative adult intervals), `parse_lab_report` on
+  fhir-mcp (audited, identity check against the record), `/v1/lab/parse` and `/v1/lab/{id}/confirm`
+  (each value written as a final Observation with its own approval; a report whose name or birth date do not
+  match is refused 409). Eval (`evals/reports/lab/lab_parser.md`): 20 patients, 162/162 values mapped,
+  exact and flagged (17 abnormal), wrong-patient control 20/20; one fixed synthetic layout, no scanned
+  images. LoRA kit: `finetune/make_dataset.py` (5,000 seeded synthetic sentences, hard negatives) and a Colab
+  notebook (`distilbert-base-cased` + LoRA r 8). **`just gate 5` PASS** (second run: the first failed one
+  settings test because I edited `.env.example` while the suite ran).
+- 2026-10-14: **Phase 6.** Load (`evals/reports/load/load_test.md`, mock model via a new `clinscribe-mock`
+  alias and a mock-only `clinscribe-load` key): 10 / 50 / 100 sessions, 0 errors; spans showed de-ID (one
+  process, called twice per question) queueing to p95 26 s; **3 uvicorn workers** cut p95 at 10 sessions
+  13.9 → 2.9 s and tripled throughput (1.7 → 5.1 req/s); guideline search (CPU) is the next limit.
+  Drills (`evals/incidents/drills.py`): **outage** — 2/4 agentic questions failed (502) although failover
+  worked, because answers are bound to the Groq alias, which had no fallback; fixed with a Groq → OpenRouter
+  → local chain and logging of gateway failure type/status; re-run 4/4. **Drift** — replayed the
+  late-chunking index: recall@10 −0.048, MRR −0.081 (CIs exclude 0); the CI fixture would not catch it.
+  **Latency** — +1,500 ms in guideline search: Ask p95 +15%, search span p95 2.2 → 4.1 s (new `mcp <tool>`
+  spans). Cost per consultation (draft + 3 questions, list price): $0.050 Gemini 3.5 Flash … $0.0019 Groq
+  gpt-oss-20b. Docs: DPIA, vendor/BAA matrix, EU AI Act checklist, audit design, operations runbook,
+  CONTRIBUTING, README (results, limitations, JEPA note), write-up draft. `just gate 6` + deliverables check.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;

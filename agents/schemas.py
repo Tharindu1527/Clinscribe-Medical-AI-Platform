@@ -223,3 +223,22 @@ class ReviewDecision(Contract):
         if self.decision == "reject" and not self.reason:
             raise ValueError("a rejection needs a reason")
         return self
+
+
+# --- parse_lab_report (fhir-mcp; Phase 5)
+class ParseLabReportInput(Contract):
+    pdf_base64: str = Field(min_length=10, max_length=7_000_000)  # ~5 MB PDF
+    patient_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9\-.]+$")
+    requested_by: str = Field(min_length=1)
+    role: Role
+
+
+class LabParseResult(Contract):
+    """Parsed values pending the doctor's confirmation; nothing is written by this tool."""
+
+    observations: list[dict[str, Any]]  # preliminary FHIR Observations for known tests
+    abnormal: list[str]  # "Potassium 5.6 mmol/L (H)"
+    not_mapped: list[str]  # rows read but not mapped (unknown test or unexpected unit)
+    unreadable_rows: list[str]
+    identity: dict[str, bool]  # name / birth_date on the report match the record
+    collected: str | None

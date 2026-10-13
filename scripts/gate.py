@@ -96,11 +96,48 @@ CHECKS_BY_PHASE["3"] = [
         ["uv", "run", "pytest", "-q", "-m", "live", "tests/live/test_clinical_flow.py"],
     ),
 ]
+CHECKS_BY_PHASE["5"] = [
+    ("lint", ["uv", "run", "ruff", "check", "."]),
+    ("full test suite (stack and rag required)", ["uv", "run", "pytest", "-q"]),
+    (
+        "a turn completes with every cloud provider disabled (local Ollama)",
+        [
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            "-m",
+            "live",
+            "tests/live/test_gateway_failover.py",
+            "-k",
+            "every_cloud or local_model",
+        ],
+    ),
+    (
+        "lab parser: values, codes, flags, wrong-patient control",
+        ["uv", "run", "python", "-m", "evals.lab.lab_eval"],
+    ),
+    (
+        "lab mode through the API (parse -> confirm -> write)",
+        ["uv", "run", "pytest", "-q", "tests/integration/test_lab_api.py"],
+    ),
+]
+CHECKS_BY_PHASE["6"] = [
+    ("lint", ["uv", "run", "ruff", "check", "."]),
+    ("full test suite (stack and rag required)", ["uv", "run", "pytest", "-q"]),
+    ("red-team suite: 100% of cases pass", ["uv", "run", "python", "-m", "evals.run", "redteam"]),
+    (
+        "SPEC section 14: every deliverable done",
+        ["uv", "run", "python", "-m", "scripts.deliverables"],
+    ),
+]
 # a missing service fails the gate instead of skipping its tests
 REQUIRE = {
     "1": ["CLINSCRIBE_REQUIRE_STACK"],
     "2": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
     "3": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
+    "5": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
+    "6": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
 }
 
 
