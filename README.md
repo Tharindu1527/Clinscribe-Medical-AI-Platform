@@ -50,11 +50,13 @@ through one gateway; no clinical write without a doctor's approval token for the
 | Reliability | turns succeed with the primary down (p50 779 / p95 1,080 ms) and with **every cloud provider down** (local Ollama) | `llmops/`, `just gate 5` |
 | Load | Ask endpoint, mocked model: p50 / p95 1.7 / 2.9 s at 10 sessions, 8.1 / 10.0 s at 50, 14.5 / 25.1 s at 100; 0 errors; ~5 req/s (de-ID was the bottleneck: 3 workers tripled throughput) | `load/load_test.md` |
 | Cost | one consultation (draft + 3 questions) at list price: $0.050 (Gemini 3.5 Flash) … $0.002 (Groq gpt-oss-20b); free tiers bill $0 | `llmops/cost_per_consultation.md` |
+| Voice | time to first audio p50 / p95 3.5 / 19.7 s (fast path 3.3 / 5.6 s) vs SPEC budget 1.5 s: **not met**, bottleneck is the non-streamed cited answer; Gemini Live speech-to-speech 3.5 / 6.1 s, no citations or guardrails | `voice/latency.md`, ADR-0011 |
+| Speech recognition | PriMock57: WER 0.119 (nova-3) vs **0.112 (nova-3-medical)**; medical-term errors 18 → 12 of 200; keyterm boosting no gain | `voice/asr_wer.md` |
 | Incidents | 3 drills with postmortems: provider outage (found and fixed a fallback gap: 2/4 → 4/4 answered), retrieval drift, latency spike | `docs/postmortems/` |
 
-Phase gates (`just gate N`) pass for phases 1, 3 and 5; phase 2 passes every criterion except the
-human review of the golden-set sample (pending); phase 4 (voice) is not built; `just gate 6` lists the
-SPEC §14 deliverables still pending (voice evidence, voice ADRs, demo video).
+Phase gates (`just gate N`) pass for phases 1, 3, 4 and 5; phase 2 passes every criterion except the
+human review of the golden-set sample (pending); `just gate 6` lists the one SPEC §14 deliverable
+still pending: the demo video.
 
 ## Run it
 
@@ -65,6 +67,7 @@ just gen-keys            # generated secrets into .env (add provider keys yourse
 just up; just up rag     # stack (core + FHIR + retrieval)
 just fhir-load           # 50 Synthea patients
 just token dr-demo       # bearer token for a synthetic demo doctor
+just voice               # talk to ClinScribe (microphone + speakers; DEEPGRAM/CARTESIA keys)
 npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
 just test; just gate 3   # tests; a phase gate
 ```
@@ -75,7 +78,8 @@ just test; just gate 3   # tests; a phase gate
   reviewed evaluation set (the golden-set review is pending).
 - "Designed for compliance" is not "compliant": see `docs/compliance/` for the DPIA and the gaps
   (no erasure endpoint, free-tier processors without BAAs/DPAs, no TLS inside the stack).
-- Voice (SPEC Phase 4) is not built yet: it needs speech-provider keys.
+- Voice: the cascaded agent works (`just voice`, console mode) but misses the latency budget; no
+  browser/WebRTC client yet (needs a LiveKit server and a token endpoint).
 - The de-ID LoRA fine-tune is prepared (`finetune/`) but not trained (runs on Colab).
 - Free-tier rate limits shaped the evaluations (60-question answer subset, 8 scribe dialogues).
 - Lab parsing is measured on one synthetic layout; scanned reports (true OCR) are not covered.

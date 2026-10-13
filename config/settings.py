@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     druggraph_mcp_url: str = "http://127.0.0.1:8011/mcp"
     fhir_mcp_url: str = "http://127.0.0.1:8012/mcp"
 
+    # Voice (Phase 4): speech vendors receive raw audio (SPEC section 8); synthetic data only
+    deepgram_api_key: SecretStr = SecretStr("")
+    cartesia_api_key: SecretStr = SecretStr("")
+    livekit_url: str = "ws://127.0.0.1:7880"
+    livekit_api_key: SecretStr = SecretStr("")
+    livekit_api_secret: SecretStr = SecretStr("")
+
     # Observability
     langfuse_public_key: SecretStr = SecretStr("")
     langfuse_secret_key: SecretStr = SecretStr("")

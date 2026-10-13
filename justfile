@@ -140,3 +140,7 @@ load:
 # Bearer token for a synthetic demo user (config/users.yaml), e.g. `just token dr-demo`
 token user:
     uv run python -m apps.api.auth {{user}}
+
+# Voice agent in console mode: local microphone and speakers (Phase 4; needs `just up rag`)
+voice mode="console":
+    $env:CLINSCRIBE_TOKEN = (uv run python -m apps.api.auth dr-demo); uv run --project voice python voice/agent_cascaded.py {{mode}}

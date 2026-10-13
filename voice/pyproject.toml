@@ -1,0 +1,12 @@
+[project]
+name = "clinscribe-voice"
+version = "0.1.0"
+description = "ClinScribe voice agent (LiveKit Agents), isolated: LiveKit pins opentelemetry < 1.45"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "livekit-agents[deepgram,cartesia,silero,turn-detector]==1.8.3",  # voice framework (ADR-0010)
+    "httpx>=0.28",  # calls the ClinScribe API (/v1/ask), which does de-ID, retrieval and guardrails
+]
+
+[tool.uv]
+package = false
