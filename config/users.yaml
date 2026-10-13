@@ -1,0 +1,7 @@
+# Synthetic demo users for the portfolio build (no real people). Roles: SPEC section 2.
+# Tokens come from `just token <user>` or, with DEV_LOGIN=true, POST /v1/dev/login.
+users:
+  dr-demo: {role: doctor, name: "Dr Demo (synthetic)"}
+  dr-second: {role: doctor, name: "Dr Second (synthetic)"}
+  admin-demo: {role: admin, name: "Clinic admin (synthetic)"}
+  ops-demo: {role: operator, name: "AI operator (synthetic)"}

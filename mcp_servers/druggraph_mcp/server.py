@@ -6,7 +6,7 @@ Tool
   salt-free forms, capitalised brands). Each interaction carries a citable id
   ("graph:ddinter:A|B", the same form the answer step cites, retrieval/graph/rag.py).
 
-  uv run python -m mcp_servers.druggraph_mcp     (stdio; needs `just up rag` and `just graph`)
+  uv run python -m mcp_servers.druggraph_mcp [--http HOST:PORT]  (needs `just up rag`, `just graph`)
 """
 
 from typing import Any, Protocol
@@ -60,7 +60,9 @@ def build_server(graph: Graph, lexicon: DrugLexicon) -> MCPServer:
     return server
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    from mcp_servers.serve import http_address, run
     from retrieval.graph.load import GRAPH_DIR, Neo4jHTTP, read_jsonl
 
-    build_server(Neo4jHTTP(), DrugLexicon(read_jsonl(GRAPH_DIR / "drugs.jsonl"))).run("stdio")
+    address = http_address(argv, "druggraph-mcp")
+    run(build_server(Neo4jHTTP(), DrugLexicon(read_jsonl(GRAPH_DIR / "drugs.jsonl"))), address)

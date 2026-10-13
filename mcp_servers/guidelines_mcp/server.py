@@ -77,16 +77,13 @@ def build_server(
 
 
 def main(argv: list[str] | None = None) -> None:
-    import argparse
-
     from config.settings import Settings
+    from mcp_servers.serve import http_address, run
     from privacy.deid.client import DeidClient
     from retrieval.dense import load_chunks
     from retrieval.pipeline import build_chosen
 
-    parser = argparse.ArgumentParser(description="guidelines-mcp")
-    parser.add_argument("--http", metavar="HOST:PORT", help="serve streamable HTTP, not stdio")
-    args = parser.parse_args(argv)
+    address = http_address(argv, "guidelines-mcp")
     settings = Settings()
     deid = DeidClient(settings.deid_url)
     chunks = {c["id"]: c for c in load_chunks()[0]}  # original text, not the contextual variant
@@ -97,8 +94,4 @@ def main(argv: list[str] | None = None) -> None:
     server = build_server(
         searcher, chunks, lambda text: deid.deidentify(text, "guidelines-mcp").text
     )
-    if args.http:
-        host, port = args.http.rsplit(":", 1)
-        server.run("streamable-http", host=host, port=int(port))
-    else:
-        server.run("stdio")
+    run(server, address)

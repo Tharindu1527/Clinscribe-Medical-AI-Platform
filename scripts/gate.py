@@ -11,6 +11,9 @@ answer correctness, and its faithfulness is not worse by more than 0.05 (evals/r
 from the stored runs and answer rows; no LLM calls). Supporting checks: the full suite with the
 stack and rag profile required, the golden-set validator, the recorded human review of the golden
 sample, and the CI retrieval regression fixture. Needs `just up`, `just up rag`, `just fhir-load`.
+
+Phase 3 gate: the red-team suite passes 100% and no FHIR write happens without a valid approval
+(tool, graph, stdio and API tests), plus the live end-to-end flow (real model calls).
 """
 
 import os
@@ -70,10 +73,34 @@ CHECKS_BY_PHASE: dict[str, list[tuple[str, list[str]]]] = {
         ),
     ],
 }
+CHECKS_BY_PHASE["3"] = [
+    ("lint", ["uv", "run", "ruff", "check", "."]),
+    ("full test suite (stack and rag required)", ["uv", "run", "pytest", "-q"]),
+    ("red-team suite: 100% of cases pass", ["uv", "run", "python", "-m", "evals.run", "redteam"]),
+    (
+        "no FHIR write without a valid approval (tool, graph, stdio, API)",
+        [
+            "uv",
+            "run",
+            "pytest",
+            "-q",
+            "tests/unit/test_mcp_servers.py",
+            "tests/unit/test_agent_graph.py",
+            "tests/unit/test_approval.py",
+            "tests/integration/test_mcp_stdio.py",
+            "tests/integration/test_clinical_api.py",
+        ],
+    ),
+    (
+        "live: cited Ask answer; transcript -> draft -> approval -> FHIR write",
+        ["uv", "run", "pytest", "-q", "-m", "live", "tests/live/test_clinical_flow.py"],
+    ),
+]
 # a missing service fails the gate instead of skipping its tests
 REQUIRE = {
     "1": ["CLINSCRIBE_REQUIRE_STACK"],
     "2": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
+    "3": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
 }
 
 

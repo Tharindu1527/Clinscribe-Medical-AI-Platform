@@ -12,3 +12,8 @@ tasks:
   # the judge is a larger model, never a fallback target.
   answer_cited: clinscribe-fallback-groq
   judge_citations: clinscribe-judge
+  # Phase 3 agents (agents/graph.py). Primary pool with the full fallback chain; the Phase 3 evals
+  # decide whether any task moves.
+  note_writer: clinscribe-default
+  grade_evidence: clinscribe-default
+  rewrite_query: clinscribe-default

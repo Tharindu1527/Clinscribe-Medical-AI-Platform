@@ -1,8 +1,8 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-13 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-14 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
-**Phase 3 — Agents + safety: in progress (started 2026-10-13 with your waiver of the phase-order rule)**.
+**Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
 Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -131,16 +131,16 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | 1 | `agents/schemas.py`: Pydantic contracts (Evidence, Interaction, PatientSummary, SOAP statements with transcript span + citations, approval token) | Schema unit tests; every tool input/output typed | ✅ 2026-10-13: 9/9 |
 | 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ✅ 2026-10-13: unit 14, stdio 4/4 |
 | 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ✅ 2026-10-13: HTTP 2/2; stack 4.0 GB; p50 244–261 / p95 288–326 ms warm |
-| 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ☐ |
-| 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ☐ |
-| 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ☐ |
-| 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ☐ |
-| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ◐ 2026-10-13: token + checks in `write_fhir` (done with task 2); the API that issues tokens comes with task 9/10 |
-| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ☐ |
-| 10 | Review UI (React + Vite): drafts, unsupported statements highlighted, approve / edit / reject; edits saved as before/after pairs | End-to-end test; screenshots | ☐ |
-| 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ☐ |
-| 12 | ADRs: orchestrator (LangGraph vs Pydantic AI vs OpenAI Agents SDK on one task, isolated project) and A2A | ADRs with numbers | ☐ |
-| 13 | `just gate 3` | Red-team 100%; no write without approval | ☐ |
+| 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ✅ 2026-10-13: 11/11 incl. resume on a new graph instance |
+| 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ◐ 2026-10-14: router interaction recall 14/20 (other questions agentic 25/215); fast-vs-agentic answer quality not measured (budget) |
+| 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ✅ 2026-10-14: 8 dialogues: 6 drafts, 5 clean on the first attempt; 2 long ones truncated |
+| 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ✅ 2026-10-13: 6/6 |
+| 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ✅ 2026-10-13: fhir-mcp checks (task 2) + API signs the token for the exact resource at review; live approve → write |
+| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ✅ 2026-10-13: 6/6 (401 no/forged/expired token, 403 by role) |
+| 10 | Review UI (React + Vite): drafts, unsupported statements highlighted, approve / edit / reject; edits saved as before/after pairs | End-to-end test; screenshots | ✅ 2026-10-13: driven in the browser against the live stack: draft → approve → DocumentReference/59139 |
+| 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ✅ 2026-10-13: 63/63; negative control 23/63 |
+| 12 | ADRs: orchestrator (LangGraph vs Pydantic AI vs OpenAI Agents SDK on one task, isolated project) and A2A | ADRs with numbers | ✅ 2026-10-14: ADR-0008 (LangGraph; footprint + approval mechanisms measured, same-task build not done), ADR-0009 (A2A at the edge only) — proposed |
+| 13 | `just gate 3` | Red-team 100%; no write without approval | ✅ 2026-10-14: `just gate 3` 5/5 PASS |
 
 ## Done
 
@@ -558,13 +558,63 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   so the cold first pass is not file I/O; cause not isolated (likely per-shape warm-up in torch). Memory with
   core + fhir + rag: **4.0 GB** (guidelines-mcp 0.62 GB). Integration 2/2 (HTTP, contract rejection).
   `just lint` clean; `just test` 274 passed, 3 skipped.
+- 2026-10-13: **Phase 3 tasks 4, 7, 8, 9 (+ the runtime of 5 and 6).** `agents/graph.py` (LangGraph): intake
+  (structured-PHI re-check) → router → fast path or agentic loop (CRAG-style grading, one query rewrite, DDInter
+  facts for drug questions) → cited answer → guardrails (one retry with the violations, then the safe reply);
+  scribe: note_writer → guardrails (one retry, then failing statements removed and listed) → `interrupt()` for
+  the doctor → commit via `write_fhir`. Guardrails (`config/guardrails.yaml`, `agents/guardrails.py`): PHI in
+  model input, injection in evidence (passage dropped before any model sees it), unsourced doses (number +
+  unit must appear in a cited source or, for notes, in the cited transcript turn), invented citations,
+  diagnosis wording, unknown transcript turns. New prompts `note_writer`, `grade_evidence`, `rewrite_query`
+  (v1). All three MCP servers run as HTTP services (`fhir-mcp` in `fhir`, `druggraph-mcp` and
+  `guidelines-mcp` in `rag`). API: HMAC bearer tokens with roles from `config/users.yaml` (synthetic demo
+  users; `just token <user>`; `/v1/dev/login` only with `DEV_LOGIN=true`), `/v1/ask`, `/v1/scribe/drafts`,
+  `/v1/drafts/{id}`, `/v1/drafts/{id}/review` (the API signs the approval for the exact FHIR resource the
+  reviewed note becomes; fhir-mcp re-verifies), `/v1/audit` (admin/operator). Drafts live in an in-memory
+  checkpointer (an API restart drops pending drafts; see Open questions). **Live end-to-end 2/2**: a cited Ask
+  answer, and a synthetic consultation → draft → doctor approval → DocumentReference in HAPI, with the audit
+  chain `ask`, `draft.create`, `fhir.write`, `draft.approve`. Mistake caught and fixed: the agent-graph tests
+  first overwrote Phase 2's `tests/unit/test_graph.py`; restored as `test_drug_graph.py`, new tests in
+  `test_agent_graph.py`. Unit +17, integration +6, live +2. `just lint` clean.
+- 2026-10-13: **Phase 3 task 10 (review UI)**, `apps/web` (React 19.3 + Vite 8.3, plain CSS, `npm --prefix
+  apps/web run dev`; Vite proxies `/v1` to the API): sign-in with demo users (`DEV_LOGIN=true` set in the local
+  `.env`), Ask with numbered citations and sources, Scribe draft review by SOAP section with unsupported
+  statements highlighted, edit / approve with two identifiers / reject, audit log for admin and operator.
+  Driven in the browser pane against the live stack: transcript → draft (6 statements, 4 flagged) → approve
+  → "Saved to FHIR: DocumentReference/59139".
+- 2026-10-13: **Phase 3 task 11 (red team).** `evals/redteam` (`just eval redteam`): 63 cases (unsourced doses
+  15, diagnosis wording 10, invented citations 5, injected passages 10, PHI in input 8, bad note statements 6,
+  writes without a valid approval 9) through the real graph, guardrails and fhir-mcp code with a scripted model
+  that misbehaves on every attempt: **63/63 pass**. Negative control (`--control`, rules switched off in the
+  system, checker strict): 23/63, so the suite can fail. No LLM calls.
+- 2026-10-14: **Phase 3 tasks 5, 6, 12.** Router (ablation step 7, `evals/reports/agents/router.md`): comparison
+  wording alone sent 2/20 interaction questions to the agentic path; adding the Phase 2 graph router's cues
+  gives 14/20 (25/215 other questions go agentic, ~1 extra grading call each); adopted (optimistic: those cues
+  were widened on the golden set). Note writer on 8 ACI-Bench dialogues (de-ID per turn, real model,
+  `evals/reports/agents/note_writer.md`): 6 drafts, 5 clean on the first attempt, ~25 statements each, 3
+  unsourced doses removed; the 2 longest consultations (59, 81 turns) failed twice with truncated JSON (4,500
+  output tokens is the most Groq's free per-minute limit leaves); p50 67 s per draft (Gemini 503s, then
+  fallback). Two fixes found on the way: Groq's JSON mode rejected valid long notes (`json_validate_failed`),
+  so graph prompts no longer use provider JSON mode (the graph parses and validates itself); note_writer
+  v2 raises max_tokens 3,000 → 4,500. ADR-0008 (orchestrator: LangGraph; 40 / 19 / 41 packages for LangGraph /
+  Pydantic AI / OpenAI Agents SDK, all three ship tool-level approval, only LangGraph pauses on graph state
+  with per-step checkpoints; the same-task build was not done) and ADR-0009 (A2A only at the edge, e.g. a
+  referral hand-off). `just gate 3` added.
+- 2026-10-14: **Phase 3 exit gate PASS** (`just gate 3`, second run): lint; full suite 299 passed, 3 skipped
+  (stack + rag required); red-team 63/63; no-write-without-approval tests 40/40; live end-to-end 2/2. The
+  first run failed the live step: the API's gateway client timed out at 120 s while a note waited out Gemini
+  503s and the fallback chain (it returned a bare 500). Fixed: 300 s timeout for the API's model calls, and
+  gateway timeouts / failures now return 504 / 502 with a message. **Phase 3 complete.**
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- **You: review ADR-0007** (vector store) and the ADR-0006 BM25 update.
+- **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
+- **You (Phase 4 voice): add speech keys to `.env`**: `DEEPGRAM_API_KEY` (STT; free credit on sign-up),
+  `CARTESIA_API_KEY` or `ELEVENLABS_API_KEY` (TTS free tiers), optionally `ASSEMBLYAI_API_KEY` (the WER
+  comparison). Gemini Live uses the existing Gemini key.
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
   Optional: a throwaway PR that breaks the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
@@ -592,6 +642,11 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - The machine PATH lacks `C:\Windows\System32\WindowsPowerShell\v1.0`; the justfile uses the full path.
 
 ## Open questions
+
+- Pending drafts live in LangGraph's in-memory checkpointer, so an API restart loses drafts awaiting review.
+  A durable checkpointer (Postgres) is the fix when it matters; FHIR writes and the audit log are unaffected.
+- Drafts and answers are shown in surrogate form (PATIENT_1); re-identification on the doctor's screen needs
+  the deid `/reidentify` route behind the new doctor-only auth.
 
 - Langfuse free tier: resolved for the future on 2026-10-13 (collector filter + `no-log` for bulk calls); the
   current month stays suspended until a new organisation key or the reset.

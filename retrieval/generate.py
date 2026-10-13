@@ -123,9 +123,14 @@ class AnswerGenerator:
         self.spec = spec or load_spec()
 
     def answer(
-        self, question: DeidentifiedText, chunks: Sequence[Mapping[str, str]]
+        self,
+        question: DeidentifiedText,
+        chunks: Sequence[Mapping[str, str]],
+        feedback: str | None = None,
     ) -> CitedAnswer:
-        """Question must be de-identified; chunks are public corpus text (ADR-0001)."""
+        """Question must be de-identified; chunks are public corpus text (ADR-0001). `feedback`
+        (guardrail violations of a previous answer) is appended only when given, so earlier cached
+        requests keep their keys."""
         if not isinstance(question, DeidentifiedText):
             raise TypeError("the question must be DeidentifiedText")
         spec = self.spec
@@ -136,7 +141,12 @@ class AnswerGenerator:
             ChatMessage(
                 "user",
                 issue(
-                    spec.user.format(question=question.text, sources=sources),
+                    spec.user.format(question=question.text, sources=sources)
+                    + (
+                        f"\n\nYour previous answer was rejected: {feedback}. Fix it."
+                        if feedback
+                        else ""
+                    ),
                     f"{question.source}+public-corpus",
                 ),
             ),

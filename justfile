@@ -136,3 +136,7 @@ gate phase:
 # Load tests with p50/p95 (Phase 6)
 load:
     @echo "Load tests are not implemented until Phase 6."; exit 1
+
+# Bearer token for a synthetic demo user (config/users.yaml), e.g. `just token dr-demo`
+token user:
+    uv run python -m apps.api.auth {{user}}

@@ -1,0 +1,12 @@
+# Query rewrite for the agentic Ask path when graded retrieval is weak (Phase 3 task 5).
+id: rewrite_query
+version: "1"
+task: rewrite_query
+temperature: 0.0
+max_tokens: 600
+system: |
+  Rewrite a clinician's question into one search query for clinical guidelines and drug labels.
+  Use standard medical terms and generic drug names, keep every clinical detail, drop filler.
+  Reply with JSON only: {"query": "..."}
+user: |
+  Question: {question}

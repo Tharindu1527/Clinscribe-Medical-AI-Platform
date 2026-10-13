@@ -127,6 +127,13 @@ services:
       DEID_URL: http://deid:8001
       FHIR_BASE_URL: http://hapi-fhir:8080/fhir
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      # Phase 3: agent tools over MCP, approval and auth keys
+      GUIDELINES_MCP_URL: http://guidelines-mcp:8010/mcp
+      DRUGGRAPH_MCP_URL: http://druggraph-mcp:8011/mcp
+      FHIR_MCP_URL: http://fhir-mcp:8012/mcp
+      APPROVAL_TOKEN_KEY: ${APPROVAL_TOKEN_KEY:?run just gen-keys}
+      AUTH_TOKEN_KEY: ${AUTH_TOKEN_KEY:?run just gen-keys}
+      DEV_LOGIN: ${DEV_LOGIN:-false}
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -136,6 +143,26 @@ services:
       retries: 20
 
   # ---------------------------------------------------------------- fhir
+  # fhir-mcp (Phase 3): patient context and approval-gated writes over MCP
+  fhir-mcp:
+    <<: *python-service
+    profiles: [fhir]
+    mem_limit: 256m
+    command: ["python", "-m", "mcp_servers.fhir_mcp", "--http", "0.0.0.0:8012"]
+    environment:
+      POSTGRES_HOST: postgres
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      AUDIT_CHAIN_KEY: ${AUDIT_CHAIN_KEY:?run just gen-keys}
+      APPROVAL_TOKEN_KEY: ${APPROVAL_TOKEN_KEY:?run just gen-keys}
+      FHIR_BASE_URL: http://hapi-fhir:8080/fhir
+    ports:
+      - "127.0.0.1:8012:8012"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8012), 3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   hapi-fhir:
     image: hapiproject/hapi:v8.12.0-2
     profiles: [fhir]
@@ -198,6 +225,28 @@ services:
       timeout: 3s
       retries: 40
       start_period: 20s
+
+  # druggraph-mcp (Phase 3): DDInter interactions over MCP; reads the drug lexicon from data/graph
+  druggraph-mcp:
+    <<: *python-service
+    profiles: [rag]
+    mem_limit: 256m
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    command: ["python", "-m", "mcp_servers.druggraph_mcp", "--http", "0.0.0.0:8011"]
+    environment:
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?run just gen-keys}
+      NEO4J_HTTP_URL: http://neo4j:7474
+    volumes:
+      - ./data/graph:/app/data/graph:ro
+    ports:
+      - "127.0.0.1:8011:8011"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8011), 3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   # Retrieval as an MCP service (Phase 3 task 3): the only container with torch and the encoders.
   # Models come from the host's Hugging Face cache and the corpus/indexes from ./data, both
