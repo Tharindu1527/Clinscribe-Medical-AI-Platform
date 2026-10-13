@@ -5,6 +5,12 @@ Phase 1 gate: (a) gateway answers when the primary fails; (b) the leak test find
 and logs; (c) Synthea patients are queryable from FHIR. Supporting checks: the full test suite with
 the stack required, and the audit hash chain.
 Needs `just up` and `just fhir-load`; makes real LLM calls.
+
+Phase 2 gate (wording decided 2026-10-13): the chosen pipeline beats dense-only on recall@10 and on
+answer correctness, and its faithfulness is not worse by more than 0.05 (evals/rag/ablation.py,
+from the stored runs and answer rows; no LLM calls). Supporting checks: the full suite with the
+stack and rag profile required, the golden-set validator, the recorded human review of the golden
+sample, and the CI retrieval regression fixture. Needs `just up`, `just up rag`, `just fhir-load`.
 """
 
 import os
@@ -46,6 +52,28 @@ CHECKS_BY_PHASE: dict[str, list[tuple[str, list[str]]]] = {
         ),
         ("audit hash chain", ["uv", "run", "python", "-m", "scripts.audit_verify"]),
     ],
+    "2": [
+        ("lint", ["uv", "run", "ruff", "check", "."]),
+        ("full test suite (stack and rag required)", ["uv", "run", "pytest", "-q"]),
+        ("golden set valid", ["uv", "run", "python", "-m", "evals.golden.golden"]),
+        (
+            "golden sample reviewed by a human (task 3)",
+            ["uv", "run", "python", "-m", "evals.golden.review", "summary"],
+        ),
+        (
+            "CI retrieval regression fixture",
+            ["uv", "run", "pytest", "-q", "tests/unit/test_rag_regression.py"],
+        ),
+        (
+            "chosen pipeline vs dense-only: recall@10, correctness, faithfulness",
+            ["uv", "run", "python", "-m", "evals.rag.ablation", "--gate"],
+        ),
+    ],
+}
+# a missing service fails the gate instead of skipping its tests
+REQUIRE = {
+    "1": ["CLINSCRIBE_REQUIRE_STACK"],
+    "2": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
 }
 
 
@@ -54,7 +82,7 @@ def main(argv: list[str]) -> int:
     if phase not in CHECKS_BY_PHASE:
         print(f"usage: gate {{{'|'.join(CHECKS_BY_PHASE)}}}")
         return 2
-    env = {**os.environ, "CLINSCRIBE_REQUIRE_STACK": "1"}  # a missing stack fails, never skips
+    env = {**os.environ, **dict.fromkeys(REQUIRE[phase], "1")}
     results = []
     for name, cmd in CHECKS_BY_PHASE[phase]:
         started = time.monotonic()

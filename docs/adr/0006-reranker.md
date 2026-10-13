@@ -73,3 +73,12 @@ dropping it is reconsidered in the final ablation report (task 12) with pooled r
   (task 10), not from a retrieval score threshold.
 - The cross-encoder code stays (`retrieval/rerank.py`) for a later biomedical model comparison; it
   is not in the default pipeline.
+
+## Update 2026-10-13: BM25 re-check (task 12)
+
+Over the contextual corpus, the chosen pipeline without BM25 (`dense_colbert_ctx`) reaches recall@10
+0.890 against 0.909 with it: −0.019, 95% CI [−0.043, +0.005]; MRR@10 −0.008 [−0.024, +0.005]. BM25
+finds 5 questions the dense pool misses at 10 and loses 1. Not shown either way, and the pooled
+judgements were not run (recall is reported as a quote-based lower bound instead), so BM25 stays: it
+costs 23–32 ms per query (p50 159 vs 136 ms, p95 206 vs 174 ms, timed back to back) and the answer
+evaluation (task 10) measured the hybrid pipeline. See `evals/reports/rag/ablation.md`.

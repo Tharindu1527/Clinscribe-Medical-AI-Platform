@@ -78,8 +78,9 @@ Lowest C: free space during the whole run: 2.35 GB.
 
 ## Phase 2 — Advanced RAG (weeks 3–5)
 
-**Phase exit gate (SPEC §12):** the ablation report shows the chosen pipeline beats dense-only on
-**recall@10** and **faithfulness** (paired bootstrap 95% CI for each difference). Run with `just gate 2`.
+**Phase exit gate (SPEC §12, wording changed 2026-10-13):** the ablation report shows the chosen pipeline
+beats dense-only on **recall@10** and **answer correctness**, with **faithfulness not worse by more than
+0.05** (paired bootstrap 95% CI for each difference). Run with `just gate 2`.
 
 **Decisions (you, 2026-10-06):** corpus = focused primary care (hypertension, type 2 diabetes, atrial
 fibrillation/anticoagulation, asthma/COPD, common infections; ~200–400 docs, ~5–10k chunks); golden set
@@ -108,7 +109,7 @@ free-tier quota). Corpus text is public (no PHI); patient-derived queries are de
 | 9 | Neo4j drug graph (DDInter + RxNorm) and GraphRAG for drug questions (step 6) | Graph counts; interaction-question subset vs best | ✅ 2026-10-08: 1,971 drugs, 234,981 interactions; no retrieval gain (17/19 already found), facts kept for task 10 |
 | 10 | Generation with chunk-id citations, citation check, faithfulness (RAGAS via the gateway) | Faithfulness and citation precision: baseline vs best two | ✅ 2026-10-10: dense vs best two, 60 questions each: correctness better for both (+0.150 and +0.100, CIs exclude 0), faithfulness and citation precision not different (all ~0.93–0.94 / 0.87–0.93); graph facts 10/10 vs text 4/10 |
 | 11 | Vector-store ADR: Qdrant vs pgvector on recall and latency | ADR with numbers | ✅ 2026-10-13: recall@10 tie (0.842) when exact or ef ≥ 100; p95 < 20 ms for all indexed options; keep Qdrant (ADR-0007 proposed) |
-| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ☐ |
+| 12 | CI regression (retrieval metrics on a committed mini fixture index, no secrets) + `just gate 2` | `just gate 2` passes; CI goes red when recall drops | ◐ 2026-10-13: fixture + ablation report + gate built; criteria PASS; gate FAIL only on the golden review (task 3) and the Langfuse test |
 
 Memory measured 2026-10-06 (core + fhir + rag, index loaded): **3.59 GB** of containers (Neo4j 1,127 MB, Qdrant 251 MB);
 the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
@@ -464,23 +465,38 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
   MB vs Qdrant 468–533 MB (four collections). **ADR-0007 (proposed — please review): keep Qdrant**; pgvector
   with ef_search ≥ 100 is the measured fallback if Phase 4 memory forces a service out. Unit 3/3,
   integration 2/2. `just lint` clean; `just test` 236 passed, 1 failed (Langfuse ingestion suspended).
+- 2026-10-13: **Decisions (you):** Phase 2 gate = recall@10 and answer correctness better than dense-only,
+  faithfulness non-inferior (margin 0.05); SPEC §12 updated. CI fixture without WHO text (CC BY-NC-SA).
+  Recall reported as a quote-based lower bound (no pooled judgements).
+- 2026-10-13: **Phase 2 task 12 (tooling done).** CI regression: `tests/fixtures/rag_mini/` (100 golden
+  questions, FDA + PMC only, 1,205 chunks, float16 ModernBERT vectors for chunks and questions, 3.8 MB,
+  licence README; built by `evals/rag/fixture.py`) and `tests/unit/test_rag_regression.py`: dense, BM25 and
+  hybrid RRF recompute recall@10 and MRR@10 with the production code, no models, no corpus; thresholds 0.01
+  below measured (dense 0.83, BM25 0.74, hybrid 0.86 recall@10). Red check done locally: removing
+  lowercasing in the BM25 tokenizer failed BM25 and hybrid; restored, green. `evals/rag/ablation.py` writes
+  `evals/reports/rag/ablation.md` from the stored runs and answer rows (no LLM calls) and checks the gate
+  criteria; the 8 systems in it were re-timed back to back (rankings identical to before, 235/235 each):
+  chosen pipeline p50 159 / p95 206 ms, dense 106 / 143 ms. BM25 re-check (ADR-0006 update): without BM25
+  recall@10 0.890 vs 0.909 (−0.019, CI [−0.043, +0.005]), 23–32 ms cheaper; BM25 kept. `just gate 2`
+  (`scripts/gate.py`): lint PASS, golden validator PASS, CI fixture PASS, **criteria PASS** (recall@10 +0.100
+  [+0.053, +0.148]; correctness +0.150 [+0.050, +0.260]; faithfulness +0.004 [−0.049, +0.069]); **FAIL**: the
+  golden review sheet is empty (task 3) and the full suite's Langfuse test (ingestion suspended). Also fixed:
+  the pgvector tests used the rag flag, so they errored with the `vectorstore` profile stopped; they now use
+  `CLINSCRIBE_REQUIRE_VECTORSTORE`. Unit tests +6 (regression 4, ablation 2). `just lint` clean; `just test`
+  240 passed, 2 skipped (pgvector off), 1 failed (Langfuse ingestion suspended).
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
-- **You: decide the Phase 2 gate wording.** SPEC §12 asks the chosen pipeline to beat dense-only on recall@10
-  and faithfulness. Recall@10 passes (+0.100, CI excludes 0); faithfulness is equal, not better (both ~0.94,
-  the generator abstains instead of guessing). Options: (a) gate on correctness / answer rate with faithfulness
-  as non-inferiority (difference CI lower bound above −0.05; now −0.049, borderline), (b) keep the wording and
-  report the gate as not met on faithfulness, (c) more questions for a tighter CI (~47 answers per day).
 - **You: Langfuse.** Ingestion is suspended for the month (free-tier usage threshold). Options: a new free
   Langfuse organisation + project and new keys in `.env` (the limit is per organisation), or wait for the
   monthly reset. Eval and batch traffic is now kept out of Langfuse (2026-10-13).
-- **You: review ADR-0007** (vector store: keep Qdrant, pgvector as the measured fallback).
-- Phase 2 task 12 next: CI retrieval regression on a committed mini fixture index + `just gate 2`; needs the
-  gate-wording decision above and a plan approval.
+- **You: review ADR-0007** (vector store) and the ADR-0006 BM25 update.
+- **Phase 2 closes when `just gate 2` passes:** it needs the golden review sheet (first item) and Langfuse
+  ingestion back (new organisation keys in `.env`, or the monthly reset). Optional: a throwaway PR that breaks
+  the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
 
 ## Blockers
@@ -517,8 +533,8 @@ the encoder runs on the host (~1.7 GB while embedding), outside the WSL cap.
 
 - Gold chunks are quote-based, so a chunk that answers in other words counts as a miss (2 of 6 sampled
   misses). Options: pooled relevance judgements (judge the union of each system's top 10 once, store as
-  `also_relevant`), or keep quote-based gold and report it as a lower bound. Decide before the ablation
-  report (task 12); a judged pool also helps the faithfulness evaluation.
+  `also_relevant`), or keep quote-based gold and report it as a lower bound. **Decided 2026-10-13 (you):
+  lower bound**, stated in `evals/reports/rag/ablation.md`.
 
 - Corpus quality (task 1 follow-up): WHO 344424 outline entries are figures ("Fig. 2 Framework for
   analysis"), so its section titles are misleading, and reference-list pages are indexed as chunks.

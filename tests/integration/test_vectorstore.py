@@ -1,7 +1,8 @@
 """PROGRESS Phase 2 task 11: pgvector holds the contextual vectors and exact search matches numpy.
 
 Needs `just up vectorstore` and one `just vectorstore` run (loads the table); skipped otherwise
-unless CLINSCRIBE_REQUIRE_RAG=1.
+unless CLINSCRIBE_REQUIRE_VECTORSTORE=1. The `vectorstore` profile runs only for the comparison, so
+the rag flag does not cover it.
 """
 
 import os
@@ -24,7 +25,7 @@ def conn() -> psycopg.Connection[Any]:
     except psycopg.Error:
         loaded = None
     if not loaded or not loaded[0]:
-        if os.environ.get("CLINSCRIBE_REQUIRE_RAG") == "1":
+        if os.environ.get("CLINSCRIBE_REQUIRE_VECTORSTORE") == "1":
             pytest.fail("pgvector table not loaded (just up vectorstore; just vectorstore)")
         pytest.skip("pgvector table not loaded (just up vectorstore; just vectorstore)")
     return conn
