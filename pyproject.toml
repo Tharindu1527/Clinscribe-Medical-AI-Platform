@@ -39,6 +39,11 @@ rag = [
     "sentence-transformers>=6.1",  # runs the dense embedding model (and later the cross-encoder)
     "torch>=2.6",                  # CPU build from the PyTorch index (no 2+ GB CUDA wheels)
 ]
+# Voice measurements (Phase 4). The LiveKit agent itself is a separate uv project in voice/ (LiveKit
+# Agents pins opentelemetry < 1.45; this project uses 1.45). `uv sync --group voice`.
+voice = [
+    "websockets>=16.0",            # Deepgram streaming STT in the latency evaluation
+]
 
 [tool.uv]
 package = false
@@ -86,7 +91,7 @@ python_version = "3.11"
 strict = true
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
-files = ["apps", "agents", "config", "evals", "llmops", "mcp_servers", "privacy", "retrieval", "scripts", "voice", "tests"]
+files = ["apps", "agents", "config", "evals", "llmops", "mcp_servers", "privacy", "retrieval", "scripts", "tests"]  # voice/ is its own uv project
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

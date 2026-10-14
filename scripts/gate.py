@@ -131,11 +131,31 @@ CHECKS_BY_PHASE["6"] = [
         ["uv", "run", "python", "-m", "scripts.deliverables"],
     ),
 ]
+CHECKS_BY_PHASE["4"] = [
+    ("lint", ["uv", "run", "ruff", "check", "."]),
+    (
+        "ADR format (incl. 0010 voice framework, 0011 s2s vs cascaded)",
+        ["uv", "run", "pytest", "-q", "tests/unit/test_adr_format.py"],
+    ),
+    (
+        "TTFA and turn time p50/p95 reported; bottleneck explained",
+        ["uv", "run", "python", "-m", "scripts.voice_reports", "latency"],
+    ),
+    (
+        "medical speech recognition benchmark (WER, medical-term error rate)",
+        ["uv", "run", "python", "-m", "scripts.voice_reports", "asr"],
+    ),
+    (
+        "voice agent answers through the ClinScribe API (smoke)",
+        ["uv", "run", "python", "-m", "scripts.voice_smoke"],
+    ),
+]
 # a missing service fails the gate instead of skipping its tests
 REQUIRE = {
     "1": ["CLINSCRIBE_REQUIRE_STACK"],
     "2": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
     "3": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
+    "4": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
     "5": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
     "6": ["CLINSCRIBE_REQUIRE_STACK", "CLINSCRIBE_REQUIRE_RAG"],
 }

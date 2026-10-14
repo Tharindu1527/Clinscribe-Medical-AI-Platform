@@ -3,9 +3,9 @@
 Last updated: 2026-10-14 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
-**Phase 4 — Voice: NOT STARTED (needs speech-provider keys)**.
+**Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
 **Phase 5 — Lab + open models: COMPLETE (2026-10-14, `just gate 5` PASS)**; LoRA training is yours (Colab).
-**Phase 6 — Hardening: done except the voice evidence and the demo video (`just gate 6` lists them)**.
+**Phase 6 — Hardening: done except the demo video (`just gate 6`)**.
 Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -161,7 +161,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | Three injected incidents + postmortems (`evals/incidents`, `docs/postmortems`) | ✅ outage (found and fixed a fallback gap), drift, latency |
 | Cost per consultation by model (`evals/llmops/cost_report.py`) | ✅ |
 | Compliance pack, runbooks, contributor guide, README, write-up draft | ✅ |
-| Voice (Phase 4): pipelines, WER benchmark, TTFA, voice ADRs, demo video | ☐ needs speech keys |
+| Voice (Phase 4): pipelines, WER benchmark, TTFA, voice ADRs | ✅ (see Phase 4 entry); demo video is yours |
 
 ## Done
 
@@ -649,6 +649,25 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   spans). Cost per consultation (draft + 3 questions, list price): $0.050 Gemini 3.5 Flash … $0.0019 Groq
   gpt-oss-20b. Docs: DPIA, vendor/BAA matrix, EU AI Act checklist, audit design, operations runbook,
   CONTRIBUTING, README (results, limitations, JEPA note), write-up draft. `just gate 6` + deliverables check.
+- 2026-10-14: **Phase 4 (voice).** Speech keys added by you (Deepgram, Cartesia). Cascaded agent
+  `voice/agent_cascaded.py` (LiveKit Agents 1.8.3 in its own uv project `voice/`: LiveKit pins
+  opentelemetry < 1.45): Deepgram nova-3-medical STT, Silero VAD + LiveKit English end-of-turn model
+  (`VOICE_TURN=semantic|vad`), barge-in on, Cartesia sonic-2 TTS; the pipeline's "LLM" is `/v1/ask`, so
+  spoken answers are the de-identified, cited, guarded ones. `just voice` (console: microphone + speakers);
+  smoke test through the API in the gate. **ASR** (`evals/reports/voice/asr_wer.md`, PriMock57 CC BY 4.0, 6
+  consultations, both channels, 7,686 words): WER nova-3 0.119, + keyterms 0.121, nova-3-medical 0.112;
+  medical-term errors 18 / 17 / 12 of 200 (keyterm boosting no gain; medical model adopted; small n).
+  **Latency** (`evals/reports/voice/latency.md`, 30 golden questions spoken by Cartesia, streamed at real time):
+  STT final p50 704 / p95 1,747 ms; Ask 1,864 / 18,493; TTS first byte 812 / 1,301; **TTFA 3,545 / 19,732 ms**
+  (fast path 3,276 / 5,577) vs budget 1,500: not met; the bottleneck is Ask (non-streamed cited answer;
+  agentic tail 6.8-22 s). End-of-utterance fired inside the question at 300 ms endpointing 1/30 times (a VAD
+  cut-off). Measurement fixes on the way: negative STT latencies (Deepgram ended at a mid-question pause)
+  now counted as early endpoints; a null byte and a per-process `hash()` cache key fixed in the script.
+  **Speech-to-speech** (`evals/reports/voice/s2s_latency.md`, Gemini Live native audio): TTFA p50 3,493 /
+  p95 6,137 ms: no faster than the cascaded fast path and without citations, guardrails or de-ID.
+  ADR-0010 (LiveKit Agents; Pipecat compared on design, not built) and ADR-0011 (cascaded by default).
+  **`just gate 4` PASS.** Not done: browser/WebRTC client (LiveKit server + token endpoint), the turn-
+  detection false cut-off comparison semantic vs VAD on scripted pauses, AEC self-interruption test.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -656,9 +675,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
   shrinks after a restart.
 - **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
-- **You (Phase 4 voice): add speech keys to `.env`**: `DEEPGRAM_API_KEY` (STT; free credit on sign-up),
-  `CARTESIA_API_KEY` or `ELEVENLABS_API_KEY` (TTS free tiers), optionally `ASSEMBLYAI_API_KEY` (the WER
-  comparison). Gemini Live uses the existing Gemini key.
+- **You: record the demo video** (`just up rag`, `just voice`, then the review UI for the draft), add a link
+  in `docs/presentation/demo_video.md`; that closes the last SPEC §14 item.
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
   Optional: a throwaway PR that breaks the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
