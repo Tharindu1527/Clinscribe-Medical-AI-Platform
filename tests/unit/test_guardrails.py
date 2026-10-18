@@ -64,6 +64,18 @@ def test_thousands_separators_match() -> None:
     assert G.doses("give 1,000 units") == G.doses("give 1000 units") == {("1000", "unit")}
 
 
+def test_spoken_units_from_speech_recognition_match_abbreviations() -> None:
+    assert (
+        G.doses("start metformin 500 milligrams daily")
+        == G.doses("metformin 500 mg")
+        == {("500", "mg")}
+    )
+    assert G.doses("glucose was 9.1 millimoles per litre") == {("9.1", "mmol")}
+    assert G.doses("10 millilitres") == G.doses("10 milliliters") == {("10", "ml")}
+    assert G.doses("1000 international units") == G.doses("1000 IU") == {("1000", "unit")}
+    assert G.doses("2 to 5 micrograms") == {("2", "mcg"), ("5", "mcg")}
+
+
 def test_invented_citations_and_diagnosis_wording_are_caught() -> None:
     invented = _answer(("Monitor INR weekly.", ["fda:nope#s1#c0"]))
     assert [v.rule for v in G.check_answer(invented, SOURCES)] == ["unknown_citation"]
