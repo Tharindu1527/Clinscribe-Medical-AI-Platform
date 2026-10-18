@@ -7,8 +7,8 @@ guarded, cited one; citations are spoken as "sources are on screen" and listed b
 
 - Turn detection: VOICE_TURN=semantic (LiveKit's English end-of-turn model, default) or vad
   (Silero silence only). Both are built; SPEC asks to compare false cut-offs (ADR-0011 notes).
-- Barge-in: interruptions on; when the doctor talks over the agent, TTS stops, the reply is cut to
-  what was played (LiveKit's default history truncation).
+- Barge-in: interruptions on, detected locally (VAD mode, no cloud service); when the doctor talks
+  over the agent, TTS stops and the reply is cut to what was played (LiveKit's history truncation).
 - Echo cancellation, noise suppression and auto gain come from the client (browser WebRTC or the
   console's audio device); the agent does no AEC itself.
 
@@ -120,9 +120,13 @@ async def entrypoint(ctx: JobContext) -> None:
     session: AgentSession[Any] = AgentSession(
         stt=deepgram.STT(model="nova-3-medical", endpointing_ms=300),
         vad=silero.VAD.load(min_silence_duration=0.55),
-        turn_detection=EnglishModel() if turn == "semantic" else "vad",
         tts=cartesia.TTS(model="sonic-2", voice=VOICE),
-        allow_interruptions=True,
+        turn_handling={
+            "turn_detection": EnglishModel() if turn == "semantic" else "vad",
+            # barge-in detected locally from voice activity; LiveKit's default "adaptive" mode
+            # streams audio to LiveKit Cloud (another vendor; failed with 401 here, no account)
+            "interruption": {"enabled": True, "mode": "vad"},
+        },
     )
     await session.start(room=ctx.room, agent=ClinScribeVoice())
     await session.say("ClinScribe is listening. Ask a clinical question.")

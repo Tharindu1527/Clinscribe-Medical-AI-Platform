@@ -141,6 +141,7 @@ load:
 token user:
     uv run python -m apps.api.auth {{user}}
 
-# Voice agent in console mode: local microphone and speakers (Phase 4; needs `just up rag`)
+# Voice agent in console mode: local microphone and speakers (Phase 4; needs `just up rag`).
+# The first run downloads the turn-detector and VAD models (to HF_HOME on D:).
 voice mode="console":
-    $env:CLINSCRIBE_TOKEN = (uv run python -m apps.api.auth dr-demo); uv run --project voice python voice/agent_cascaded.py {{mode}}
+    $env:CLINSCRIBE_TOKEN = (uv run python -m apps.api.auth dr-demo); $env:VIRTUAL_ENV = $null; uv run --project voice python voice/agent_cascaded.py download-files *> $null; uv run --project voice python voice/agent_cascaded.py {{mode}}
