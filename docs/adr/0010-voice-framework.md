@@ -39,6 +39,9 @@ is a scope cut for the deadline.
 - LiveKit Agents pins `opentelemetry < 1.45` while the main project uses 1.45, so the agent lives in
   its own uv project (`voice/pyproject.toml`) and talks to ClinScribe only over HTTP.
 - Browser use needs a LiveKit server (a `voice` Compose profile) and a token endpoint; not built yet.
-  Console mode covers the demo; WebRTC echo cancellation is then the operating system's.
+  Console mode covers the demo. Its echo cancellation is LiveKit's: the console runs WebRTC's audio
+  processing module (echo cancellation, noise suppression, auto gain) on the microphone (corrected
+  2026-10-18; an earlier version of this ADR said the operating system did it). Measured in
+  `evals/reports/voice/turn_taking.md`.
 - Speech vendors receive raw audio before de-identification (SPEC §8): a BAA-covered vendor or a
   self-hosted recogniser is required for real use (`docs/compliance/baa_vendor_matrix.md`).

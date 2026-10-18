@@ -733,8 +733,34 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   3 skipped; deliverables 17/17. A dropped Deepgram connection (WinError 64, about 1 in 10 long file streams here)
   ends a listening session without a draft; not reconnected, because speaker numbers restart per
   connection.
+- 2026-10-18: **Turn taking, barge-in and echo measured** (closes the Phase 4 "not done" items; SPEC
+  §11 rows "Turn taking" and "Echo"). `voice/turn_eval.py` (`just voice-turns`, ~30 min; scoring in
+  `voice/turn_metrics.py`, unit-tested): the production session (`agent_cascaded.build_session`, now
+  shared with the agent) on LiveKit's own console audio classes, with the sound card simulated on a
+  real-time clock and the console's WebRTC audio processing on the same path; the turn model runs in
+  an inference process started as the worker does. Report `evals/reports/voice/turn_taking.md`:
+  **cut off during a 0.7/1.2/2.0 s mid-sentence pause** VAD only 4/11/12 of 12, semantic 2/4/4,
+  semantic with transcript punctuation off **0/1/0**; end of turn on whole questions p50 771 / 787 /
+  905 ms, p95 904 / 857 / 3,107 ms (4 of 12 wait the 3 s maximum without punctuation). Cause found in
+  the trace: Deepgram ended half-spoken sentences with "?" and the end-of-turn model took them as
+  finished (the same 4 questions caused all 10 cut-offs). **ADR-0012 (proposed): punctuation off in
+  the voice agent**. Barge-in: 12/12 interrupted; **the sound stops p50 616 / p95 629 ms** after the
+  user starts (LiveKit pauses, then drops the answer at ~2.3 s once confirmed; inside the 3 s AEC
+  warm-up the interruption is ignored). Echo back into the microphone (linear, -12/-24 dB):
+  self-interruption 0/8 replies with the console's echo cancellation, 8/8 without (and the echo is
+  transcribed as user turns). Found on the way: (1) synthesizing speech inside a session blocked the
+  event loop > 60 s, so the turn model's process was declared crashed and every semantic prediction
+  failed: speech is now prepared first and the eval stops if that process dies; (2) the first semantic
+  inference is slow, so each session starts with one unscored question; (3) barge-in first looked like
+  2.3 s because the clear, not the pause, was timed; (4) ADR-0010 and the agent's docstring said
+  console echo cancellation came from the OS: it is LiveKit's console (WebRTC APM); corrected.
+  **Cartesia's free-tier credit ran out on 2026-10-18 (HTTP 402)**: the eval uses Deepgram Aura voices;
+  `just voice` speaks with Cartesia, so spoken answers fail until the credit resets.
 
 ## Next
+- **You: review ADR-0012** (turn detection: punctuation off). **Cartesia credit is used up** for this
+  month: `just voice` cannot speak until it resets (or add an ElevenLabs/Cartesia key; switching the
+  agent's voice to Deepgram Aura is a one-line change if you prefer).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
