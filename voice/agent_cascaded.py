@@ -7,8 +7,8 @@ guarded, cited one; citations are spoken as "sources are on screen" and listed b
 
 - Turn detection: VOICE_TURN=semantic (LiveKit's English end-of-turn model, default) or vad
   (Silero silence only). Both are built; SPEC asks to compare false cut-offs (ADR-0011 notes).
-- Barge-in: interruptions on; when the doctor talks over the agent, TTS stops, the reply is cut to
-  what was played (LiveKit's default history truncation).
+- Barge-in: interruptions on, detected locally (VAD mode, no cloud service); when the doctor talks
+  over the agent, TTS stops and the reply is cut to what was played (LiveKit's history truncation).
 - Echo cancellation, noise suppression and auto gain come from the client (browser WebRTC or the
   console's audio device); the agent does no AEC itself.
 
@@ -17,6 +17,7 @@ guarded, cited one; citations are spoken as "sources are on screen" and listed b
 Needs `just up rag` (the API) and DEEPGRAM_API_KEY / CARTESIA_API_KEY in .env.
 """
 
+import logging
 import os
 import re
 import time
@@ -31,6 +32,7 @@ from livekit.plugins import cartesia, deepgram, silero
 from livekit.plugins.turn_detector.english import EnglishModel
 
 ROOT = Path(__file__).resolve().parents[1]
+logger = logging.getLogger("clinscribe.voice")
 API = os.environ.get("CLINSCRIBE_API", "http://127.0.0.1:8000")
 VOICE = "47c38ca4-5f35-497b-b1a3-415245fb35e1"  # Cartesia "Daniel - Modern Assistant"
 # Keyterm boosting was measured and did not help (medical-term errors 18 -> 17 of 200);
@@ -71,6 +73,23 @@ def load_env() -> None:
             os.environ.setdefault(key.strip(), value.strip())
 
 
+class AskApi(llm.LLM):
+    """Placeholder session LLM. LiveKit 1.8 drops every user turn when the session has no LLM
+    (agent_activity: "skip response if no llm is set"); the answer itself comes from
+    ClinScribeVoice.llm_node, which calls the ClinScribe API, so chat() is never used."""
+
+    @property
+    def model(self) -> str:
+        return "clinscribe-ask"
+
+    @property
+    def provider(self) -> str:
+        return "clinscribe-api"
+
+    def chat(self, **kwargs: Any) -> llm.LLMStream:
+        raise NotImplementedError("answers come from ClinScribeVoice.llm_node (/v1/ask)")
+
+
 class ClinScribeVoice(Agent):
     def __init__(self) -> None:
         super().__init__(
@@ -88,15 +107,19 @@ class ClinScribeVoice(Agent):
                 question = item.text_content or ""
                 break
         started = time.perf_counter()
+        body: dict[str, Any] = {}
         try:
             response = await self._http.post(
                 f"{API}/v1/ask",
                 json={"encounter_id": "voice-session", "question": question},
-                headers={"Authorization": f"Bearer {os.environ['CLINSCRIBE_TOKEN']}"},
+                headers={"Authorization": f"Bearer {os.environ.get('CLINSCRIBE_TOKEN', '')}"},
             )
-            body = response.json() if response.status_code == 200 else {}
-        except httpx.HTTPError:
-            body = {}
+            if response.status_code == 200:
+                body = response.json()
+            else:
+                logger.warning("ClinScribe API returned %s", response.status_code)
+        except httpx.HTTPError as error:
+            logger.warning("ClinScribe API unreachable: %s", type(error).__name__)
         answer = body.get("answer") or {}
         sentences = [] if answer.get("abstained", True) else answer.get("sentences", [])
         self.turns.append(
@@ -120,9 +143,17 @@ async def entrypoint(ctx: JobContext) -> None:
     session: AgentSession[Any] = AgentSession(
         stt=deepgram.STT(model="nova-3-medical", endpointing_ms=300),
         vad=silero.VAD.load(min_silence_duration=0.55),
-        turn_detection=EnglishModel() if turn == "semantic" else "vad",
+        llm=AskApi(),
         tts=cartesia.TTS(model="sonic-2", voice=VOICE),
-        allow_interruptions=True,
+        turn_handling={
+            "turn_detection": EnglishModel() if turn == "semantic" else "vad",
+            # barge-in detected locally from voice activity; LiveKit's default "adaptive" mode
+            # streams audio to LiveKit Cloud (another vendor; failed with 401 here, no account)
+            "interruption": {"enabled": True, "mode": "vad"},
+            # off: each preemptive attempt would be a full /v1/ask (model calls, an audit row)
+            # on a transcript that may still change, up to 3 per turn
+            "preemptive_generation": {"enabled": False},
+        },
     )
     await session.start(room=ctx.room, agent=ClinScribeVoice())
     await session.say("ClinScribe is listening. Ask a clinical question.")
