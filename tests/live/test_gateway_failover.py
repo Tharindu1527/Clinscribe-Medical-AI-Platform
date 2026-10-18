@@ -1,5 +1,6 @@
 """PROGRESS task 5 gate (Phase 1 gate a): the gateway answers when the primary provider fails."""
 
+import contextlib
 import os
 import subprocess
 import time
@@ -107,14 +108,26 @@ def test_local_model_answers(gateway: GatewayClient) -> None:
     assert result.text.strip()
 
 
-def test_turn_succeeds_with_every_cloud_provider_down(gateway: GatewayClient) -> None:
+def test_turn_succeeds_with_every_cloud_provider_down() -> None:
     """Phase 5 exit gate (SPEC section 12): all cloud providers disabled, the turn completes on the
-    local Ollama model, and the spend log records it."""
+    local Ollama model, and the spend log records it. The model is unloaded first: a cold load
+    (~75 s) is the realistic case, and it outlasted the gateway's 60 s timeout until 2026-10-19
+    (the warm model left by the previous test hid that)."""
+    with contextlib.suppress(httpx.HTTPError):
+        httpx.post(
+            "http://127.0.0.1:11434/api/generate",
+            json={"model": "llama3.2:3b", "keep_alive": 0},
+            timeout=30,
+        )
+    settings = Settings()
+    # 300 s, as the API's client: three dead clouds, then a cold local load
+    gateway = GatewayClient(settings.gateway_url, settings.litellm_app_key, timeout=300)
     set_fault("cloud-down", on=True)
     try:
         result = gateway.complete("clinscribe-default", PROMPT, max_tokens=MAX_TOKENS)
     finally:
         set_fault("cloud-down", on=False)
+        gateway.close()
 
     assert result.text.strip()
     assert result.response_id

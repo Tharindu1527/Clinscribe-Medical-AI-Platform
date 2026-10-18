@@ -63,6 +63,9 @@ model_list:
       # ~1 GB to the Windows page file on C:, which has no room (see PROGRESS blockers).
       num_ctx: 2048
       keep_alive: "30s"
+      # A cold load takes ~75 s (2026-10-06), longer than the router's 60 s: with every cloud
+      # alias rate-limited the last fallback timed out (voice latency run, 2026-10-19). 180 s here.
+      timeout: 180
 
 router_settings:
   fallbacks:
