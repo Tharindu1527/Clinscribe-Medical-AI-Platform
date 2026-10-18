@@ -1,11 +1,11 @@
 """Demo video (SPEC section 14): a scripted run of ClinScribe, recorded from a hidden Chrome.
 
 Every answer, draft and FHIR write in the video is a live call to the running stack. Two things are
-not live, and the video says so on screen: the doctor's voice (Cartesia speech streamed into the
-live voice steps, because a script cannot speak into a microphone) and the narrator (Cartesia).
+not live, and the video says so on screen: the doctor's voice (Deepgram Aura speech streamed into
+the live voice steps, because a script cannot speak into a microphone) and the narrator (Aura).
 Waits longer than 6 s are shown faster than real time, with the real elapsed time on screen.
 
-Scenes: title, architecture, voice question (Deepgram nova-3-medical -> /v1/ask -> Cartesia sonic-2,
+Scenes: title, architecture, voice question (Deepgram nova-3-medical -> /v1/ask -> Deepgram Aura-2,
 the steps of voice/agent_cascaded.py), Ask in the review UI (drug interaction, agentic path), Scribe
 (draft, flagged statements, a wrong identifier refused, the approved FHIR write), the audit log as
 admin, results, end card.
@@ -58,11 +58,11 @@ OUT = ROOT / ".artifacts" / "demo"
 FRAMES = OUT / "frames"
 UI = "http://127.0.0.1:5173"
 API = "http://127.0.0.1:8000"
-RATE = 24_000  # Cartesia output and Deepgram input, 16-bit mono PCM
-CARTESIA = {"Cartesia-Version": "2025-04-16"}
-NARRATOR = "5568a7df-e5ab-4442-9fae-2e9ba1b15ad8"  # Cartesia "Quentin - Refined Narrator"
-DOCTOR = "25d7abcb-4d6d-4aca-adce-8a1c85620c8b"  # Cartesia "Jessica - Clear Communicator"
-AGENT = "47c38ca4-5f35-497b-b1a3-415245fb35e1"  # Cartesia "Daniel", as in voice/agent_cascaded.py
+RATE = 24_000  # speech output and the video's audio track, 16-bit mono PCM
+# Deepgram Aura-2 voices (Cartesia until its free-tier credit ran out on 2026-10-18; ADR-0013)
+NARRATOR = "aura-2-draco-en"
+DOCTOR = "aura-2-thalia-en"
+AGENT = "aura-2-orpheus-en"  # as in voice/agent_cascaded.py
 PATIENT = {"id": "1617", "birth_date": "1986-03-18", "family": "Koepp521", "wrong": "Koepp"}
 # Scribe scene: a PriMock57 role-played consultation (CC BY 4.0; real voices, the doctor and patient
 # channels mixed). Two synthetic TTS voices were tried first: diarization did not tell them apart.
@@ -86,7 +86,7 @@ NARRATION = {
     "each answer before the doctor sees it.",
     "voice_intro": "First, voice. A doctor asks a question out loud. The doctor's voice here is "
     "synthetic, because a script made this recording, but every step after it runs live: "
-    "Deepgram's medical speech model, ClinScribe's Ask agent, and Cartesia's text to speech.",
+    "Deepgram's medical speech model, ClinScribe's Ask agent, and Deepgram's text to speech.",
     "voice_outro": "The spoken reply is the same de-identified, cited and guardrail-checked answer "
     "that the screen shows. Over thirty questions, time to first audio misses its one and a half "
     "second budget; the cited answer is the bottleneck.",
@@ -226,11 +226,11 @@ TITLE_CARD = """<div class="dc"><h1>ClinScribe</h1>
 <div class="chips"><span>Scribe: consultation → SOAP draft → FHIR</span>
 <span>Ask: spoken question → cited answer</span><span>Lab: report PDF → flagged Observations</span></div>
 <p class="foot">Synthetic and public data only · recorded by a script against the running stack ·
-narrator and doctor voices are synthetic (Cartesia)</p></div>"""  # noqa: E501
+narrator and doctor voices are synthetic (Deepgram Aura)</p></div>"""  # noqa: E501
 
 ARCHITECTURE_CARD = """<div class="dc"><h2>How a question is answered</h2>
 <div class="flow">
-<div><b>Voice</b>LiveKit Agents · Deepgram nova-3-medical · Cartesia sonic-2</div><div class="arrow">→</div>
+<div><b>Voice</b>LiveKit Agents · Deepgram nova-3-medical · Deepgram Aura-2</div><div class="arrow">→</div>
 <div><b>De-identification</b>Presidio + rules: identifiers become surrogates before any model</div>
 <div class="arrow">→</div>
 <div><b>Agent (LangGraph)</b>router · fast or agentic retrieval · guardrails · doctor-approval interrupt</div>
@@ -243,14 +243,14 @@ an approval token signed for the exact content of every clinical write</div></di
 
 VOICE_CARD = """<div class="dc" style="width:1120px"><h2>Voice · cascaded pipeline</h2>
 <p class="muted" style="margin:0 0 10px">The steps of the LiveKit agent, run live; the doctor's voice is
-synthetic (Cartesia), streamed in by the recording script</p>
+synthetic (Deepgram Aura), streamed in by the recording script</p>
 <div class="vrow"><div class="vwho">Doctor<small>synthetic voice</small></div>
 <div class="vbox" id="vp-q"><span class="muted">…</span></div></div>
 <div class="vrow"><div class="vwho">Transcript<small>Deepgram nova-3-medical</small></div>
 <div class="vbox" id="vp-t"><span class="muted">listening</span></div></div>
 <div class="vrow"><div class="vwho">ClinScribe<small>/v1/ask: de-ID, retrieval, citations, guardrails</small></div>
 <div class="vbox" id="vp-a"><span class="muted">waiting for the question</span></div></div>
-<div class="vrow"><div class="vwho">Speech<small>Cartesia sonic-2</small></div>
+<div class="vrow"><div class="vwho">Speech<small>Deepgram Aura-2</small></div>
 <div class="vbox" id="vp-s"><span class="muted">—</span></div></div>
 <table class="vm" id="vp-m"></table></div>"""  # noqa: E501
 
@@ -270,7 +270,7 @@ doctor found 6 / 6 (role rule refined on this set), drafts 5 / 6</li>
 <li>Red-team suite <b>63 / 63</b>: unsourced doses, diagnosis wording, injections, unapproved writes</li>
 <li>Seeded PHI leak test: <b>0</b> values in 6 sinks (traces, logs, Langfuse, spend logs, audit)</li>
 <li>Turns succeed with <b>every cloud provider down</b> (local Ollama fallback)</li>
-<li class="miss">Voice time to first audio p50 3.5 s / p95 19.7 s vs a 1.5 s budget: <b>not met</b>
+<li class="miss">Voice time to first audio p50 4.3 s / p95 7.1 s vs a 1.5 s budget: <b>not met</b>
 (the cited answer is the bottleneck)</li></ul></div>"""  # noqa: E501
 
 END_CARD = """<div class="dc"><h1>ClinScribe</h1>
@@ -282,48 +282,37 @@ BARS = '<span class="bars"><i></i><i></i><i></i><i></i><i></i></span>'
 
 
 def synthesize(text: str, voice: str, client: httpx.Client, rate: int = RATE) -> bytes:
-    """Cartesia sonic-2 speech as 16-bit PCM, cached by voice, rate and text (reruns are free)."""
+    """Deepgram Aura-2 speech as 16-bit PCM, cached by voice, rate and text (reruns are free)."""
     key = f"{voice}|{text}" if rate == RATE else f"{voice}|{rate}|{text}"
     path = OUT / "tts" / f"{hashlib.sha256(key.encode()).hexdigest()[:20]}.pcm"
     if path.exists():
         return path.read_bytes()
-    response = client.post(
-        "https://api.cartesia.ai/tts/bytes",
-        json=_tts_body(text, voice, rate),
-        headers=_cartesia_headers(),
-        timeout=120,
-    )
+    response = client.post(**_speak(text, voice, rate), timeout=120)
     response.raise_for_status()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(response.content)
     return response.content
 
 
-def _tts_body(text: str, voice: str, rate: int = RATE) -> dict[str, Any]:
+def _speak(text: str, voice: str, rate: int = RATE) -> dict[str, Any]:
     return {
-        "model_id": "sonic-2",
-        "transcript": text,
-        "voice": {"mode": "id", "id": voice},
-        "output_format": {"container": "raw", "encoding": "pcm_s16le", "sample_rate": rate},
-        "language": "en",
+        "url": "https://api.deepgram.com/v1/speak",
+        "params": {
+            "model": voice,
+            "encoding": "linear16",
+            "sample_rate": rate,
+            "container": "none",
+        },
+        "json": {"text": text},
+        "headers": {"Authorization": f"Token {Settings().deepgram_api_key.get_secret_value()}"},
     }
-
-
-def _cartesia_headers() -> dict[str, str]:
-    return {"X-API-Key": Settings().cartesia_api_key.get_secret_value(), **CARTESIA}
 
 
 async def speak_live(text: str, client: httpx.AsyncClient) -> tuple[bytes, float]:
     """The agent's spoken answer, streamed: the audio and the wall time of its first byte."""
     audio = bytearray()
     first = 0.0
-    async with client.stream(
-        "POST",
-        "https://api.cartesia.ai/tts/bytes",
-        json=_tts_body(text, AGENT),
-        headers=_cartesia_headers(),
-        timeout=60,
-    ) as response:
+    async with client.stream("POST", **_speak(text, AGENT), timeout=60) as response:
         response.raise_for_status()
         async for chunk in response.aiter_bytes():
             if chunk and not first:
@@ -782,7 +771,7 @@ def assemble(rec: Recorder, stopped: float) -> Path:
         out.setnchannels(1)
         out.setsampwidth(2)
         out.setframerate(RATE)
-        headroom = track * 0.89  # -1 dB: Cartesia clips peak at full scale
+        headroom = track * 0.89  # -1 dB: synthetic speech peaks near full scale
         out.writeframes(np.clip(headroom, -32768, 32767).astype("<i2").tobytes())
 
     video = OUT / "clinscribe_demo.mp4"

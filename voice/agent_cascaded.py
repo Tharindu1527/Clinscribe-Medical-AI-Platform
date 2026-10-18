@@ -1,7 +1,7 @@
 """ClinScribe cascaded voice agent (Phase 4; SPEC section 4), LiveKit Agents 1.8.
 
 Deepgram nova-3-medical streaming STT -> ClinScribe Ask (the API: de-ID, agent graph, retrieval,
-cited answer, guardrails) -> Cartesia sonic-2 streaming TTS. The "LLM" of the voice pipeline is the
+cited answer, guardrails) -> Deepgram Aura-2 streaming TTS. The "LLM" of the voice pipeline is the
 ClinScribe API, so no model sees text that has not been de-identified, and the spoken answer is the
 guarded, cited one; citations are spoken as "sources are on screen" and listed by the UI.
 
@@ -15,7 +15,7 @@ guarded, cited one; citations are spoken as "sources are on screen" and listed b
 
   just voice              console mode: local microphone and speakers, no LiveKit server needed
   uv run --project voice python voice/agent_cascaded.py dev    (worker for a LiveKit room)
-Needs `just up rag` (the API) and DEEPGRAM_API_KEY / CARTESIA_API_KEY in .env.
+Needs `just up rag` (the API) and DEEPGRAM_API_KEY in .env (speech in and out).
 """
 
 import logging
@@ -29,14 +29,15 @@ from typing import Any
 import httpx
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, llm
 from livekit.agents.voice import ModelSettings
-from livekit.plugins import cartesia, deepgram, silero
+from livekit.plugins import deepgram, silero
 from livekit.plugins.turn_detector.base import EOUModelBase
 from livekit.plugins.turn_detector.english import EnglishModel
 
 ROOT = Path(__file__).resolve().parents[1]
 logger = logging.getLogger("clinscribe.voice")
 API = os.environ.get("CLINSCRIBE_API", "http://127.0.0.1:8000")
-VOICE = "47c38ca4-5f35-497b-b1a3-415245fb35e1"  # Cartesia "Daniel - Modern Assistant"
+# Deepgram Aura-2 (ADR-0013): Cartesia sonic-2 until its free-tier credit ran out on 2026-10-18
+VOICE = "aura-2-orpheus-en"
 # Keyterm boosting was measured and did not help (medical-term errors 18 -> 17 of 200);
 # nova-3-medical did (18 -> 12): evals/reports/voice/asr_wer.md. Kept for reference.
 KEYTERMS = [
@@ -156,7 +157,7 @@ def build_session(
         stt=deepgram.STT(model="nova-3-medical", endpointing_ms=300, punctuate=punctuate),
         vad=silero.VAD.load(min_silence_duration=0.55),
         llm=AskApi(),
-        tts=cartesia.TTS(model="sonic-2", voice=VOICE),
+        tts=deepgram.TTS(model=VOICE),
         turn_handling={
             "turn_detection": detector,
             # barge-in detected locally from voice activity; LiveKit's default "adaptive" mode
