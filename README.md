@@ -55,8 +55,9 @@ through one gateway; no clinical write without a doctor's approval token for the
 | Incidents | 3 drills with postmortems: provider outage (found and fixed a fallback gap: 2/4 → 4/4 answered), retrieval drift, latency spike | `docs/postmortems/` |
 
 Phase gates (`just gate N`) pass for phases 1, 3, 4 and 5; phase 2 passes every criterion except the
-human review of the golden-set sample (pending); `just gate 6` lists the one SPEC §14 deliverable
-still pending: the demo video.
+human review of the golden-set sample (pending). The demo video (3 min 37 s, recorded live by
+`just demo-video`; what is live and what is synthetic: `docs/presentation/demo_video.md`) shows a spoken
+question and Scribe from a pasted transcript: Scribe from live consultation audio is not built.
 
 ## Run it
 
@@ -69,6 +70,7 @@ just fhir-load           # 50 Synthea patients
 just token dr-demo       # bearer token for a synthetic demo doctor
 just voice               # talk to ClinScribe (microphone + speakers; DEEPGRAM/CARTESIA keys)
 npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
+just demo-video          # re-record the demo video (needs the UI dev server, DEV_LOGIN=true, ffmpeg)
 just test; just gate 3   # tests; a phase gate
 ```
 

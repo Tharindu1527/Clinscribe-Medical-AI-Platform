@@ -141,6 +141,12 @@ load:
 token user:
     uv run python -m apps.api.auth {{user}}
 
+# Demo video (SPEC section 14), recorded live from a hidden Chrome: .artifacts/demo/clinscribe_demo.mp4
+# Needs `just up rag`, the UI dev server, DEV_LOGIN=true and ffmpeg; `--scenes title,results` for a subset.
+# playwright drives the installed Chrome (no browser download); it is not a project dependency.
+demo-video *args:
+    uv run --with playwright==1.63.0 python -m scripts.demo_video {{args}}
+
 # Voice agent in console mode: local microphone and speakers (Phase 4; needs `just up rag`).
 # The first run downloads the turn-detector and VAD models (to HF_HOME on D:).
 voice mode="console":
