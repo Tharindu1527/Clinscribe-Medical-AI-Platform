@@ -43,6 +43,7 @@ rag = [
 # Agents pins opentelemetry < 1.45; this project uses 1.45). `uv sync --group voice`.
 voice = [
     "websockets>=16.0",            # Deepgram streaming STT in the latency evaluation
+    "sounddevice>=0.5.6",          # microphone capture for the Scribe listener (voice/scribe.py)
 ]
 
 [tool.uv]
@@ -91,7 +92,7 @@ python_version = "3.11"
 strict = true
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
-files = ["apps", "agents", "config", "evals", "llmops", "mcp_servers", "privacy", "retrieval", "scripts", "tests"]  # voice/ is its own uv project
+files = ["apps", "agents", "config", "evals", "llmops", "mcp_servers", "privacy", "retrieval", "scripts", "tests", "voice/scribe.py"]  # the rest of voice/ is its own uv project
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

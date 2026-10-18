@@ -59,6 +59,14 @@ def test_audit_log_is_for_admin_and_operator_not_doctor(api: str) -> None:
         assert {"actor", "action", "model", "prompt_version"} <= set(response.json()[0])
 
 
+def test_drafts_awaiting_review_are_listed_for_doctors_only(api: str) -> None:
+    response = httpx.get(f"{api}/v1/drafts", headers=_headers("dr-demo"), timeout=10)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+    for user in ("admin-demo", "ops-demo"):
+        assert httpx.get(f"{api}/v1/drafts", headers=_headers(user), timeout=10).status_code == 403
+
+
 def test_review_of_an_unknown_draft_is_404(api: str) -> None:
     review = {"decision": "reject", "reason": "test"}
     response = httpx.post(

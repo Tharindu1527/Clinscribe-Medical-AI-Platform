@@ -2,8 +2,8 @@
   "spacy_model": "en_core_web_md",
   "snippets": 200,
   "seed": 42,
-  "latency_ms_p50": 15.6,
-  "latency_ms_p95": 19.7,
+  "latency_ms_p50": 18.9,
+  "latency_ms_p95": 26.0,
   "results": [
     {
       "entity": "DATE",

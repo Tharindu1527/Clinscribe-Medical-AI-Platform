@@ -26,6 +26,19 @@ from agents.schemas import AskAnswer, Evidence, SoapNote
 from llmops.telemetry.redaction import scrub
 
 CONFIG = Path(__file__).resolve().parents[1] / "config" / "guardrails.yaml"
+# Unit spellings (singular, lower case) -> one form, so "5 milligrams" in a transcript matches
+# "5 mg" in a note
+SPOKEN_UNITS = {
+    "microgram": "mcg",
+    "µg": "mcg",
+    "milligram": "mg",
+    "gram": "g",
+    "iu": "unit",
+    "international unit": "unit",
+    "millilitre": "ml",
+    "milliliter": "ml",
+    "millimole": "mmol",
+}
 
 
 @dataclass(frozen=True)
@@ -78,7 +91,7 @@ class Guardrails:
         text = re.sub(r"(?<=\d),(?=\d{3}\b)", "", text)  # 1,000 units -> 1000 units
         for match in self._dose.finditer(text):
             unit = match.group(2).lower().rstrip("s")
-            unit = {"microgram": "mcg", "µg": "mcg", "gram": "g", "iu": "unit"}.get(unit, unit)
+            unit = SPOKEN_UNITS.get(unit, unit)
             for number in re.findall(r"\d+(?:[.,]\d+)?", match.group(0)):  # both ends of 2-5 mg
                 out.add((number.replace(",", "."), unit))
         return out

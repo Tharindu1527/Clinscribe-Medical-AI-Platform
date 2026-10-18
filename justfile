@@ -141,8 +141,13 @@ load:
 token user:
     uv run python -m apps.api.auth {{user}}
 
+# Scribe from consultation audio, e.g. `just scribe 1617` (microphone, Enter to finish) or
+# `just scribe 1617 --file consult.wav`; the draft then waits in the review UI (Scribe tab)
+scribe patient *args:
+    uv run --group voice python -m voice.scribe {{patient}} {{args}}
+
 # Demo video (SPEC section 14), recorded live from a hidden Chrome: .artifacts/demo/clinscribe_demo.mp4
-# Needs `just up rag`, the UI dev server, DEV_LOGIN=true and ffmpeg; `--scenes title,results` for a subset.
+# Needs `just up rag`, the UI dev server and ffmpeg (not DEV_LOGIN); `--scenes title,results` for a subset.
 # playwright drives the installed Chrome (no browser download); it is not a project dependency.
 demo-video *args:
     uv run --with playwright==1.63.0 python -m scripts.demo_video {{args}}

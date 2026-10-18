@@ -19,7 +19,9 @@ input:
 output:
   # A dose: a number with a unit. A sentence that states one must cite a source that contains the
   # same number and unit (CLAUDE.md: every clinical claim cited; SPEC: any dose needs a source).
-  dose_pattern: '(\d+(?:[.,]\d+)?)\s*(?:-|to|–)?\s*(?:\d+(?:[.,]\d+)?\s*)?(mg|mcg|µg|micrograms?|g|grams?|units?|iu|ml|mmol|meq)\b'
+  # Spoken units ("500 milligrams", "9.1 millimoles") as speech recognition writes them (Scribe
+  # from audio) are matched too and normalised to the abbreviations in agents/guardrails.py.
+  dose_pattern: '(\d+(?:[.,]\d+)?)\s*(?:-|to|–)?\s*(?:\d+(?:[.,]\d+)?\s*)?(mg|mcg|µg|micrograms?|milligrams?|g|grams?|international units?|units?|iu|ml|millilit(?:re|er)s?|mmol|millimoles?|meq)\b'
   # Definitive diagnosis or individual treatment decisions: the system suggests, never decides.
   diagnosis_patterns:
     - '\b(the|your|this) (patient )?(definitely|certainly|clearly) (has|is suffering from)\b'

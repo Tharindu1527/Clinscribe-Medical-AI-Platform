@@ -28,6 +28,8 @@ button:disabled { opacity: 0.6; cursor: progress; }
 .label { color: var(--muted); font-size: 0.85rem; margin-top: 0; }
 .chip { font-size: 0.8rem; margin-left: 2px; color: var(--accent); text-decoration: none; }
 .sources li { margin-bottom: 6px; }
+.waiting { list-style: none; padding: 0; margin: 8px 0 0; }
+.waiting li { margin: 6px 0; color: var(--muted); font-size: 0.9rem; }
 .statement { display: flex; align-items: center; gap: 8px; margin: 4px 0; flex-wrap: wrap; }
 .statement input { flex: 1 1 320px; }
 .statement.unsupported input { border-color: var(--warn); background: var(--warn-bg); }
