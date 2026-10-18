@@ -115,9 +115,24 @@ class RedactingSpanExporter(SpanExporter):
 
 
 class RedactionFilter(logging.Filter):
-    """Scrub structured PHI from log messages before any handler writes them."""
+    """Scrub structured PHI from log messages before any handler writes them.
+
+    Positional arguments are scrubbed one by one and kept when the message they then make has
+    nothing left to scrub, because some formatters unpack them (uvicorn's access log). Otherwise
+    (PHI split between template and argument, a non-string argument, mapping arguments) the
+    message is replaced by its scrubbed text and the arguments are dropped.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple) and record.args:
+            args = tuple(scrub(arg) if isinstance(arg, str) else arg for arg in record.args)
+            try:
+                joined = str(record.msg) % args
+            except (TypeError, ValueError):
+                joined = None
+            if joined is not None and scrub(joined) == joined:
+                record.args = args
+                return True
         record.msg = scrub(record.getMessage())
         record.args = None
         return True

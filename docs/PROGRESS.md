@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-14 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-18 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
 **Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
@@ -668,6 +668,20 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   ADR-0010 (LiveKit Agents; Pipecat compared on design, not built) and ADR-0011 (cascaded by default).
   **`just gate 4` PASS.** Not done: browser/WebRTC client (LiveKit server + token endpoint), the turn-
   detection false cut-off comparison semantic vs VAD on scripted pauses, AEC self-interruption test.
+- 2026-10-18: **`just voice` fixed for live use** (branch `fix-voice-console`). Three faults the
+  smoke test could not see, because it called `llm_node` directly: (1) the turn-detector and VAD
+  model files were never downloaded (`just voice` now runs `download-files` first, into HF_HOME on D:);
+  (2) LiveKit's default "adaptive" barge-in streams audio to LiveKit Cloud (401, no account; another
+  vendor hearing raw audio), now local VAD interruption; (3) **LiveKit 1.8 skips the reply when the
+  session has no LLM** (`agent_activity`: "skip response if no llm is set"), so spoken questions were
+  transcribed and dropped with 0 API calls. A placeholder `AskApi` LLM fixes it; preemptive generation
+  is off (each attempt would be a full `/v1/ask`, up to 3 per turn). The smoke test now runs a turn
+  through an `AgentSession`; without the placeholder it makes 0 API calls. Verified by you live:
+  question spoken, cited answer heard. Also fixed: the log `RedactionFilter` dropped record arguments,
+  so every uvicorn access line raised "Logging error"; arguments are now scrubbed one by one and kept
+  only when the joined message has nothing left to scrub (else the old behaviour), with tests for the
+  access line and PHI split between template and argument. The running API picks it up at the next
+  `just up rag` (rebuild); re-run `just eval leak` then.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -677,6 +691,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
 - **You: record the demo video** (`just up rag`, `just voice`, then the review UI for the draft), add a link
   in `docs/presentation/demo_video.md`; that closes the last SPEC §14 item.
+- After the demo: `DEV_LOGIN=false` in `.env`, `just up rag` (rebuilds the API with the log filter
+  fix), `just eval leak` (gate b on the new filter); open the PR for `fix-voice-console`.
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
   Optional: a throwaway PR that breaks the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).

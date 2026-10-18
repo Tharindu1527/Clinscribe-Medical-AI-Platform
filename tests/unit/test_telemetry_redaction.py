@@ -65,6 +65,45 @@ def test_log_records_are_scrubbed(caplog: pytest.LogCaptureFixture) -> None:
     assert "[PHONE]" in caplog.text
 
 
+def test_access_log_keeps_its_arguments_with_phi_scrubbed() -> None:
+    # uvicorn's access formatter unpacks five arguments; dropping them broke every request line
+    from uvicorn.logging import AccessFormatter
+
+    record = logging.LogRecord(
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "%s %s HTTP/%s" %d',
+        ("172.18.0.1:49960", "GET", f"/v1/x?phone={SEEDED['phone']}", "1.1", 200),
+        None,
+    )
+    assert RedactionFilter().filter(record)
+    line = AccessFormatter('%(client_addr)s - "%(request_line)s" %(status_code)s').format(record)
+    assert "172.18.0.1" not in line
+    assert SEEDED["phone"] not in line
+    assert '"GET /v1/x?phone=[PHONE] HTTP/1.1" 200' in line
+
+
+@pytest.mark.parametrize(
+    ("template", "args"),
+    [
+        ("MRN: %s", ("12345678",)),
+        ("MRN: %s", (12345678,)),
+        ("call %(n)s", ({"n": SEEDED["phone"]},)),
+    ],
+)
+def test_phi_split_between_template_and_argument_is_scrubbed(
+    template: str, args: tuple[object, ...]
+) -> None:
+    record = logging.LogRecord("clinscribe.test", logging.INFO, __file__, 1, template, args, None)
+    assert RedactionFilter().filter(record)
+    message = record.getMessage()
+    assert "12345678" not in message
+    assert SEEDED["phone"] not in message
+    assert "[" in message
+
+
 def test_collector_allow_list_matches_python_allow_list() -> None:
     config = yaml.safe_load(COLLECTOR.read_text(encoding="utf-8"))
     collector_keys = set(config["processors"]["redaction"]["allowed_keys"])
