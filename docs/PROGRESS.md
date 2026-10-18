@@ -696,6 +696,43 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   `DEV_LOGIN=false` (you); stack rebuilt (`just up rag`, 11/11 healthy): `/v1/dev/login` 404, uvicorn
   access lines print again with the client IP scrubbed. Leak test on the new log filter, run `c4e02f4e`:
   **gate b PASS**, 0 leaks in 6 sinks, control 100%, 0 of 66 seed values reached the model.
+- 2026-10-18: **Scribe from consultation audio** (closes the SPEC §14 gap "a live voice consultation
+  through to an approved FHIR note"). `voice/scribe.py` (`just scribe <patient id>`, microphone or
+  `--file`): Deepgram nova-3-medical live with diarization → turns by speaker → roles → `POST
+  /v1/scribe/drafts` (de-ID per turn, note writer, guardrails). API: `GET /v1/drafts` (awaiting
+  review, doctors only) and the transcript in `GET /v1/drafts/{id}`; UI: "Drafts awaiting review" in
+  the Scribe tab. A standalone client, not a LiveKit worker: LiveKit's Deepgram plugin keeps one
+  speaker per segment, and Scribe never speaks. `sounddevice` 0.5.6 in the `voice` group. **Eval**
+  (`evals/voice/scribe_eval.py`, `evals/reports/voice/scribe_diarization.md`): PriMock57, 6
+  consultations, both channels mixed to one stream: words to the right speaker **0.979** (rule v2;
+  v1 0.783), purity 0.986, doctor found 6/6 (v1 4/6), WER 0.143 (0.112 on separate channels), drafts
+  5/6 (108 turns failed: "no draft produced"; a 105-turn one failed in one run and passed in the
+  next). Found and fixed on the way: (1) **the listener silently cut the end of a consultation**:
+  it waited 30 s for the last results; words stopped at 322 of 458 s (WER looked like 0.41); now it
+  waits for the server to close and refuses to draft a partial transcript; a "heard until" column
+  guards it. (2) The first role rule ("first speaker of a 3+ word turn is the doctor") was fooled by
+  a 3-word diarization fragment (attribution 0.33 and 0.42 on two consultations); v2 decides among
+  main speakers (5%+ of the words) and labels fragments "unknown", designed after seeing v1 fail, so
+  optimistic. (3) Live nova-3-medical wrote "five hundred milligrams": `numerals=true` added, and the
+  dose guardrail now matches spoken units (milligrams, millimoles, millilitres, international units;
+  its docstring had claimed this), red-team still 63/63. (4) Two synthetic TTS voices were not told
+  apart by live or batch diarization, so the demo plays a PriMock57 consultation (real voices).
+  Streaming a file faster than real time: Deepgram reads at ~2x anyway; pings now get 60 s.
+  (5) **De-ID gap found in the demo draft**: a spoken date of birth ("21 12 at 1986", as Deepgram
+  wrote it) and a spelled-out UK postcode ("N W 36 P Q") passed de-identification and reached the note
+  writer (role-played PriMock57 values, but a breach of the rule all the same). New DATE patterns:
+  spoken numeric dates with a four-digit year, "21st of December", day-month-year after a
+  date-of-birth cue; new ZIP patterns: UK postcodes, and the spelled-out form after an address word.
+  Unit tests for both and for look-alikes kept ("BP 140 90", "CD4 count 350", "B12"); `just eval
+  privacy`: recall and over-redaction unchanged (0 of 80), p50 15.6 → 18.9 ms per snippet. The
+  telemetry log filter reuses these patterns, so logs gain them too. Leak test after the rebuild:
+  gate b PASS, 0 of 66 seed values reached the model; red-team 63/63; the live de-ID service turns
+  the demo's sentence into "DATE_1 ... STREET_ADDRESS_1, ZIP_1". **Demo video re-recorded** (4 min
+  51 s, `docs/presentation/demo_video.md`): Scribe now starts from the PriMock57 recording, and the
+  draft shows the birth date and postcode as surrogates. `just lint` clean; `just test` 333 passed,
+  3 skipped; deliverables 17/17. A dropped Deepgram connection (WinError 64, about 1 in 10 long file streams here)
+  ends a listening session without a draft; not reconnected, because speaker numbers restart per
+  connection.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -705,9 +742,10 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
 - **You: watch `.artifacts/demo/clinscribe_demo.mp4`, upload it (YouTube, unlisted) and send me the
   link** for `docs/presentation/demo_video.md`; open the PR for `fix-voice-console`.
-- Open: SPEC §14 asks for "a live voice consultation through to an approved FHIR note"; the video's
-  Scribe starts from a pasted transcript. Ambient Scribe capture (Deepgram diarization into the note
-  writer) would close the gap.
+- Optional: try `just scribe 1617` with two people at one microphone (the eval mixed two close-talk
+  microphones; a room is harder).
+- Open (product): a write refused for wrong identifiers ends the draft, so a typo means drafting
+  again; keeping the draft open for corrected identifiers (still audited) would be kinder.
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
   Optional: a throwaway PR that breaks the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).

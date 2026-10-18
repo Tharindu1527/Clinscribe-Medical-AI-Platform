@@ -6,7 +6,8 @@ not certified.
 
 - **Ask:** a clinician's question gets a cited answer from guidelines and drug labels; every sentence
   cites a source passage or the system abstains.
-- **Scribe:** a consultation transcript becomes a SOAP draft; the doctor approves, edits or rejects,
+- **Scribe:** a consultation (live audio with the speakers told apart, or a transcript) becomes a
+  SOAP draft; the doctor approves, edits or rejects,
   and only then is a FHIR `DocumentReference` written.
 - **Lab:** a lab-report PDF becomes FHIR `Observation`s with abnormal values flagged; the doctor
   confirms before anything is saved.
@@ -52,12 +53,14 @@ through one gateway; no clinical write without a doctor's approval token for the
 | Cost | one consultation (draft + 3 questions) at list price: $0.050 (Gemini 3.5 Flash) … $0.002 (Groq gpt-oss-20b); free tiers bill $0 | `llmops/cost_per_consultation.md` |
 | Voice | time to first audio p50 / p95 3.5 / 19.7 s (fast path 3.3 / 5.6 s) vs SPEC budget 1.5 s: **not met**, bottleneck is the non-streamed cited answer; Gemini Live speech-to-speech 3.5 / 6.1 s, no citations or guardrails | `voice/latency.md`, ADR-0011 |
 | Speech recognition | PriMock57: WER 0.119 (nova-3) vs **0.112 (nova-3-medical)**; medical-term errors 18 → 12 of 200; keyterm boosting no gain | `voice/asr_wer.md` |
+| Scribe from audio | PriMock57, doctor + patient mixed to one live stream with diarization: **0.979** of words to the right speaker (role rule refined on this set; first rule 0.783), doctor found 6/6, WER 0.143; drafts 5/6 (the 108-turn visit exceeded the free-tier output budget) | `voice/scribe_diarization.md` |
 | Incidents | 3 drills with postmortems: provider outage (found and fixed a fallback gap: 2/4 → 4/4 answered), retrieval drift, latency spike | `docs/postmortems/` |
 
 Phase gates (`just gate N`) pass for phases 1, 3, 4 and 5; phase 2 passes every criterion except the
-human review of the golden-set sample (pending). The demo video (3 min 37 s, recorded live by
-`just demo-video`; what is live and what is synthetic: `docs/presentation/demo_video.md`) shows a spoken
-question and Scribe from a pasted transcript: Scribe from live consultation audio is not built.
+human review of the golden-set sample (pending). The demo video (4 min 51 s, recorded live by
+`just demo-video`; what is live and what is not: `docs/presentation/demo_video.md`) goes from a spoken
+question to a recorded consultation streamed into Scribe, through the doctor's review to an approved
+FHIR note.
 
 ## Run it
 
@@ -69,6 +72,7 @@ just up; just up rag     # stack (core + FHIR + retrieval)
 just fhir-load           # 50 Synthea patients
 just token dr-demo       # bearer token for a synthetic demo doctor
 just voice               # talk to ClinScribe (microphone + speakers; DEEPGRAM/CARTESIA keys)
+just scribe 1617         # Scribe a consultation from the microphone (Enter to finish) or --file x.wav
 npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
 just demo-video          # re-record the demo video (needs the UI dev server, DEV_LOGIN=true, ffmpeg)
 just test; just gate 3   # tests; a phase gate
@@ -82,6 +86,9 @@ just test; just gate 3   # tests; a phase gate
   (no erasure endpoint, free-tier processors without BAAs/DPAs, no TLS inside the stack).
 - Voice: the cascaded agent works (`just voice`, console mode) but misses the latency budget; no
   browser/WebRTC client yet (needs a LiveKit server and a token endpoint).
+- Scribe from audio: measured on two close-talk microphones mixed, not one room microphone; the
+  role rule was refined on the evaluation set; live diarization did not separate two synthetic
+  TTS voices; visits of 100+ turns are near the free-tier output budget (one of six failed).
 - The de-ID LoRA fine-tune is prepared (`finetune/`) but not trained (runs on Colab).
 - Free-tier rate limits shaped the evaluations (60-question answer subset, 8 scribe dialogues).
 - Lab parsing is measured on one synthetic layout; scanned reports (true OCR) are not covered.
