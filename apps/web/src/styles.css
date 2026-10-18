@@ -4,10 +4,11 @@
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #14181f; --card: #1d232c; --text: #e6e9ee; --muted: #9aa3b2; --line: #2d3540;
+  :root { color-scheme: dark; --bg: #14181f; --card: #1d232c; --text: #e6e9ee; --muted: #9aa3b2; --line: #2d3540;
     --accent: #6ea8ff; --warn-bg: #3a3218; --warn: #f0cf7a; --error: #ff8a80; --ok: #7fd49b; }
 }
 body { margin: 0; background: var(--bg); }
+a, a:visited { color: var(--accent); }
 main { max-width: 960px; margin: 0 auto; padding: 16px; }
 header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 header h1 { margin: 0; font-size: 1.4rem; }
