@@ -691,6 +691,11 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   time to first audio 5,745 ms (STT final 1,128, Ask 2,775, first audio byte 1,842). A first take showed
   the draft timer at "0.0 s" (it started after the narrator) and subtitles over the refusal; both fixed
   before the final take. Gap: Scribe from live consultation audio is not built (see Next).
+- 2026-10-18: Review UI links in dark mode used the browser's default dark blue (unreadable on the dark
+  cards); now the accent colour (#6ea8ff on #1d232c, ~6:1), checked in the browser on a live answer.
+  `DEV_LOGIN=false` (you); stack rebuilt (`just up rag`, 11/11 healthy): `/v1/dev/login` 404, uvicorn
+  access lines print again with the client IP scrubbed. Leak test on the new log filter, run `c4e02f4e`:
+  **gate b PASS**, 0 leaks in 6 sinks, control 100%, 0 of 66 seed values reached the model.
 
 ## Next
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
@@ -699,9 +704,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   shrinks after a restart.
 - **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
 - **You: watch `.artifacts/demo/clinscribe_demo.mp4`, upload it (YouTube, unlisted) and send me the
-  link** for `docs/presentation/demo_video.md`.
-- After the demo: `DEV_LOGIN=false` in `.env`, `just up rag` (rebuilds the API with the log filter
-  fix), `just eval leak` (gate b on the new filter); open the PR for `fix-voice-console`.
+  link** for `docs/presentation/demo_video.md`; open the PR for `fix-voice-console`.
 - Open: SPEC §14 asks for "a live voice consultation through to an approved FHIR note"; the video's
   Scribe starts from a pasted transcript. Ambient Scribe capture (Deepgram diarization into the note
   writer) would close the gap.
