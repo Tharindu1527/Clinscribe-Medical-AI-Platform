@@ -141,6 +141,10 @@ load:
 token user:
     uv run python -m apps.api.auth {{user}}
 
+# Turn taking, barge-in and echo on the real LiveKit pipeline (simulated sound card; ~25 min, or --quick)
+voice-turns *args:
+    $env:VIRTUAL_ENV = $null; uv run --project voice python voice/turn_eval.py {{args}}
+
 # Scribe from consultation audio, e.g. `just scribe 1617` (microphone, Enter to finish) or
 # `just scribe 1617 --file consult.wav`; the draft then waits in the review UI (Scribe tab)
 scribe patient *args:

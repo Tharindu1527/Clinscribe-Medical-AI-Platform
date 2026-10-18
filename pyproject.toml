@@ -92,7 +92,7 @@ python_version = "3.11"
 strict = true
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
-files = ["apps", "agents", "config", "evals", "llmops", "mcp_servers", "privacy", "retrieval", "scripts", "tests", "voice/scribe.py"]  # the rest of voice/ is its own uv project
+files = ["apps", "agents", "config", "evals", "llmops", "mcp_servers", "privacy", "retrieval", "scripts", "tests", "voice/scribe.py", "voice/turn_metrics.py"]  # the rest of voice/ is its own uv project
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

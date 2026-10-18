@@ -1,0 +1,3788 @@
+{
+  "cut_offs": [
+    {
+      "turn": "semantic",
+      "text": "What is the usual starting dose of metformin in someone with kidney disease?",
+      "pause": 0.0,
+      "start": 9.3,
+      "end": 13.17,
+      "cut_off": false,
+      "delay": 0.7959999999954022,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 0.7,
+      "start": 18.17,
+      "end": 22.63,
+      "cut_off": false,
+      "delay": 0.8199999999994176,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 1.2,
+      "start": 27.63,
+      "end": 32.59,
+      "cut_off": false,
+      "delay": 0.7509999999954005,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 2.0,
+      "start": 37.59,
+      "end": 43.35,
+      "cut_off": false,
+      "delay": 0.8030000000007576,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Can I give amoxicillin to a patient who is allergic to penicillin?",
+      "pause": 0.0,
+      "start": 48.35,
+      "end": 52.4,
+      "cut_off": false,
+      "delay": 0.7530000000007604,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 0.7,
+      "start": 57.4,
+      "end": 62.04,
+      "cut_off": false,
+      "delay": 0.8009999999953976,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 1.2,
+      "start": 67.04,
+      "end": 72.18,
+      "cut_off": false,
+      "delay": 0.7699999999994134,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 2.0,
+      "start": 77.18,
+      "end": 83.12,
+      "cut_off": false,
+      "delay": 0.8459999999953993,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "How often should I check the INR after starting warfarin?",
+      "pause": 0.0,
+      "start": 88.12,
+      "end": 91.42,
+      "cut_off": false,
+      "delay": 0.6239999999967409,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 0.7,
+      "start": 96.42,
+      "end": 100.5,
+      "cut_off": false,
+      "delay": 0.6219999999980814,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 1.2,
+      "start": 105.5,
+      "end": 110.08,
+      "cut_off": true,
+      "delay": 0.7919999999980831,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 2.0,
+      "start": 115.08,
+      "end": 120.46,
+      "cut_off": true,
+      "delay": 0.8180000000007652,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "Is there an interaction between clarithromycin and simvastatin?",
+      "pause": 0.0,
+      "start": 125.46,
+      "end": 129.03,
+      "cut_off": false,
+      "delay": 0.8269999999986624,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 0.7,
+      "start": 134.03,
+      "end": 138.7,
+      "cut_off": false,
+      "delay": 0.8749999999994316,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 1.2,
+      "start": 143.7,
+      "end": 148.87,
+      "cut_off": false,
+      "delay": 0.8930000000013649,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 2.0,
+      "start": 153.87,
+      "end": 159.84,
+      "cut_off": false,
+      "delay": 0.813000000000784,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What blood pressure target is recommended for people with diabetes?",
+      "pause": 0.0,
+      "start": 164.84,
+      "end": 168.23,
+      "cut_off": false,
+      "delay": 0.6269999999987022,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 0.7,
+      "start": 173.23,
+      "end": 177.36,
+      "cut_off": true,
+      "delay": 0.7619999999981246,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 1.2,
+      "start": 182.36,
+      "end": 186.99,
+      "cut_off": true,
+      "delay": 0.8509999999954516,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 2.0,
+      "start": 191.99,
+      "end": 197.42,
+      "cut_off": true,
+      "delay": 3.1080000000008,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "Which inhaler should be added when asthma is not controlled on a low dose steroid?",
+      "pause": 0.0,
+      "start": 202.42,
+      "end": 206.57,
+      "cut_off": false,
+      "delay": 0.7869999999986987,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 0.7,
+      "start": 211.57,
+      "end": 216.81,
+      "cut_off": false,
+      "delay": 0.8280000000013672,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 1.2,
+      "start": 221.81,
+      "end": 227.55,
+      "cut_off": false,
+      "delay": 0.8069999999986806,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 2.0,
+      "start": 232.55,
+      "end": 239.09,
+      "cut_off": false,
+      "delay": 1.188000000000784,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "How long should antibiotics be given for an uncomplicated urinary tract infection?",
+      "pause": 0.0,
+      "start": 244.09,
+      "end": 248.98,
+      "cut_off": false,
+      "delay": 0.8300000000000409,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 0.7,
+      "start": 253.98,
+      "end": 259.38,
+      "cut_off": false,
+      "delay": 0.663999999996804,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 1.2,
+      "start": 264.38,
+      "end": 270.28,
+      "cut_off": true,
+      "delay": 0.8580000000014252,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 2.0,
+      "start": 275.28,
+      "end": 281.98,
+      "cut_off": true,
+      "delay": 0.7669999999981769,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "Does apixaban need a lower dose in older patients with a low body weight?",
+      "pause": 0.0,
+      "start": 286.98,
+      "end": 290.93,
+      "cut_off": false,
+      "delay": 0.8169999999981883,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 0.7,
+      "start": 295.93,
+      "end": 301.18,
+      "cut_off": false,
+      "delay": 0.7699999999995271,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 1.2,
+      "start": 306.18,
+      "end": 311.93,
+      "cut_off": false,
+      "delay": 0.7230000000008658,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 2.0,
+      "start": 316.93,
+      "end": 323.48,
+      "cut_off": false,
+      "delay": 0.7669999999981769,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What should I do if a patient on insulin has a glucose below four?",
+      "pause": 0.0,
+      "start": 328.48,
+      "end": 332.25,
+      "cut_off": false,
+      "delay": 0.6069999999987772,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 0.7,
+      "start": 337.25,
+      "end": 341.34,
+      "cut_off": false,
+      "delay": 0.845000000000141,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 1.2,
+      "start": 346.34,
+      "end": 350.93,
+      "cut_off": false,
+      "delay": 0.8169999999982451,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 2.0,
+      "start": 355.93,
+      "end": 361.32,
+      "cut_off": false,
+      "delay": 1.1150000000001796,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "When should I refer a child with a fever and a rash?",
+      "pause": 0.0,
+      "start": 366.32,
+      "end": 368.98,
+      "cut_off": false,
+      "delay": 0.7830000000014934,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 0.7,
+      "start": 373.98,
+      "end": 378.32,
+      "cut_off": true,
+      "delay": 0.8330000000009363,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 1.2,
+      "start": 383.32,
+      "end": 388.16,
+      "cut_off": true,
+      "delay": 0.7899999999996226,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 2.0,
+      "start": 393.16,
+      "end": 398.8,
+      "cut_off": true,
+      "delay": 3.0569999999988795,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic",
+      "text": "Can lisinopril be continued during pregnancy?",
+      "pause": 0.0,
+      "start": 403.8,
+      "end": 406.43,
+      "cut_off": false,
+      "delay": 0.816999999998302,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 0.7,
+      "start": 411.43,
+      "end": 415.0,
+      "cut_off": false,
+      "delay": 0.8569999999988909,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 1.2,
+      "start": 420.0,
+      "end": 424.07,
+      "cut_off": false,
+      "delay": 0.8959999999956381,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 2.0,
+      "start": 429.07,
+      "end": 433.94,
+      "cut_off": false,
+      "delay": 0.8069999999983111,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What is the first line treatment for community acquired pneumonia?",
+      "pause": 0.0,
+      "start": 438.94,
+      "end": 441.89,
+      "cut_off": false,
+      "delay": 0.8569999999983224,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 0.7,
+      "start": 446.89,
+      "end": 450.76,
+      "cut_off": false,
+      "delay": 0.7839999999969791,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 1.2,
+      "start": 455.76,
+      "end": 460.13,
+      "cut_off": false,
+      "delay": 0.8199999999996521,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 2.0,
+      "start": 465.13,
+      "end": 470.3,
+      "cut_off": false,
+      "delay": 1.103000000000975,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "What is the usual starting dose of metformin in someone with kidney disease?",
+      "pause": 0.0,
+      "start": 9.26,
+      "end": 13.13,
+      "cut_off": false,
+      "delay": 0.8739999999967409,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 0.7,
+      "start": 18.13,
+      "end": 22.59,
+      "cut_off": false,
+      "delay": 0.6329999999940625,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 1.2,
+      "start": 27.59,
+      "end": 32.55,
+      "cut_off": true,
+      "delay": 0.8599999999994168,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 2.0,
+      "start": 37.55,
+      "end": 43.31,
+      "cut_off": true,
+      "delay": 0.89699999999808,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Can I give amoxicillin to a patient who is allergic to penicillin?",
+      "pause": 0.0,
+      "start": 48.31,
+      "end": 52.36,
+      "cut_off": false,
+      "delay": 0.5499999999994216,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 0.7,
+      "start": 57.36,
+      "end": 62.0,
+      "cut_off": true,
+      "delay": 0.9099999999994139,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 1.2,
+      "start": 67.0,
+      "end": 72.14,
+      "cut_off": true,
+      "delay": 0.8639999999967358,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 2.0,
+      "start": 77.14,
+      "end": 83.08,
+      "cut_off": true,
+      "delay": 0.8149999999999977,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "How often should I check the INR after starting warfarin?",
+      "pause": 0.0,
+      "start": 88.08,
+      "end": 91.38,
+      "cut_off": false,
+      "delay": 0.7959999999954022,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 0.7,
+      "start": 96.38,
+      "end": 100.46,
+      "cut_off": false,
+      "delay": 0.6689999999967426,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 1.2,
+      "start": 105.46,
+      "end": 110.04,
+      "cut_off": true,
+      "delay": 0.8699999999994219,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 2.0,
+      "start": 115.04,
+      "end": 120.42,
+      "cut_off": true,
+      "delay": 0.8649999999994264,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Is there an interaction between clarithromycin and simvastatin?",
+      "pause": 0.0,
+      "start": 125.42,
+      "end": 128.99,
+      "cut_off": false,
+      "delay": 0.8109999999954027,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 0.7,
+      "start": 133.99,
+      "end": 138.66,
+      "cut_off": false,
+      "delay": 0.6569999999986749,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 1.2,
+      "start": 143.66,
+      "end": 148.83,
+      "cut_off": false,
+      "delay": 0.7049999999994441,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 2.0,
+      "start": 153.83,
+      "end": 159.8,
+      "cut_off": true,
+      "delay": 0.9069999999981064,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What blood pressure target is recommended for people with diabetes?",
+      "pause": 0.0,
+      "start": 164.8,
+      "end": 168.19,
+      "cut_off": false,
+      "delay": 0.6109999999954425,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 0.7,
+      "start": 173.19,
+      "end": 177.32,
+      "cut_off": true,
+      "delay": 0.8869999999981246,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 1.2,
+      "start": 182.32,
+      "end": 186.95,
+      "cut_off": true,
+      "delay": 0.8669999999987112,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 2.0,
+      "start": 191.95,
+      "end": 197.38,
+      "cut_off": true,
+      "delay": 0.9209999999954448,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Which inhaler should be added when asthma is not controlled on a low dose steroid?",
+      "pause": 0.0,
+      "start": 202.38,
+      "end": 206.53,
+      "cut_off": false,
+      "delay": 0.7709999999954391,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 0.7,
+      "start": 211.53,
+      "end": 216.77,
+      "cut_off": false,
+      "delay": 0.6399999999994463,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 1.2,
+      "start": 221.77,
+      "end": 227.51,
+      "cut_off": true,
+      "delay": 0.9159999999954209,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 2.0,
+      "start": 232.51,
+      "end": 239.05,
+      "cut_off": true,
+      "delay": 0.8599999999994452,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "How long should antibiotics be given for an uncomplicated urinary tract infection?",
+      "pause": 0.0,
+      "start": 244.05,
+      "end": 248.94,
+      "cut_off": false,
+      "delay": 0.6739999999973634,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 0.7,
+      "start": 253.94,
+      "end": 259.34,
+      "cut_off": false,
+      "delay": 0.6800000000000637,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 1.2,
+      "start": 264.34,
+      "end": 270.24,
+      "cut_off": true,
+      "delay": 0.8419999999981655,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 2.0,
+      "start": 275.24,
+      "end": 281.94,
+      "cut_off": true,
+      "delay": 0.8449999999995157,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Does apixaban need a lower dose in older patients with a low body weight?",
+      "pause": 0.0,
+      "start": 286.94,
+      "end": 290.89,
+      "cut_off": false,
+      "delay": 0.707999999994172,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 0.7,
+      "start": 295.89,
+      "end": 301.14,
+      "cut_off": false,
+      "delay": 0.4739999999974316,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 1.2,
+      "start": 306.14,
+      "end": 311.89,
+      "cut_off": true,
+      "delay": 0.832999999994172,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 2.0,
+      "start": 316.89,
+      "end": 323.44,
+      "cut_off": true,
+      "delay": 0.7669999999981769,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What should I do if a patient on insulin has a glucose below four?",
+      "pause": 0.0,
+      "start": 328.44,
+      "end": 332.21,
+      "cut_off": false,
+      "delay": 0.6069999999987772,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 0.7,
+      "start": 337.21,
+      "end": 341.3,
+      "cut_off": false,
+      "delay": 0.6259999999955426,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 1.2,
+      "start": 346.3,
+      "end": 350.89,
+      "cut_off": true,
+      "delay": 0.9269999999988272,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 2.0,
+      "start": 355.89,
+      "end": 361.28,
+      "cut_off": true,
+      "delay": 0.8179999999942424,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "When should I refer a child with a fever and a rash?",
+      "pause": 0.0,
+      "start": 366.28,
+      "end": 368.94,
+      "cut_off": false,
+      "delay": 0.8769999999988158,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 0.7,
+      "start": 373.94,
+      "end": 378.28,
+      "cut_off": true,
+      "delay": 0.8339999999975021,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 1.2,
+      "start": 383.28,
+      "end": 388.12,
+      "cut_off": true,
+      "delay": 0.9000000000002046,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 2.0,
+      "start": 393.12,
+      "end": 398.76,
+      "cut_off": true,
+      "delay": 0.8379999999942811,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Can lisinopril be continued during pregnancy?",
+      "pause": 0.0,
+      "start": 403.76,
+      "end": 406.39,
+      "cut_off": false,
+      "delay": 0.801999999998884,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 0.7,
+      "start": 411.39,
+      "end": 414.96,
+      "cut_off": false,
+      "delay": 0.66899999999697,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 1.2,
+      "start": 419.96,
+      "end": 424.03,
+      "cut_off": true,
+      "delay": 0.8799999999996544,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 2.0,
+      "start": 429.03,
+      "end": 433.9,
+      "cut_off": true,
+      "delay": 0.9169999999988931,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What is the first line treatment for community acquired pneumonia?",
+      "pause": 0.0,
+      "start": 438.9,
+      "end": 441.85,
+      "cut_off": false,
+      "delay": 0.9039999999969837,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "vad",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 0.7,
+      "start": 446.85,
+      "end": 450.72,
+      "cut_off": true,
+      "delay": 0.8779999999943016,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 1.2,
+      "start": 455.72,
+      "end": 460.09,
+      "cut_off": true,
+      "delay": 0.7889999999969746,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "vad",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 2.0,
+      "start": 465.09,
+      "end": 470.26,
+      "cut_off": true,
+      "delay": 0.8539999999975407,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the usual starting dose of metformin in someone with kidney disease?",
+      "pause": 0.0,
+      "start": 9.32,
+      "end": 13.19,
+      "cut_off": false,
+      "delay": 0.8279999999946455,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 0.7,
+      "start": 18.19,
+      "end": 22.65,
+      "cut_off": false,
+      "delay": 0.8839999999979042,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 1.2,
+      "start": 27.65,
+      "end": 32.61,
+      "cut_off": false,
+      "delay": 0.9239999999979034,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the usual starting dose of ... metformin in someone with kidney disease?",
+      "pause": 2.0,
+      "start": 37.61,
+      "end": 43.37,
+      "cut_off": false,
+      "delay": 0.8669999999992442,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can I give amoxicillin to a patient who is allergic to penicillin?",
+      "pause": 0.0,
+      "start": 48.37,
+      "end": 52.42,
+      "cut_off": false,
+      "delay": 2.941999999999247,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 0.7,
+      "start": 57.42,
+      "end": 62.06,
+      "cut_off": false,
+      "delay": 3.0669999999986572,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 1.2,
+      "start": 67.06,
+      "end": 72.2,
+      "cut_off": false,
+      "delay": 3.0519999999986567,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can I give amoxicillin to a patient who is ... allergic to penicillin?",
+      "pause": 2.0,
+      "start": 77.2,
+      "end": 83.14,
+      "cut_off": false,
+      "delay": 3.0029999999946426,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How often should I check the INR after starting warfarin?",
+      "pause": 0.0,
+      "start": 88.14,
+      "end": 91.44,
+      "cut_off": false,
+      "delay": 0.9059999999959842,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 0.7,
+      "start": 96.44,
+      "end": 100.52,
+      "cut_off": false,
+      "delay": 0.9039999999973247,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 1.2,
+      "start": 105.52,
+      "end": 110.1,
+      "cut_off": true,
+      "delay": 3.0589999999979085,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How often should I check the INR after ... starting warfarin?",
+      "pause": 2.0,
+      "start": 115.1,
+      "end": 120.48,
+      "cut_off": false,
+      "delay": 0.8500000000000085,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Is there an interaction between clarithromycin and simvastatin?",
+      "pause": 0.0,
+      "start": 125.48,
+      "end": 129.05,
+      "cut_off": false,
+      "delay": 0.8900000000005832,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 0.7,
+      "start": 134.05,
+      "end": 138.72,
+      "cut_off": false,
+      "delay": 0.9069999999986749,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 1.2,
+      "start": 143.72,
+      "end": 148.89,
+      "cut_off": false,
+      "delay": 0.9089999999973486,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Is there an interaction between clarithromycin and ... simvastatin?",
+      "pause": 2.0,
+      "start": 153.89,
+      "end": 159.86,
+      "cut_off": false,
+      "delay": 0.9550000000006094,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What blood pressure target is recommended for people with diabetes?",
+      "pause": 0.0,
+      "start": 164.86,
+      "end": 168.25,
+      "cut_off": false,
+      "delay": 0.8619999999992842,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 0.7,
+      "start": 173.25,
+      "end": 177.38,
+      "cut_off": false,
+      "delay": 0.8409999999960291,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 1.2,
+      "start": 182.38,
+      "end": 187.01,
+      "cut_off": false,
+      "delay": 0.9139999999973725,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What blood pressure target is recommended for ... people with diabetes?",
+      "pause": 2.0,
+      "start": 192.01,
+      "end": 197.44,
+      "cut_off": false,
+      "delay": 0.8900000000000432,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Which inhaler should be added when asthma is not controlled on a low dose steroid?",
+      "pause": 0.0,
+      "start": 202.44,
+      "end": 206.59,
+      "cut_off": false,
+      "delay": 0.9279999999946824,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 0.7,
+      "start": 211.59,
+      "end": 216.83,
+      "cut_off": false,
+      "delay": 0.9069999999992717,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 1.2,
+      "start": 221.83,
+      "end": 227.57,
+      "cut_off": false,
+      "delay": 0.8700000000006014,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Which inhaler should be added when asthma is ... not controlled on a low dose steroid?",
+      "pause": 2.0,
+      "start": 232.57,
+      "end": 239.11,
+      "cut_off": false,
+      "delay": 0.8919999999986885,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How long should antibiotics be given for an uncomplicated urinary tract infection?",
+      "pause": 0.0,
+      "start": 244.11,
+      "end": 249.0,
+      "cut_off": false,
+      "delay": 3.080000000000041,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 0.7,
+      "start": 254.0,
+      "end": 259.4,
+      "cut_off": false,
+      "delay": 3.0550000000000637,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 1.2,
+      "start": 264.4,
+      "end": 270.3,
+      "cut_off": false,
+      "delay": 3.0619999999993297,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "How long should antibiotics be given for ... an uncomplicated urinary tract infection?",
+      "pause": 2.0,
+      "start": 275.3,
+      "end": 282.0,
+      "cut_off": false,
+      "delay": 3.06500000000068,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Does apixaban need a lower dose in older patients with a low body weight?",
+      "pause": 0.0,
+      "start": 287.0,
+      "end": 290.95,
+      "cut_off": false,
+      "delay": 0.7089999999980137,
+      "missed": false,
+      "commits": 2
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 0.7,
+      "start": 295.95,
+      "end": 301.2,
+      "cut_off": false,
+      "delay": 0.8339999999980137,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 1.2,
+      "start": 306.2,
+      "end": 311.95,
+      "cut_off": false,
+      "delay": 0.8800000000001091,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Does apixaban need a lower dose in ... older patients with a low body weight?",
+      "pause": 2.0,
+      "start": 316.95,
+      "end": 323.5,
+      "cut_off": false,
+      "delay": 0.8300000000000978,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What should I do if a patient on insulin has a glucose below four?",
+      "pause": 0.0,
+      "start": 328.5,
+      "end": 332.27,
+      "cut_off": false,
+      "delay": 3.106999999998777,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 0.7,
+      "start": 337.27,
+      "end": 341.36,
+      "cut_off": false,
+      "delay": 3.1109999999961246,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 1.2,
+      "start": 346.36,
+      "end": 350.95,
+      "cut_off": false,
+      "delay": 3.115000000000748,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What should I do if a patient on insulin has ... a glucose below four?",
+      "pause": 2.0,
+      "start": 355.95,
+      "end": 361.34,
+      "cut_off": false,
+      "delay": 3.1150000000001796,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "When should I refer a child with a fever and a rash?",
+      "pause": 0.0,
+      "start": 366.34,
+      "end": 369.0,
+      "cut_off": false,
+      "delay": 3.048999999997477,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 0.7,
+      "start": 374.0,
+      "end": 378.34,
+      "cut_off": false,
+      "delay": 3.083999999997502,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 1.2,
+      "start": 383.34,
+      "end": 388.18,
+      "cut_off": false,
+      "delay": 3.071999999998866,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "When should I refer a child with ... a fever and a rash?",
+      "pause": 2.0,
+      "start": 393.18,
+      "end": 398.82,
+      "cut_off": false,
+      "delay": 3.0419999999994616,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can lisinopril be continued during pregnancy?",
+      "pause": 0.0,
+      "start": 403.82,
+      "end": 406.45,
+      "cut_off": false,
+      "delay": 0.8650000000008049,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 0.7,
+      "start": 411.45,
+      "end": 415.02,
+      "cut_off": false,
+      "delay": 0.9039999999975521,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 1.2,
+      "start": 420.02,
+      "end": 424.09,
+      "cut_off": false,
+      "delay": 0.943999999998141,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "Can lisinopril be continued during ... pregnancy?",
+      "pause": 2.0,
+      "start": 429.09,
+      "end": 433.96,
+      "cut_off": false,
+      "delay": 0.9489999999981364,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the first line treatment for community acquired pneumonia?",
+      "pause": 0.0,
+      "start": 438.96,
+      "end": 441.91,
+      "cut_off": false,
+      "delay": 0.9050000000008254,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 0.7,
+      "start": 446.91,
+      "end": 450.78,
+      "cut_off": false,
+      "delay": 0.8939999999975612,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 1.2,
+      "start": 455.78,
+      "end": 460.15,
+      "cut_off": false,
+      "delay": 0.8839999999981387,
+      "missed": false,
+      "commits": 1
+    },
+    {
+      "turn": "semantic-nopunct",
+      "text": "What is the first line treatment for ... community acquired pneumonia?",
+      "pause": 2.0,
+      "start": 465.15,
+      "end": 470.32,
+      "cut_off": false,
+      "delay": 0.900999999996202,
+      "missed": false,
+      "commits": 1
+    }
+  ],
+  "barge_in": [
+    {
+      "trial": 0,
+      "warm_up": true,
+      "offset": 1.5,
+      "interrupted": false,
+      "latency": 1.510000000000582,
+      "cancelled": null
+    },
+    {
+      "trial": 1,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.618999999997321,
+      "cancelled": 2.32199999999866
+    },
+    {
+      "trial": 2,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.625,
+      "cancelled": 2.3289999999979045
+    },
+    {
+      "trial": 3,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.615999999995978,
+      "cancelled": 2.287999999994639
+    },
+    {
+      "trial": 4,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.6069999999992461,
+      "cancelled": 2.310000000000585
+    },
+    {
+      "trial": 5,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.6289999999979017,
+      "cancelled": 2.299999999999997
+    },
+    {
+      "trial": 6,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.5879999999946364,
+      "cancelled": 2.2749999999999915
+    },
+    {
+      "trial": 7,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.615999999995978,
+      "cancelled": 2.303999999997899
+    },
+    {
+      "trial": 8,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.6219999999986499,
+      "cancelled": 2.278999999997893
+    },
+    {
+      "trial": 9,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.5969999999986584,
+      "cancelled": 2.299999999999997
+    },
+    {
+      "trial": 10,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.6039999999978818,
+      "cancelled": 2.290999999995961
+    },
+    {
+      "trial": 11,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.625,
+      "cancelled": 2.2819999999992433
+    },
+    {
+      "trial": 12,
+      "warm_up": false,
+      "offset": 4.0,
+      "interrupted": true,
+      "latency": 0.6219999999986499,
+      "cancelled": 2.278999999997893
+    }
+  ],
+  "echo": [
+    {
+      "aec": true,
+      "echo_db": -12.0,
+      "replies": 4,
+      "self_interrupted": 0,
+      "echo_user_turns": 0
+    },
+    {
+      "aec": true,
+      "echo_db": -24.0,
+      "replies": 4,
+      "self_interrupted": 0,
+      "echo_user_turns": 0
+    },
+    {
+      "aec": false,
+      "echo_db": -12.0,
+      "replies": 4,
+      "self_interrupted": 4,
+      "echo_user_turns": 3
+    },
+    {
+      "aec": false,
+      "echo_db": -24.0,
+      "replies": 4,
+      "self_interrupted": 4,
+      "echo_user_turns": 5
+    }
+  ],
+  "quick": false,
+  "trace": [
+    {
+      "turn": "semantic",
+      "aec": true,
+      "echo_db": null,
+      "commits": [
+        [
+          5.188000000001921,
+          "Good morning. Can you hear me clearly?"
+        ],
+        [
+          13.968999999997322,
+          "What is the usual starting dose of metformin in someone with kidney disease?"
+        ],
+        [
+          23.45300000000134,
+          "What is the usual starting dose of metformin in someone with kidney disease?"
+        ],
+        [
+          33.34399999999732,
+          "What is the usual starting dose of metformin in someone with kidney disease?"
+        ],
+        [
+          44.15600000000268,
+          "What is the usual starting dose of metformin in someone with kidney disease?"
+        ],
+        [
+          53.15600000000268,
+          "Can I give amoxicillin to a patient who is allergic to penicillin?"
+        ],
+        [
+          62.84399999999732,
+          "Can I give amoxicillin to a patient who is allergic to penicillin?"
+        ],
+        [
+          72.95300000000134,
+          "Can I give amoxicillin to a patient who is allergic to penicillin?"
+        ],
+        [
+          83.96899999999732,
+          "Can I give amoxicillin to a patient who is allergic to penicillin?"
+        ],
+        [
+          92.04699999999866,
+          "How often should I check the INR after starting warfarin?"
+        ],
+        [
+          101.125,
+          "How often should I check the INR after when?"
+        ],
+        [
+          101.34399999999732,
+          "Starting warfarin?"
+        ],
+        [
+          108.68800000000192,
+          "How often should I check the INR after when?"
+        ],
+        [
+          110.875,
+          "Starting warfarin?"
+        ],
+        [
+          118.15600000000268,
+          "How often should I check the INR after when?"
+        ],
+        [
+          121.28100000000268,
+          "Starting warfarin?"
+        ],
+        [
+          129.86000000000058,
+          "Is there an interaction between clarithromycin and simvastatin?"
+        ],
+        [
+          139.57800000000134,
+          "Is there an interaction between clarithromycin and simvastatin?"
+        ],
+        [
+          149.76600000000326,
+          "Is there an interaction between clarithromycin and simvastatin?"
+        ],
+        [
+          160.65600000000268,
+          "Is there an interaction between clarithromycin and simvastatin?"
+        ],
+        [
+          168.86000000000058,
+          "What blood pressure target is recommended for people with diabetes?"
+        ],
+        [
+          175.96899999999732,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          178.125,
+          "People with diabetes?"
+        ],
+        [
+          185.14100000000326,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          187.84399999999732,
+          "People with diabetes?"
+        ],
+        [
+          194.73500000000058,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          200.53100000000268,
+          "People with diabetes,"
+        ],
+        [
+          207.36000000000058,
+          "Which inhaler should be added when asthma is not controlled on a low dose steroid?"
+        ],
+        [
+          217.64100000000326,
+          "Which inhaler should be added when asthma is not controlled on a low dose steroid?"
+        ],
+        [
+          228.36000000000058,
+          "Which inhaler should be added when asthma is not controlled on a low dose steroid?"
+        ],
+        [
+          240.28100000000268,
+          "Which inhaler should be added when asthma is not controlled on a low dose steroid?"
+        ],
+        [
+          249.81300000000192,
+          "How long should antibiotics be given for an uncomplicated urinary tract infection?"
+        ],
+        [
+          260.04699999999866,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          260.17199999999866,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          267.54699999999866,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          271.14100000000326,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          278.45300000000134,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          282.75,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          291.75,
+          "Does apixaban need a lower dose in older patients with a low body weight?"
+        ],
+        [
+          301.95300000000134,
+          "Does apixaban meet a lower dose in Older patients with a low body weight?"
+        ],
+        [
+          312.6560000000027,
+          "Does apixaban meet a lower dose in Older patients with a low body weight?"
+        ],
+        [
+          324.25,
+          "Does apixaban meet a lower dose in older patients with a low body weight?"
+        ],
+        [
+          332.8600000000006,
+          "What should I do if a patient on insulin has a glucose below four?"
+        ],
+        [
+          342.1880000000019,
+          "What should I do if a patient on insulin has a glucose below four?"
+        ],
+        [
+          351.75,
+          "What should I do if a patient on insulin has a glucose below four?"
+        ],
+        [
+          362.4380000000019,
+          "What should I do if a patient on insulin has a glucose below four?"
+        ],
+        [
+          369.76600000000326,
+          "When should I refer a child with a fever and a rash?"
+        ],
+        [
+          376.9380000000019,
+          "When should I refer a child with?"
+        ],
+        [
+          379.1560000000027,
+          "A fever and a rash?"
+        ],
+        [
+          386.25,
+          "When should I refer a child with?"
+        ],
+        [
+          388.95300000000134,
+          "A fever and a rash?"
+        ],
+        [
+          396.04699999999866,
+          "When should I refer a child with?"
+        ],
+        [
+          401.8600000000006,
+          "A fever and a rash,"
+        ],
+        [
+          407.25,
+          "Can lisinopril be continued during pregnancy?"
+        ],
+        [
+          415.8600000000006,
+          "Can lisinopril be continued during pregnancy?"
+        ],
+        [
+          424.9689999999973,
+          "Can lisinopril be continued during pregnancy?"
+        ],
+        [
+          434.75,
+          "Can lisinopril be continued during pregnancy?"
+        ],
+        [
+          442.75,
+          "What is the first line treatment for community acquired pneumonia?"
+        ],
+        [
+          451.54699999999866,
+          "What is the first line treatment for community acquired pneumonia?"
+        ],
+        [
+          460.95300000000134,
+          "What is the first line treatment for community acquired pneumonia?"
+        ],
+        [
+          471.4060000000027,
+          "What is the first line treatment for community acquired pneumonia?"
+        ]
+      ],
+      "finals": [
+        [
+          5.171999999998661,
+          "Good morning. Can you hear me clearly?"
+        ],
+        [
+          13.953000000001339,
+          "What is the usual starting dose of metformin in someone with kidney disease?"
+        ],
+        [
+          20.82800000000134,
+          "What is the usual starting dose of"
+        ],
+        [
+          23.43800000000192,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          30.281000000002678,
+          "What is the usual starting dose of"
+        ],
+        [
+          33.32800000000134,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          40.23500000000058,
+          "What is the usual starting dose of"
+        ],
+        [
+          44.15600000000268,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          53.14100000000326,
+          "Can I give amoxicillin to a patient who is allergic to penicillin?"
+        ],
+        [
+          60.64100000000326,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          62.84399999999732,
+          "allergic to penicillin?"
+        ],
+        [
+          70.32800000000134,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          72.93800000000192,
+          "allergic to penicillin?"
+        ],
+        [
+          80.45300000000134,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          83.95300000000134,
+          "allergic to penicillin?"
+        ],
+        [
+          92.04699999999866,
+          "How often should I check the INR after starting warfarin?"
+        ],
+        [
+          99.56300000000192,
+          "How often should I check the INR after when?"
+        ],
+        [
+          101.34399999999732,
+          "Starting warfarin?"
+        ],
+        [
+          108.67199999999866,
+          "How often should I check the INR after when?"
+        ],
+        [
+          110.86000000000058,
+          "Starting warfarin?"
+        ],
+        [
+          118.15600000000268,
+          "How often should I check the INR after when?"
+        ],
+        [
+          121.26600000000326,
+          "Starting warfarin?"
+        ],
+        [
+          129.25,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          129.86000000000058,
+          "simvastatin?"
+        ],
+        [
+          137.96899999999732,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          139.56300000000192,
+          "simvastatin?"
+        ],
+        [
+          147.64100000000326,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          149.75,
+          "simvastatin?"
+        ],
+        [
+          157.82800000000134,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          160.64100000000326,
+          "simvastatin?"
+        ],
+        [
+          168.84399999999732,
+          "What blood pressure target is recommended for people with diabetes?"
+        ],
+        [
+          175.95300000000134,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          178.125,
+          "People with diabetes?"
+        ],
+        [
+          185.125,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          187.84399999999732,
+          "People with diabetes?"
+        ],
+        [
+          194.71899999999732,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          198.23500000000058,
+          "People with diabetes,"
+        ],
+        [
+          206.64100000000326,
+          "Which inhaler should be added when asthma is not"
+        ],
+        [
+          207.36000000000058,
+          "controlled on a low dose steroid?"
+        ],
+        [
+          214.53100000000268,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          217.64100000000326,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          224.82800000000134,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          228.34399999999732,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          235.61000000000058,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          240.26600000000326,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          249.375,
+          "How long should antibiotics be given for an uncomplicated urinary tract"
+        ],
+        [
+          249.79699999999866,
+          "infection?"
+        ],
+        [
+          257.1100000000006,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          260.17199999999866,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          267.5310000000027,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          271.125,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          278.4380000000019,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          282.7350000000006,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          291.7350000000006,
+          "Does apixaban need a lower dose in older patients with a low body weight?"
+        ],
+        [
+          299.4060000000027,
+          "Does apixaban meet a lower dose in"
+        ],
+        [
+          301.9380000000019,
+          "Older patients with a low body weight?"
+        ],
+        [
+          309.67199999999866,
+          "Does apixaban meet a lower dose in"
+        ],
+        [
+          312.64100000000326,
+          "Older patients with a low body weight?"
+        ],
+        [
+          320.4380000000019,
+          "Does apixaban meet a lower dose in"
+        ],
+        [
+          324.2350000000006,
+          "older patients with a low body weight?"
+        ],
+        [
+          332.8439999999973,
+          "What should I do if a patient on insulin has a glucose below four?"
+        ],
+        [
+          340.2350000000006,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          342.1560000000027,
+          "a glucose below four?"
+        ],
+        [
+          349.25,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          351.7350000000006,
+          "a glucose below four?"
+        ],
+        [
+          358.8439999999973,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          362.42199999999866,
+          "a glucose below four?"
+        ],
+        [
+          369.75,
+          "When should I refer a child with a fever and a rash?"
+        ],
+        [
+          376.92199999999866,
+          "When should I refer a child with?"
+        ],
+        [
+          379.14100000000326,
+          "A fever and a rash?"
+        ],
+        [
+          386.2350000000006,
+          "When should I refer a child with?"
+        ],
+        [
+          388.9380000000019,
+          "A fever and a rash?"
+        ],
+        [
+          396.04699999999866,
+          "When should I refer a child with?"
+        ],
+        [
+          399.7810000000027,
+          "A fever and a rash,"
+        ],
+        [
+          407.25,
+          "Can lisinopril be continued during pregnancy?"
+        ],
+        [
+          414.4380000000019,
+          "Can lisinopril be continued during"
+        ],
+        [
+          415.8439999999973,
+          "pregnancy?"
+        ],
+        [
+          422.95300000000134,
+          "Can lisinopril be continued during"
+        ],
+        [
+          424.95300000000134,
+          "pregnancy?"
+        ],
+        [
+          432.0310000000027,
+          "Can lisinopril be continued during"
+        ],
+        [
+          434.7350000000006,
+          "pregnancy?"
+        ],
+        [
+          442.7350000000006,
+          "What is the first line treatment for community acquired pneumonia?"
+        ],
+        [
+          449.45300000000134,
+          "What is the first line treatment for"
+        ],
+        [
+          451.5310000000027,
+          "community acquired pneumonia?"
+        ],
+        [
+          458.1560000000027,
+          "What is the first line treatment for"
+        ],
+        [
+          460.9380000000019,
+          "community acquired pneumonia?"
+        ],
+        [
+          467.5310000000027,
+          "What is the first line treatment for"
+        ],
+        [
+          471.39100000000326,
+          "community acquired pneumonia?"
+        ]
+      ]
+    },
+    {
+      "turn": "vad",
+      "aec": true,
+      "echo_db": null,
+      "commits": [
+        [
+          5.0939999999973224,
+          "Good morning. Can you hear me clearly?"
+        ],
+        [
+          14.0,
+          "What is the usual starting dose of metformin in someone with kidney disease?"
+        ],
+        [
+          23.218999999997322,
+          "What is the usual starting dose of"
+        ],
+        [
+          23.406000000002678,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          30.26600000000326,
+          "What is the usual starting dose of"
+        ],
+        [
+          33.40600000000268,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          40.29699999999866,
+          "What is the usual starting dose of"
+        ],
+        [
+          44.20300000000134,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          52.90600000000268,
+          "Can I give amoxicillin to a patient who is allergic to penicillin?"
+        ],
+        [
+          60.70300000000134,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          62.90600000000268,
+          "allergic to penicillin?"
+        ],
+        [
+          70.28100000000268,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          73.0,
+          "allergic to penicillin?"
+        ],
+        [
+          80.48500000000058,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          83.89100000000326,
+          "allergic to penicillin?"
+        ],
+        [
+          92.17199999999866,
+          "How often should I check the INR after starting warfarin?"
+        ],
+        [
+          101.125,
+          "How often should I check the INR after when?"
+        ],
+        [
+          101.29699999999866,
+          "Starting warfarin?"
+        ],
+        [
+          108.59399999999732,
+          "How often should I check the INR after when?"
+        ],
+        [
+          110.90600000000268,
+          "Starting warfarin?"
+        ],
+        [
+          118.20300000000134,
+          "How often should I check the INR after when?"
+        ],
+        [
+          121.28100000000268,
+          "Starting warfarin?"
+        ],
+        [
+          129.79699999999866,
+          "Is there an interaction between clarithromycin and simvastatin?"
+        ],
+        [
+          139.31300000000192,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          139.5,
+          "simvastatin?"
+        ],
+        [
+          149.53100000000268,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          149.86000000000058,
+          "simvastatin?"
+        ],
+        [
+          157.89100000000326,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          160.70300000000134,
+          "simvastatin?"
+        ],
+        [
+          168.79699999999866,
+          "What blood pressure target is recommended for people with diabetes?"
+        ],
+        [
+          176.01600000000326,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          178.20300000000134,
+          "People with diabetes,"
+        ],
+        [
+          185.09399999999732,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          187.81300000000192,
+          "People with diabetes,"
+        ],
+        [
+          194.79699999999866,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          198.29699999999866,
+          "People with diabetes,"
+        ],
+        [
+          207.29699999999866,
+          "Which inhaler should be added when asthma is not controlled on a low dose steroid?"
+        ],
+        [
+          217.40600000000268,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          217.59399999999732,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          224.81300000000192,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          228.42199999999866,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          235.61000000000058,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          239.90600000000268,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          249.61000000000058,
+          "How long should antibiotics be given"
+        ],
+        [
+          249.78100000000268,
+          "for an uncomplicated urinary tract infection?"
+        ],
+        [
+          260.01600000000326,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          260.2189999999973,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          267.4850000000006,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          271.07800000000134,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          278.375,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          282.7810000000027,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          291.5939999999973,
+          "Does apixaban need a lower dose in older patients with a low body weight?"
+        ],
+        [
+          301.6100000000006,
+          "Does apixaban need a lower dose in?"
+        ],
+        [
+          301.92199999999866,
+          "Older patients with a low body weight?"
+        ],
+        [
+          309.6880000000019,
+          "Does apixaban need a lower dose in"
+        ],
+        [
+          312.7189999999973,
+          "Older patients with a low body weight?"
+        ],
+        [
+          320.42199999999866,
+          "Does apixaban need a lower dose in?"
+        ],
+        [
+          324.20300000000134,
+          "Older patients with a low body weight?"
+        ],
+        [
+          332.8130000000019,
+          "What should I do if a patient on insulin has a glucose below four?"
+        ],
+        [
+          341.92199999999866,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          342.20300000000134,
+          "a glucose below four?"
+        ],
+        [
+          349.2810000000027,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          351.8130000000019,
+          "a glucose below four?"
+        ],
+        [
+          358.875,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          362.0939999999973,
+          "a glucose below four?"
+        ],
+        [
+          369.8130000000019,
+          "When should I refer a child with a fever and a rash?"
+        ],
+        [
+          376.875,
+          "When should I refer a child with?"
+        ],
+        [
+          379.1100000000006,
+          "A fever and a rash?"
+        ],
+        [
+          386.3130000000019,
+          "When should I refer a child with?"
+        ],
+        [
+          389.01600000000326,
+          "A fever and a rash?"
+        ],
+        [
+          396.0939999999973,
+          "When should I refer a child with?"
+        ],
+        [
+          399.5939999999973,
+          "A fever and a rash,"
+        ],
+        [
+          407.1880000000019,
+          "Can lisinopril be continued during pregnancy?"
+        ],
+        [
+          415.625,
+          "Can lisinopril be continued during"
+        ],
+        [
+          415.79699999999866,
+          "pregnancy?"
+        ],
+        [
+          423.0,
+          "Can lisinopril be continued during"
+        ],
+        [
+          424.9060000000027,
+          "pregnancy?"
+        ],
+        [
+          432.07800000000134,
+          "Can lisinopril be continued during"
+        ],
+        [
+          434.8130000000019,
+          "pregnancy?"
+        ],
+        [
+          442.75,
+          "What is the first line treatment for community acquired pneumonia?"
+        ],
+        [
+          449.29699999999866,
+          "What is the first line treatment for"
+        ],
+        [
+          451.5939999999973,
+          "community acquired pneumonia?"
+        ],
+        [
+          458.17199999999866,
+          "What is the first line treatment for"
+        ],
+        [
+          460.875,
+          "community acquired pneumonia?"
+        ],
+        [
+          467.5939999999973,
+          "What is the first line treatment for"
+        ],
+        [
+          471.1100000000006,
+          "community acquired pneumonia?"
+        ]
+      ],
+      "finals": [
+        [
+          5.0939999999973224,
+          "Good morning. Can you hear me clearly?"
+        ],
+        [
+          14.0,
+          "What is the usual starting dose of metformin in someone with kidney disease?"
+        ],
+        [
+          20.781000000002678,
+          "What is the usual starting dose of"
+        ],
+        [
+          23.39100000000326,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          30.26600000000326,
+          "What is the usual starting dose of"
+        ],
+        [
+          33.40600000000268,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          40.29699999999866,
+          "What is the usual starting dose of"
+        ],
+        [
+          44.20300000000134,
+          "metformin in someone with kidney disease?"
+        ],
+        [
+          52.90600000000268,
+          "Can I give amoxicillin to a patient who is allergic to penicillin?"
+        ],
+        [
+          60.70300000000134,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          62.90600000000268,
+          "allergic to penicillin?"
+        ],
+        [
+          70.28100000000268,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          73.0,
+          "allergic to penicillin?"
+        ],
+        [
+          80.48500000000058,
+          "Can I give amoxicillin to a patient who is"
+        ],
+        [
+          83.89100000000326,
+          "allergic to penicillin?"
+        ],
+        [
+          92.17199999999866,
+          "How often should I check the INR after starting warfarin?"
+        ],
+        [
+          99.5,
+          "How often should I check the INR after when?"
+        ],
+        [
+          101.29699999999866,
+          "Starting warfarin?"
+        ],
+        [
+          108.59399999999732,
+          "How often should I check the INR after when?"
+        ],
+        [
+          110.90600000000268,
+          "Starting warfarin?"
+        ],
+        [
+          118.18800000000192,
+          "How often should I check the INR after when?"
+        ],
+        [
+          121.28100000000268,
+          "Starting warfarin?"
+        ],
+        [
+          129.79699999999866,
+          "Is there an interaction between clarithromycin and simvastatin?"
+        ],
+        [
+          138.09399999999732,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          139.5,
+          "simvastatin?"
+        ],
+        [
+          148.23500000000058,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          149.86000000000058,
+          "simvastatin?"
+        ],
+        [
+          157.89100000000326,
+          "Is there an interaction between clarithromycin and"
+        ],
+        [
+          160.70300000000134,
+          "simvastatin?"
+        ],
+        [
+          168.79699999999866,
+          "What blood pressure target is recommended for people with diabetes?"
+        ],
+        [
+          176.0,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          178.20300000000134,
+          "People with diabetes,"
+        ],
+        [
+          185.09399999999732,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          187.79699999999866,
+          "People with diabetes,"
+        ],
+        [
+          194.79699999999866,
+          "What blood pressure target is recommended for?"
+        ],
+        [
+          198.29699999999866,
+          "People with diabetes,"
+        ],
+        [
+          207.28100000000268,
+          "Which inhaler should be added when asthma is not controlled on a low dose steroid?"
+        ],
+        [
+          214.57800000000134,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          217.59399999999732,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          224.79699999999866,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          228.42199999999866,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          235.61000000000058,
+          "Which inhaler should be added when asthma is"
+        ],
+        [
+          239.90600000000268,
+          "not controlled on a low dose steroid?"
+        ],
+        [
+          248.31300000000192,
+          "How long should antibiotics be given"
+        ],
+        [
+          249.78100000000268,
+          "for an uncomplicated urinary tract infection?"
+        ],
+        [
+          257.0939999999973,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          260.2189999999973,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          267.4850000000006,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          271.07800000000134,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          278.375,
+          "How long should antibiotics be given for?"
+        ],
+        [
+          282.7810000000027,
+          "An uncomplicated urinary tract infection?"
+        ],
+        [
+          291.5939999999973,
+          "Does apixaban need a lower dose in older patients with a low body weight?"
+        ],
+        [
+          299.375,
+          "Does apixaban need a lower dose in?"
+        ],
+        [
+          301.92199999999866,
+          "Older patients with a low body weight?"
+        ],
+        [
+          309.6880000000019,
+          "Does apixaban need a lower dose in"
+        ],
+        [
+          312.7189999999973,
+          "Older patients with a low body weight?"
+        ],
+        [
+          320.42199999999866,
+          "Does apixaban need a lower dose in?"
+        ],
+        [
+          324.20300000000134,
+          "Older patients with a low body weight?"
+        ],
+        [
+          332.8130000000019,
+          "What should I do if a patient on insulin has a glucose below four?"
+        ],
+        [
+          340.17199999999866,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          342.20300000000134,
+          "a glucose below four?"
+        ],
+        [
+          349.2810000000027,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          351.79699999999866,
+          "a glucose below four?"
+        ],
+        [
+          358.875,
+          "What should I do if a patient on insulin has"
+        ],
+        [
+          362.0939999999973,
+          "a glucose below four?"
+        ],
+        [
+          369.79699999999866,
+          "When should I refer a child with a fever and a rash?"
+        ],
+        [
+          376.875,
+          "When should I refer a child with?"
+        ],
+        [
+          379.1100000000006,
+          "A fever and a rash?"
+        ],
+        [
+          386.3130000000019,
+          "When should I refer a child with?"
+        ],
+        [
+          389.01600000000326,
+          "A fever and a rash?"
+        ],
+        [
+          396.0939999999973,
+          "When should I refer a child with?"
+        ],
+        [
+          399.5939999999973,
+          "A fever and a rash,"
+        ],
+        [
+          407.1880000000019,
+          "Can lisinopril be continued during pregnancy?"
+        ],
+        [
+          414.39100000000326,
+          "Can lisinopril be continued during"
+        ],
+        [
+          415.79699999999866,
+          "pregnancy?"
+        ],
+        [
+          423.0,
+          "Can lisinopril be continued during"
+        ],
+        [
+          424.89100000000326,
+          "pregnancy?"
+        ],
+        [
+          432.07800000000134,
+          "Can lisinopril be continued during"
+        ],
+        [
+          434.79699999999866,
+          "pregnancy?"
+        ],
+        [
+          442.75,
+          "What is the first line treatment for community acquired pneumonia?"
+        ],
+        [
+          449.29699999999866,
+          "What is the first line treatment for"
+        ],
+        [
+          451.5939999999973,
+          "community acquired pneumonia?"
+        ],
+        [
+          458.17199999999866,
+          "What is the first line treatment for"
+        ],
+        [
+          460.875,
+          "community acquired pneumonia?"
+        ],
+        [
+          467.57800000000134,
+          "What is the first line treatment for"
+        ],
+        [
+          471.0939999999973,
+          "community acquired pneumonia?"
+        ]
+      ]
+    },
+    {
+      "turn": "semantic",
+      "aec": true,
+      "echo_db": null,
+      "commits": [
+        [
+          39.937999999994645,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          50.328999999997905,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          60.703999999997905,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          71.125,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          81.51599999999598,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          91.89099999999598,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          102.21899999999732,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          112.5789999999979,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          123.0,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          133.40699999999924,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          143.79699999999866,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          154.11000000000058,
+          "Sorry. Can I stop you there?"
+        ]
+      ],
+      "finals": [
+        [
+          39.92199999999866,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          50.312999999994645,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          60.687999999994645,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          71.09399999999732,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          81.5,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          91.875,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          102.2039999999979,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          112.5789999999979,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          122.98500000000058,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          133.375,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          143.78199999999924,
+          "Sorry. Can I stop you there?"
+        ],
+        [
+          154.0789999999979,
+          "Sorry. Can I stop you there?"
+        ]
+      ]
+    },
+    {
+      "turn": "semantic",
+      "aec": true,
+      "echo_db": -12.0,
+      "commits": [],
+      "finals": []
+    },
+    {
+      "turn": "semantic",
+      "aec": true,
+      "echo_db": -24.0,
+      "commits": [],
+      "finals": []
+    },
+    {
+      "turn": "semantic",
+      "aec": false,
+      "echo_db": -12.0,
+      "commits": [
+        [
+          8.375,
+          "Five"
+        ],
+        [
+          14.328000000001339,
+          "Wafarin"
+        ],
+        [
+          18.14100000000326,
+          "Wafarin."
+        ]
+      ],
+      "finals": [
+        [
+          6.172000000005937,
+          "Five"
+        ],
+        [
+          12.14100000000326,
+          "Wafarin"
+        ],
+        [
+          18.125,
+          "Wafarin."
+        ]
+      ]
+    },
+    {
+      "turn": "semantic",
+      "aec": false,
+      "echo_db": -24.0,
+      "commits": [
+        [
+          8.360000000000582,
+          "Five"
+        ],
+        [
+          10.703000000001339,
+          "Warfarin"
+        ],
+        [
+          14.593999999997322,
+          "Wafarin."
+        ],
+        [
+          18.67199999999866,
+          "Wafarin."
+        ],
+        [
+          22.56300000000192,
+          "Wafarin."
+        ]
+      ],
+      "finals": [
+        [
+          6.7810000000026776,
+          "Five"
+        ],
+        [
+          10.68800000000192,
+          "Warfarin"
+        ],
+        [
+          14.578000000001339,
+          "Wafarin."
+        ],
+        [
+          18.468999999997322,
+          "Wafarin."
+        ],
+        [
+          22.54699999999866,
+          "Wafarin."
+        ]
+      ]
+    },
+    {
+      "part": "cutoffs",
+      "turn": "semantic-nopunct",
+      "aec": true,
+      "echo_db": null,
+      "commits": [
+        [
+          5.438000000001921,
+          "good morning can you hear me clearly"
+        ],
+        [
+          14.015999999995984,
+          "what is the usual starting dose of metformin in someone with kidney disease"
+        ],
+        [
+          23.531999999999243,
+          "what is the usual starting dose of metformin in someone with kidney disease"
+        ],
+        [
+          33.53199999999924,
+          "what is the usual starting dose of metformin in someone with kidney disease"
+        ],
+        [
+          44.23500000000058,
+          "what is the usual starting dose of metformin in someone with kidney disease"
+        ],
+        [
+          55.36000000000058,
+          "can i give amoxicillin to a patient who is allergic to penicillin"
+        ],
+        [
+          65.125,
+          "can i give amoxicillin to a patient who is allergic to penicillin"
+        ],
+        [
+          75.25,
+          "can i give amoxicillin to a patient who is allergic to penicillin"
+        ],
+        [
+          86.14099999999598,
+          "can i give amoxicillin to a patient who is allergic to penicillin"
+        ],
+        [
+          92.34399999999732,
+          "how often should i check the inr after starting warfarin"
+        ],
+        [
+          101.42199999999866,
+          "how often should i check the inr after when starting warfarin"
+        ],
+        [
+          108.71899999999732,
+          "how often should i check the inr after weighing"
+        ],
+        [
+          113.15699999999924,
+          "starting warfarin"
+        ],
+        [
+          121.32800000000134,
+          "how often should i check the inr after when starting warfarin"
+        ],
+        [
+          129.93800000000192,
+          "is there an interaction between clarithromycin and simvastatin"
+        ],
+        [
+          139.625,
+          "is there an interaction between clarithromycin and simvastatin"
+        ],
+        [
+          149.79699999999866,
+          "is there an interaction between clarithromycin and simvastatin"
+        ],
+        [
+          160.81300000000192,
+          "is there an interaction between clarithromycin and simvastatin"
+        ],
+        [
+          169.11000000000058,
+          "what blood pressure target is recommended for people with diabetes"
+        ],
+        [
+          178.21899999999732,
+          "what blood pressure target is recommended for people with diabetes"
+        ],
+        [
+          187.92199999999866,
+          "what blood pressure target is recommended for people with diabetes"
+        ],
+        [
+          198.32800000000134,
+          "what blood pressure target is recommended for people with diabetes"
+        ],
+        [
+          207.51599999999598,
+          "which inhaler should be added when asthma is not controlled on a low dose steroid"
+        ],
+        [
+          217.73500000000058,
+          "which inhaler should be added when asthma is not controlled on a low dose steroid"
+        ],
+        [
+          228.43800000000192,
+          "which inhaler should be added when asthma is not controlled on a low dose steroid"
+        ],
+        [
+          240.0,
+          "which inhaler should be added when asthma is not controlled on a low dose steroid"
+        ],
+        [
+          252.07800000000134,
+          "how long should antibiotics be given for an uncomplicated urinary tract infection"
+        ],
+        [
+          262.45300000000134,
+          "how long should antibiotics be given for an uncomplicated urinary tract infection"
+        ],
+        [
+          273.3600000000006,
+          "how long should antibiotics be given for an uncomplicated urinary tract infection"
+        ],
+        [
+          285.0630000000019,
+          "how long should antibiotics be given for an uncomplicated urinary tract infection"
+        ],
+        [
+          291.65699999999924,
+          "does apixaban need a lower dose"
+        ],
+        [
+          291.82800000000134,
+          "in older patients with a low body weight"
+        ],
+        [
+          302.03199999999924,
+          "does apixaban need a lower dose in older patients with a low body weight"
+        ],
+        [
+          312.82800000000134,
+          "does apixaban need a lower dose in older patients with a low body weight"
+        ],
+        [
+          324.32800000000134,
+          "does apixaban need a lower dose in older patients with a low body weight"
+        ],
+        [
+          335.375,
+          "what should i do if a patient on insulin has a glucose below"
+        ],
+        [
+          344.4689999999973,
+          "what should i do if a patient on insulin has a glucose below four"
+        ],
+        [
+          354.0630000000019,
+          "what should i do if a patient on insulin has a glucose below four"
+        ],
+        [
+          364.45300000000134,
+          "what should i do if a patient on insulin has a glucose below four"
+        ],
+        [
+          372.04699999999866,
+          "when should i refer a child with a fever and a rash"
+        ],
+        [
+          381.42199999999866,
+          "when should i refer a child with a fever and a rash"
+        ],
+        [
+          391.25,
+          "when should i refer a child with a fever and a rash"
+        ],
+        [
+          401.8600000000006,
+          "when should i refer a child with a fever and a rash"
+        ],
+        [
+          407.3130000000019,
+          "can lisinopril be continued during pregnancy"
+        ],
+        [
+          415.92199999999866,
+          "can lisinopril be continued during pregnancy"
+        ],
+        [
+          425.03199999999924,
+          "can lisinopril be continued during pregnancy"
+        ],
+        [
+          434.90699999999924,
+          "can lisinopril be continued during pregnancy"
+        ],
+        [
+          442.8130000000019,
+          "what is the first line treatment for community acquired pneumonia"
+        ],
+        [
+          451.67199999999866,
+          "what is the first line treatment for community acquired pneumonia"
+        ],
+        [
+          461.03199999999924,
+          "what is the first line treatment for community acquired pneumonia"
+        ],
+        [
+          471.2189999999973,
+          "what is the first line treatment for community acquired pneumonia"
+        ]
+      ],
+      "finals": [
+        [
+          5.406999999999243,
+          "good morning can you hear me clearly"
+        ],
+        [
+          14.0,
+          "what is the usual starting dose of metformin in someone with kidney disease"
+        ],
+        [
+          20.890999999995984,
+          "what is the usual starting dose of"
+        ],
+        [
+          23.515999999995984,
+          "metformin in someone with kidney disease"
+        ],
+        [
+          30.406999999999243,
+          "what is the usual starting dose of"
+        ],
+        [
+          33.5,
+          "metformin in someone with kidney disease"
+        ],
+        [
+          40.29699999999866,
+          "what is the usual starting dose of"
+        ],
+        [
+          44.21899999999732,
+          "metformin in someone with kidney disease"
+        ],
+        [
+          53.20300000000134,
+          "can i give amoxicillin to a patient who is allergic to penicillin"
+        ],
+        [
+          60.70300000000134,
+          "can i give amoxicillin to a patient who is"
+        ],
+        [
+          62.890999999995984,
+          "allergic to penicillin"
+        ],
+        [
+          70.375,
+          "can i give amoxicillin to a patient who is"
+        ],
+        [
+          73.17199999999866,
+          "allergic to penicillin"
+        ],
+        [
+          80.46899999999732,
+          "can i give amoxicillin to a patient who is"
+        ],
+        [
+          84.0,
+          "allergic to penicillin"
+        ],
+        [
+          92.31300000000192,
+          "how often should i check the inr after starting warfarin"
+        ],
+        [
+          99.57800000000134,
+          "how often should i check the inr after when"
+        ],
+        [
+          101.40699999999924,
+          "starting warfarin"
+        ],
+        [
+          108.70300000000134,
+          "how often should i check the inr after weighing"
+        ],
+        [
+          111.03199999999924,
+          "starting warfarin"
+        ],
+        [
+          118.28199999999924,
+          "how often should i check the inr after when"
+        ],
+        [
+          121.31300000000192,
+          "starting warfarin"
+        ],
+        [
+          129.92199999999866,
+          "is there an interaction between clarithromycin and simvastatin"
+        ],
+        [
+          138.09399999999732,
+          "is there an interaction between clarithromycin and"
+        ],
+        [
+          139.61000000000058,
+          "simvastatin"
+        ],
+        [
+          147.78199999999924,
+          "is there an interaction between clarithromycin and"
+        ],
+        [
+          149.78199999999924,
+          "simvastatin"
+        ],
+        [
+          157.98500000000058,
+          "is there an interaction between clarithromycin and"
+        ],
+        [
+          160.79699999999866,
+          "simvastatin"
+        ],
+        [
+          169.09399999999732,
+          "what blood pressure target is recommended for people with diabetes"
+        ],
+        [
+          176.01599999999598,
+          "what blood pressure target is recommended for"
+        ],
+        [
+          178.20300000000134,
+          "people with diabetes"
+        ],
+        [
+          185.18800000000192,
+          "what blood pressure target is recommended for"
+        ],
+        [
+          187.92199999999866,
+          "people with diabetes"
+        ],
+        [
+          194.81300000000192,
+          "what blood pressure target is recommended for"
+        ],
+        [
+          198.31300000000192,
+          "people with diabetes"
+        ],
+        [
+          207.5,
+          "which inhaler should be added when asthma is not controlled on a low dose steroid"
+        ],
+        [
+          214.625,
+          "which inhaler should be added when asthma is"
+        ],
+        [
+          217.70300000000134,
+          "not controlled on a low dose steroid"
+        ],
+        [
+          224.89099999999598,
+          "which inhaler should be added when asthma is"
+        ],
+        [
+          228.40699999999924,
+          "not controlled on a low dose steroid"
+        ],
+        [
+          235.59399999999732,
+          "which inhaler should be added when asthma is"
+        ],
+        [
+          239.98500000000058,
+          "not controlled on a low dose steroid"
+        ],
+        [
+          249.48500000000058,
+          "how long should antibiotics be given for an uncomplicated urinary tract infection"
+        ],
+        [
+          257.1880000000019,
+          "how long should antibiotics be given for"
+        ],
+        [
+          260.390999999996,
+          "an uncomplicated urinary tract infection"
+        ],
+        [
+          267.5939999999973,
+          "how long should antibiotics be given for"
+        ],
+        [
+          271.20300000000134,
+          "an uncomplicated urinary tract infection"
+        ],
+        [
+          278.4850000000006,
+          "how long should antibiotics be given for"
+        ],
+        [
+          282.875,
+          "an uncomplicated urinary tract infection"
+        ],
+        [
+          291.28199999999924,
+          "does apixaban need a lower dose"
+        ],
+        [
+          291.8130000000019,
+          "in older patients with a low body weight"
+        ],
+        [
+          299.515999999996,
+          "does apixaban need a lower dose in"
+        ],
+        [
+          302.0,
+          "older patients with a low body weight"
+        ],
+        [
+          309.67199999999866,
+          "does apixaban need a lower dose in"
+        ],
+        [
+          312.8130000000019,
+          "older patients with a low body weight"
+        ],
+        [
+          320.4850000000006,
+          "does apixaban need a lower dose in"
+        ],
+        [
+          324.3130000000019,
+          "older patients with a low body weight"
+        ],
+        [
+          332.5,
+          "what should i do if a patient on insulin has a glucose below"
+        ],
+        [
+          340.29699999999866,
+          "what should i do if a patient on insulin has"
+        ],
+        [
+          342.1880000000019,
+          "a glucose below four"
+        ],
+        [
+          349.40699999999924,
+          "what should i do if a patient on insulin has"
+        ],
+        [
+          351.765999999996,
+          "a glucose below four"
+        ],
+        [
+          359.0,
+          "what should i do if a patient on insulin has"
+        ],
+        [
+          362.2189999999973,
+          "a glucose below four"
+        ],
+        [
+          369.9380000000019,
+          "when should i refer a child with a fever and a rash"
+        ],
+        [
+          377.04699999999866,
+          "when should i refer a child with"
+        ],
+        [
+          379.2350000000006,
+          "a fever and a rash"
+        ],
+        [
+          386.32800000000134,
+          "when should i refer a child with"
+        ],
+        [
+          389.0939999999973,
+          "a fever and a rash"
+        ],
+        [
+          396.1880000000019,
+          "when should i refer a child with"
+        ],
+        [
+          399.70300000000134,
+          "a fever and a rash"
+        ],
+        [
+          407.29699999999866,
+          "can lisinopril be continued during pregnancy"
+        ],
+        [
+          414.5,
+          "can lisinopril be continued during"
+        ],
+        [
+          415.90699999999924,
+          "pregnancy"
+        ],
+        [
+          423.07800000000134,
+          "can lisinopril be continued during"
+        ],
+        [
+          424.9850000000006,
+          "pregnancy"
+        ],
+        [
+          432.07800000000134,
+          "can lisinopril be continued during"
+        ],
+        [
+          434.890999999996,
+          "pregnancy"
+        ],
+        [
+          442.79699999999866,
+          "what is the first line treatment for community acquired pneumonia"
+        ],
+        [
+          449.40699999999924,
+          "what is the first line treatment for"
+        ],
+        [
+          451.65699999999924,
+          "community acquired pneumonia"
+        ],
+        [
+          458.28199999999924,
+          "what is the first line treatment for"
+        ],
+        [
+          461.015999999996,
+          "community acquired pneumonia"
+        ],
+        [
+          467.6100000000006,
+          "what is the first line treatment for"
+        ],
+        [
+          471.20300000000134,
+          "community acquired pneumonia"
+        ]
+      ]
+    }
+  ]
+}
