@@ -177,6 +177,25 @@ def create_draft(body: DraftRequest, request: Request, who: Doctor) -> dict[str,
     return {"draft_id": draft_id, "transcript": turns, **payload}
 
 
+@router.get("/drafts")
+def list_drafts(request: Request, who: Doctor) -> list[dict[str, Any]]:
+    """Drafts awaiting a doctor's review, newest first (e.g. made by the Scribe audio listener)."""
+    waiting = []
+    for draft_id, meta in reversed(request.app.state.drafts.items()):
+        state = request.app.state.graph.get_state(_config(draft_id))
+        if any(task.interrupts for task in state.tasks):
+            note = state.values.get("note") or {}
+            waiting.append(
+                {
+                    "draft_id": draft_id,
+                    "patient_id": meta["patient_id"],
+                    "created_by": meta["created_by"],
+                    "statements": len(note.get("statements", [])),
+                }
+            )
+    return waiting
+
+
 @router.get("/drafts/{draft_id}")
 def get_draft(draft_id: str, request: Request, who: Doctor) -> dict[str, Any]:
     if draft_id not in request.app.state.drafts:
@@ -185,7 +204,13 @@ def get_draft(draft_id: str, request: Request, who: Doctor) -> dict[str, Any]:
     pending = [i.value for task in state.tasks for i in task.interrupts]
     if not pending:
         return {"draft_id": draft_id, "status": "done", "result": state.values.get("result")}
-    return {"draft_id": draft_id, "status": "awaiting_review", **pending[0]}
+    transcript = state.values.get("transcript", [])
+    return {
+        "draft_id": draft_id,
+        "status": "awaiting_review",
+        "transcript": transcript,
+        **pending[0],
+    }
 
 
 @router.post("/drafts/{draft_id}/review")

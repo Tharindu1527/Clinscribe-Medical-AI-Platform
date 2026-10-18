@@ -172,6 +172,34 @@ function Draft({ draft, onDone }) {
   );
 }
 
+// Drafts made elsewhere, e.g. by the Scribe audio listener (`just scribe <patient id>`)
+function Waiting({ onOpen }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  async function load() {
+    setError("");
+    try { setRows(await call("GET", "/v1/drafts")); } catch (e) { setError(e.message); }
+  }
+  return (
+    <div className="card">
+      <div className="buttons">
+        <strong>Drafts awaiting review</strong>
+        <button className="secondary" onClick={load}>{rows ? "Refresh" : "Show"}</button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {rows && rows.length === 0 && <p className="label">None waiting.</p>}
+      {rows && rows.length > 0 && (
+        <ul className="waiting">{rows.map((r) => (
+          <li key={r.draft_id}>
+            <button className="secondary" onClick={() => onOpen(r.draft_id)}>Open</button>{" "}
+            patient {r.patient_id} · {r.statements} statements · by {r.created_by} · {r.draft_id}
+          </li>
+        ))}</ul>
+      )}
+    </div>
+  );
+}
+
 function Scribe() {
   const [patientId, setPatientId] = useState("");
   const [transcript, setTranscript] = useState(SAMPLE);
@@ -193,8 +221,13 @@ function Scribe() {
     } catch (e) { setError(e.message); }
     setBusy(false);
   }
+  async function open(id) {
+    setError("");
+    try { setDraft(await call("GET", `/v1/drafts/${id}`)); } catch (e) { setError(e.message); }
+  }
   return (
     <section>
+      <Waiting onOpen={open} />
       <form className="card" onSubmit={create}>
         <label>FHIR patient id <input value={patientId} onChange={(e) => setPatientId(e.target.value)} required /></label>
         <label>Consultation transcript (D: doctor, P: patient)
