@@ -1,6 +1,6 @@
 # De-ID v1: recall and over-redaction (synthetic data)
 
-Model `en_core_web_md`; 200 seeded snippets (Faker seed 42), 3.2 s; per snippet p50 15.6 ms, p95 19.7 ms (in-process).
+Model `en_core_web_md`; 200 seeded snippets (Faker seed 42), 4.0 s; per snippet p50 18.9 ms, p95 26.0 ms (in-process).
 
 | Entity | N | Recall | Gate |
 |---|---|---|---|

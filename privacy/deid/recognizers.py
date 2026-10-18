@@ -36,6 +36,12 @@ _STREET_SUFFIX = (
     r"Viaduct|Views?|Villages?|Ville|Vista|Walks?|Wall|Ways?|Wells?)"
 )
 _ID = r"[A-Z0-9][A-Z0-9-]{3,29}"
+# Between the parts of a date as speech recognition writes it: "21 12 1986", "21.12.1986",
+# "21 12 at 1986" (Deepgram for "twenty-one twelve and nineteen eighty-six")
+_DATE_SEP = r"(?:\s*[./-]\s*|\s+(?:(?:and|at|of)\s+)?)"
+# A UK postcode, and the same spelled out by speech recognition ("N W 36 P Q" for NW3 6PQ)
+_UK_POSTCODE = r"[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}"
+_UK_POSTCODE_SPOKEN = r"[A-Z](?:\s[A-Z])?\s\d{1,2}(?:\s?[A-Z\d])?(?:\s\d)?\s[A-Z]\s?[A-Z]"
 _LABEL_SEP = r"\s*(?:number|no\.?|num|#|id)?\s*[:#]?\s*"
 
 PATTERNS: dict[str, list[str]] = {
@@ -44,7 +50,12 @@ PATTERNS: dict[str, list[str]] = {
         r"\b(?P<v>\d{1,2}/\d{1,2}/\d{2,4})\b",
         r"\b(?P<v>\d{4}-\d{2}-\d{2})\b",
         rf"\b(?P<v>{_MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s+\d{{4}})?)\b",
-        rf"\b(?P<v>\d{{1,2}}(?:st|nd|rd|th)?\s+{_MONTH}\.?(?:,?\s+\d{{4}})?)\b",
+        rf"\b(?P<v>\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?{_MONTH}\.?(?:,?\s+\d{{4}})?)\b",
+        # spoken numeric dates (Scribe from audio), with a four-digit year so "BP 140 90" is kept
+        rf"\b(?P<v>\d{{1,2}}(?:st|nd|rd|th)?{_DATE_SEP}\d{{1,2}}{_DATE_SEP}(?:19|20)\d{{2}})\b",
+        # any day-month-year after a date-of-birth cue, two-digit years included
+        rf"(?i:\b(?:date\s+of\s+birth|DOB|D\.O\.B\.?|born\s+on)\b[^0-9\n]{{0,15}})"
+        rf"(?P<v>\d{{1,2}}{_DATE_SEP}\d{{1,2}}{_DATE_SEP}\d{{2,4}})\b",
     ],
     # 3. Ages over 89
     "AGE_OVER_89": [
@@ -94,6 +105,11 @@ PATTERNS: dict[str, list[str]] = {
     ],
     "ZIP": [
         r"(?:\b[A-Z]{2}\s+|(?i:\bzip(?:\s*code)?\s*:?\s*))(?P<v>\d{5}(?:-\d{4})?)\b",
+        # UK postcodes (PriMock57 is British): the written form anywhere; the spelled-out form only
+        # after an address word in the same sentence, as spaced capitals are too common otherwise
+        rf"\b(?P<v>{_UK_POSTCODE})\b",
+        r"(?i:\b(?:post\s*code|address|street|road|lane|avenue|close|drive|way|crescent)\b"
+        rf"[^.\n]{{0,60}}?)\b(?P<v>{_UK_POSTCODE_SPOKEN})\b",
     ],
 }
 STRUCTURED_TYPES = frozenset(PATTERNS)

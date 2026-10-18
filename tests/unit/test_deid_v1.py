@@ -51,6 +51,41 @@ def test_clinical_terms_are_left_intact(deid: Deidentifier, text: str) -> None:
     assert result.replacements == []
 
 
+@pytest.mark.parametrize(
+    ("text", "secrets"),
+    [
+        # as Deepgram wrote a spoken date of birth in a PriMock57 consultation
+        ("Uhh, 21 12 at 1986.", ["21 12 at 1986"]),
+        ("My date of birth is 4 10 84.", ["4 10 84"]),
+        ("Born on the 21st of December 1986.", ["21st of December"]),
+        ("DOB 21.12.1986, seen today.", ["21.12.1986"]),
+        ("Number 1 London Street, N W 36 P Q.", ["N W 36 P Q"]),
+        ("Lives at NW3 6PQ with her sister.", ["NW3 6PQ"]),
+        ("My postcode is S W 1 A 1 A A.", ["S W 1 A 1 A A"]),
+    ],
+)
+def test_spoken_dates_and_uk_postcodes_from_speech_recognition_are_replaced(
+    deid: Deidentifier, text: str, secrets: list[str]
+) -> None:
+    out = deid.deidentify(text, "enc-spoken").text.text
+    assert all(s not in out for s in secrets), out
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "BP 140 90 at rest, pulse 72.",
+        "Type 2 diabetes since 2019, HbA1c 48 mmol/mol.",
+        "Take 1 or 2 tablets, up to 8 a day.",
+        "Started metformin 500 mg in 2021 for T2DM.",
+        "CD4 count 350, viral load undetectable.",
+        "Vitamin B12 level 250 ng/L in 2024.",
+    ],
+)
+def test_numbers_and_codes_like_dates_or_postcodes_are_kept(deid: Deidentifier, text: str) -> None:
+    assert deid.deidentify(text, "enc-kept").text.text == text
+
+
 def test_a_cue_beats_the_eponym_rule(deid: Deidentifier) -> None:
     # A real clinician who shares an eponym's name is still a person
     out = deid.deidentify("Seen by Dr. Parkinson today.", "enc-dr").text.text
