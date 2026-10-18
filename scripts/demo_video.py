@@ -11,7 +11,8 @@ the steps of voice/agent_cascaded.py), Ask in the review UI (drug interaction, a
 admin, results, end card.
 
   just demo-video [--scenes title,results]
-Needs `just up rag`, the UI (`npm --prefix apps/web run dev`), DEV_LOGIN=true and ffmpeg on PATH.
+Needs `just up rag`, the UI (`npm --prefix apps/web run dev`) and ffmpeg on PATH. The UI's demo
+sign-in is answered by the script with a locally issued token, so DEV_LOGIN can stay false.
 Writes .artifacts/demo/clinscribe_demo.mp4 and timeline.json (the measured values of the run).
 """
 
@@ -29,7 +30,7 @@ import subprocess
 import sys
 import time
 import wave
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -38,8 +39,19 @@ import numpy as np
 import websockets
 from playwright.async_api import async_playwright  # type: ignore[import-not-found, unused-ignore]
 
-from apps.api.auth import issue_token
+from apps.api.auth import issue_token, users
 from config.settings import Settings
+from evals.voice.scribe_eval import mix
+from voice.scribe import RATE as SCRIBE_RATE
+from voice.scribe import (
+    Word,
+    assign_roles,
+    group_turns,
+    pcm_source,
+    post_draft,
+    transcribe,
+    transcript_for_api,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / ".artifacts" / "demo"
@@ -52,6 +64,11 @@ NARRATOR = "5568a7df-e5ab-4442-9fae-2e9ba1b15ad8"  # Cartesia "Quentin - Refined
 DOCTOR = "25d7abcb-4d6d-4aca-adce-8a1c85620c8b"  # Cartesia "Jessica - Clear Communicator"
 AGENT = "47c38ca4-5f35-497b-b1a3-415245fb35e1"  # Cartesia "Daniel", as in voice/agent_cascaded.py
 PATIENT = {"id": "1617", "birth_date": "1986-03-18", "family": "Koepp521", "wrong": "Koepp"}
+# Scribe scene: a PriMock57 role-played consultation (CC BY 4.0; real voices, the doctor and patient
+# channels mixed). Two synthetic TTS voices were tried first: diarization did not tell them apart.
+CONSULTATION = "day3_consultation02"
+HEAD_S = 32.0  # heard at real time (name, birth date, address); the rest streams faster
+REST_SPEED = 2.0  # Deepgram reads a faster stream at ~2x anyway; faster dropped twice
 VOICE_QUESTION = "What is the usual starting dose of warfarin?"
 ASK_QUESTION = "Does clarithromycin interact with warfarin?"
 MAX_REAL_WAIT = 6.0  # longer waits are compressed to SHOWN_WAIT seconds of video
@@ -71,16 +88,20 @@ NARRATION = {
     "synthetic, because a script made this recording, but every step after it runs live: "
     "Deepgram's medical speech model, ClinScribe's Ask agent, and Cartesia's text to speech.",
     "voice_outro": "The spoken reply is the same de-identified, cited and guardrail-checked answer "
-    "that the screen shows. The timings of each stage are on screen. Measured over thirty "
-    "questions, time to first audio misses its one and a half second budget, and the cited answer "
-    "is the bottleneck.",
+    "that the screen shows. Over thirty questions, time to first audio misses its one and a half "
+    "second budget; the cited answer is the bottleneck.",
     "ask_intro": "The same Ask agent in the review screen. A drug interaction question takes the "
     "agentic path: it grades the retrieved passages, rewrites the query when they are weak, and "
     "adds interaction facts from the DDInter drug graph.",
     "ask_answer": "Every sentence cites a source passage, and the passages can be opened and "
     "checked. When the evidence is missing, the agent abstains instead of guessing.",
-    "scribe_intro": "Scribe mode turns a consultation into a SOAP note draft. This consultation is "
-    "synthetic, for a synthetic patient loaded into the FHIR server.",
+    "scribe_intro": "Scribe mode listens to the consultation and never speaks. This is a "
+    "role-played consultation from the PriMock57 dataset, with real voices. Deepgram's medical "
+    "model transcribes it live and tells the two speakers apart.",
+    "scribe_roles": "The doctor is the first main speaker to say a full sentence. Each turn is "
+    "de-identified, so the name, birth date and address said at the start become surrogates "
+    "before the note writer sees them. The draft then waits for the doctor's review.",
+    "scribe_open": "In the review screen, the doctor opens it from the drafts awaiting review.",
     "scribe_flags": "Each statement links back to the transcript turns it came from. Statements "
     "highlighted in yellow have no guideline source behind them, so they are flagged for the "
     "doctor. Nothing has been saved yet.",
@@ -88,7 +109,7 @@ NARRATION = {
     "is wrong.",
     "scribe_refused": "So the FHIR server refuses the write, and the refusal is recorded in the "
     "audit log.",
-    "scribe_retry": "A new draft, and this time the correct identifiers.",
+    "scribe_retry": "The same recording is drafted again, and this time the identifiers are right.",
     "scribe_saved": "The approval token is signed for this exact note and this patient, so the "
     "write goes through. The note is now a FHIR Document Reference.",
     "audit": "An administrator sees the audit trail: the questions, the drafts, the refused write "
@@ -96,6 +117,7 @@ NARRATION = {
     "hash-chained, so tampering is detectable.",
     "results": "Every claim is measured. Hybrid search with ColBERT reranking and contextual "
     "chunks lifts recall at ten from 0.81 to 0.91, and answer correctness from 0.76 to 0.91. The "
+    "Scribe gives 98 percent of words to the right speaker on six recorded consultations. The "
     "red-team suite passes 63 of 63 cases, the seeded leak test finds no patient data in any trace "
     "or log, and answers keep working with every cloud provider down.",
     "end": "ClinScribe is designed for HIPAA, GDPR and the EU AI Act, not certified for them, and "
@@ -232,10 +254,19 @@ synthetic (Cartesia), streamed in by the recording script</p>
 <div class="vbox" id="vp-s"><span class="muted">—</span></div></div>
 <table class="vm" id="vp-m"></table></div>"""  # noqa: E501
 
+SCRIBE_CARD = """<div class="dc" style="width:1120px"><h2>Scribe · ambient listening</h2>
+<p class="muted" style="margin:0 0 10px">PriMock57 day3_consultation02 (CC BY 4.0): a role-played
+consultation, real voices, the two microphones mixed to one; streamed live into the Scribe listener
+(voice/scribe.py), Deepgram nova-3-medical with diarization. Names and addresses in it are role-played.</p>
+<div class="vbox" id="sc-t" style="min-height:330px;font-size:17px"><span class="muted">listening</span></div>
+<div class="muted" id="sc-s" style="margin-top:10px;font-size:17px"></div></div>"""  # noqa: E501
+
 RESULTS_CARD = """<div class="dc"><h2>Measured results <span class="muted" style="font-size:20px">
 (evals/reports/, synthetic and public data, one laptop)</span></h2><ul class="res">
 <li>Retrieval recall@10 0.81 → <b>0.91</b> (hybrid + ColBERT + contextual chunks; 95% CI excludes 0)</li>
 <li>Cited-answer correctness 0.76 → <b>0.91</b>; faithfulness unchanged (0.94)</li>
+<li>Scribe from audio (PriMock57, 6 consultations): <b>98%</b> of words to the right speaker,
+doctor found 6 / 6 (role rule refined on this set), drafts 5 / 6</li>
 <li>Red-team suite <b>63 / 63</b>: unsourced doses, diagnosis wording, injections, unapproved writes</li>
 <li>Seeded PHI leak test: <b>0</b> values in 6 sinks (traces, logs, Langfuse, spend logs, audit)</li>
 <li>Turns succeed with <b>every cloud provider down</b> (local Ollama fallback)</li>
@@ -250,14 +281,15 @@ only.<br>Results: evals/reports/ · decisions: docs/adr/ · compliance pack: doc
 BARS = '<span class="bars"><i></i><i></i><i></i><i></i><i></i></span>'
 
 
-def synthesize(text: str, voice: str, client: httpx.Client) -> bytes:
-    """Cartesia sonic-2 speech as 24 kHz PCM, cached by voice and text (reruns cost nothing)."""
-    path = OUT / "tts" / f"{hashlib.sha256(f'{voice}|{text}'.encode()).hexdigest()[:20]}.pcm"
+def synthesize(text: str, voice: str, client: httpx.Client, rate: int = RATE) -> bytes:
+    """Cartesia sonic-2 speech as 16-bit PCM, cached by voice, rate and text (reruns are free)."""
+    key = f"{voice}|{text}" if rate == RATE else f"{voice}|{rate}|{text}"
+    path = OUT / "tts" / f"{hashlib.sha256(key.encode()).hexdigest()[:20]}.pcm"
     if path.exists():
         return path.read_bytes()
     response = client.post(
         "https://api.cartesia.ai/tts/bytes",
-        json=_tts_body(text, voice),
+        json=_tts_body(text, voice, rate),
         headers=_cartesia_headers(),
         timeout=120,
     )
@@ -267,12 +299,12 @@ def synthesize(text: str, voice: str, client: httpx.Client) -> bytes:
     return response.content
 
 
-def _tts_body(text: str, voice: str) -> dict[str, Any]:
+def _tts_body(text: str, voice: str, rate: int = RATE) -> dict[str, Any]:
     return {
         "model_id": "sonic-2",
         "transcript": text,
         "voice": {"mode": "id", "id": voice},
-        "output_format": {"container": "raw", "encoding": "pcm_s16le", "sample_rate": RATE},
+        "output_format": {"container": "raw", "encoding": "pcm_s16le", "sample_rate": rate},
         "language": "en",
     }
 
@@ -575,16 +607,41 @@ async def scene_ask(rec: Recorder) -> None:
     await rec.settle(0.8)
 
 
-async def create_draft(rec: Recorder) -> Any:
+async def staged(pcm: bytes) -> AsyncIterator[bytes]:
+    """The first HEAD_S seconds at real time (heard in the video), then the rest at REST_SPEED."""
+    head = int(HEAD_S * SCRIBE_RATE) * 2
+    async for chunk in pcm_source(pcm[:head]):
+        yield chunk
+    async for chunk in pcm_source(pcm[head:], REST_SPEED):
+        yield chunk
+
+
+def upsample(pcm: bytes) -> bytes:
+    """16 kHz -> the video's 24 kHz audio track (linear interpolation; speech only)."""
+    samples = np.frombuffer(pcm, dtype="<i2").astype(np.float64)
+    positions = np.arange(0, len(samples), SCRIBE_RATE / RATE)
+    resampled = np.interp(positions, np.arange(len(samples)), samples)
+    return bytes(resampled.astype("<i2").tobytes())
+
+
+def render_turns(turns: list[tuple[int, str]], roles: dict[int, str] | None = None) -> str:
+    rows = []
+    for speaker, text in turns[-9:]:
+        who = roles[speaker].capitalize() if roles else f"speaker {speaker}"
+        label = f"<b style='color:#93c5fd'>{who}</b>"
+        rows.append(f"<div style='margin:4px 0'>{label} {html.escape(text)}</div>")
+    return "".join(rows)
+
+
+async def open_waiting(rec: Recorder, draft_id: str, first: bool) -> None:
     page = rec.page
     await rec.js("() => window.scrollTo({top: 0, behavior: 'smooth'})")
     await asyncio.sleep(0.8)
-    await rec.click(page.locator("section form button"))
-    review = page.locator(".review, p.error").first
-    await rec.wait("Writing the draft", review.wait_for(timeout=300_000))
-    if await page.locator("p.error").count():
-        raise RuntimeError(f"Draft failed: {await page.locator('p.error').inner_text()}")
-    return review
+    await rec.click(page.locator(".card button", has_text="Show" if first else "Refresh"))
+    entry = page.locator(f"ul.waiting li:has-text('{draft_id}') button")
+    await entry.wait_for(timeout=30_000)
+    await rec.click(entry)
+    await page.locator(".review").wait_for(timeout=30_000)
 
 
 async def approve(rec: Recorder, family: str) -> str:
@@ -600,16 +657,73 @@ async def approve(rec: Recorder, family: str) -> str:
     return str(await result.inner_text())
 
 
-async def scene_scribe(rec: Recorder) -> None:
+async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
     page = rec.page
-    await rec.click(page.locator("nav button", has_text="scribe"))
+    await rec.card(SCRIBE_CARD)
     await rec.narrate("scribe_intro")
-    await rec.type(page.locator("label:has-text('FHIR patient id') input"), PATIENT["id"])
-    await create_draft(rec)
+    await rec.settle(0.5)
+    shown: list[tuple[int, str]] = []
+    pending: set[asyncio.Task[None]] = set()
+
+    def show(new: list[Word]) -> None:
+        for turn in group_turns(new):
+            if shown and shown[-1][0] == turn.speaker:
+                shown[-1] = (turn.speaker, f"{shown[-1][1]} {turn.text}")
+            else:
+                shown.append((turn.speaker, turn.text))
+        task = asyncio.get_running_loop().create_task(rec.set("sc-t", render_turns(shown)))
+        pending.add(task)
+        task.add_done_callback(pending.discard)
+
+    started = time.time()
+    head = int(HEAD_S * SCRIBE_RATE) * 2
+    rec.clips.append((started, upsample(consultation[:head])))
+    listening = asyncio.ensure_future(transcribe(staged(consultation), show))  # live
+    await asyncio.sleep(HEAD_S)
+    rec.busy_until = started + HEAD_S
+    minutes = len(consultation) / 2 / SCRIBE_RATE / 60
+    label = f"Listening to the rest ({minutes:.1f} min consultation)"
+    try:
+        words = await rec.wait(label, listening)
+    except (websockets.ConnectionClosedError, OSError):  # a dropped stream: once more, no sound
+        shown.clear()
+        retry = transcribe(pcm_source(consultation, REST_SPEED), show)
+        words = await rec.wait(f"{label}: stream dropped, transcribing again", retry)
+        rec.measured["scribe_stream_retried"] = True
+    turns = group_turns(words)
+    roles = assign_roles(turns)
+    await rec.set("sc-t", render_turns([(t.speaker, t.text) for t in turns], roles))
+    mapping = ", ".join(f"speaker {s} → {r}" for s, r in sorted(roles.items()))
+    await rec.set("sc-s", f"{len(turns)} turns · {html.escape(mapping)}")
+    await rec.narrate("scribe_roles")
+    transcript = transcript_for_api(turns, roles)
+    await rec.settle()
+    draft = await rec.wait(
+        "Writing the draft", asyncio.to_thread(post_draft, transcript, PATIENT["id"], token)
+    )
+    await rec.set(
+        "sc-s",
+        f"{len(turns)} turns · {html.escape(mapping)} · draft {draft['draft_id']}: "
+        f"{len(draft['draft']['statements'])} statements, awaiting review (filed under synthetic "
+        f"patient {PATIENT['id']} for the demo)",
+    )
+    await asyncio.sleep(2.0)
+    await rec.js("() => demo.uncard()")
+    await rec.click(page.locator("nav button", has_text="scribe"))
+    await rec.narrate("scribe_open")
+    await open_waiting(rec, draft["draft_id"], first=True)
+    rec.measured["scribe_audio"] = {
+        "turns": len(turns),
+        "roles": {str(k): v for k, v in roles.items()},
+        "statements": len(draft["draft"]["statements"]),
+        "unsupported": len(draft["unsupported"]),
+        "removed": len(draft["removed"]),
+    }
     await rec.scroll_to(page.locator("p.label:has-text('AI-generated draft')"), "start")
     await rec.narrate("scribe_flags")
     statements = page.locator(".statement")
-    for index in range(await statements.count()):
+    count = await statements.count()
+    for index in range(0, count, max(1, count // 7)):  # about seven stops through the draft
         await rec.scroll_to(statements.nth(index))
         await asyncio.sleep(0.3)
     await rec.narrate("scribe_wrong")
@@ -618,7 +732,11 @@ async def scene_scribe(rec: Recorder) -> None:
         raise RuntimeError(f"expected a refused write, got: {refused}")
     await rec.narrate("scribe_refused")
     await rec.narrate("scribe_retry")
-    await create_draft(rec)
+    await rec.settle()
+    again = await rec.wait(
+        "Writing the draft", asyncio.to_thread(post_draft, transcript, PATIENT["id"], token)
+    )
+    await open_waiting(rec, again["draft_id"], first=False)
     saved = await approve(rec, PATIENT["family"])
     if not saved.startswith("Saved to FHIR"):
         raise RuntimeError(f"approved write failed: {saved}")
@@ -694,9 +812,6 @@ def preflight() -> None:
             f"review UI not reachable at {UI}: npm --prefix apps/web run dev"
         ) from None
     httpx.get(f"{API}/health", timeout=5).raise_for_status()
-    login = httpx.post(f"{API}/v1/dev/login", json={"user": "dr-demo"}, timeout=10)
-    if login.status_code != 200:
-        raise SystemExit("the UI sign-in needs DEV_LOGIN=true in .env (then restart the API)")
 
 
 async def record(scenes: list[str]) -> int:
@@ -710,6 +825,7 @@ async def record(scenes: list[str]) -> int:
             if key.split("_")[0] in scenes
         }
         question_pcm = synthesize(VOICE_QUESTION, DOCTOR, client) if "voice" in scenes else b""
+        consultation = mix(CONSULTATION) if "scribe" in scenes else b""
     shutil.rmtree(FRAMES, ignore_errors=True)
     FRAMES.mkdir(parents=True)
 
@@ -720,6 +836,18 @@ async def record(scenes: list[str]) -> int:
         )
         await context.add_init_script(script=OVERLAY_JS)
         page = await context.new_page()
+
+        async def sign_in_locally(route: Any) -> None:
+            """The UI's demo sign-in, answered here with a locally issued token for the synthetic
+            user, so the recording works with DEV_LOGIN=false and the API stays locked."""
+            user = json.loads(route.request.post_data or "{}").get("user", "")
+            if user not in users():
+                await route.fulfill(status=403, json={"detail": "unknown user"})
+                return
+            token_for = issue_token(user, settings.auth_token_key)
+            await route.fulfill(json={"token": token_for, "role": users()[user]})
+
+        await page.route("**/v1/dev/login", sign_in_locally)
         await page.goto(UI)
         await page.locator("select").wait_for()
         rec = Recorder(page, await context.new_cdp_session(page), lines)
@@ -737,7 +865,7 @@ async def record(scenes: list[str]) -> int:
                 elif scene == "ask":
                     await scene_ask(rec)
                 elif scene == "scribe":
-                    await scene_scribe(rec)
+                    await scene_scribe(rec, consultation, token)
                 elif scene == "audit":
                     await scene_audit(rec)
                 elif scene == "results":
