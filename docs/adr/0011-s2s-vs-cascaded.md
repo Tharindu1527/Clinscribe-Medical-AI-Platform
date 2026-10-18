@@ -37,6 +37,8 @@ for non-clinical small talk (greetings, "please repeat"), and only with a BAA-co
 
 ## Consequences
 
+- 2026-10-19: the cascaded path now speaks with Deepgram Aura-2 (ADR-0013); re-measured TTFA p50
+  4,296 / p95 7,093 ms. The table above is the 2026-10-14 measurement with Cartesia.
 - Neither path meets the SPEC budget (TTFA p95 < 1.5 s). The cascaded bottleneck is the Ask step
   (non-streamed cited answer, agentic tail); fixes are listed in `evals/reports/voice/latency.md`
   (stream the first cited sentence, keep voice on the fast path, lower reasoning effort).

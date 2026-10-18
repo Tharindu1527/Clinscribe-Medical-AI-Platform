@@ -756,11 +756,28 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   console echo cancellation came from the OS: it is LiveKit's console (WebRTC APM); corrected.
   **Cartesia's free-tier credit ran out on 2026-10-18 (HTTP 402)**: the eval uses Deepgram Aura voices;
   `just voice` speaks with Cartesia, so spoken answers fail until the credit resets.
+- 2026-10-19: **The voice agent speaks with Deepgram Aura-2** (`aura-2-orpheus-en`; you asked;
+  ADR-0013, proposed). The LiveKit Cartesia plugin is removed from `voice/` (lock: only that package
+  left). The voice smoke test (gate 4) now also synthesizes the answer with the production voice
+  (6.6 s of audio), so a TTS vendor that stops working fails the gate. The latency eval moved to Aura
+  for the answer and to nova-3-medical (production; it measured nova-3 before); question audio is the
+  same cached Cartesia speech. **Re-measured** (`evals/reports/voice/latency.md`, 29/30 answered):
+  STT final p50 730 / p95 1,910 ms, Ask 2,113 / 4,856, TTS first byte 1,413 / 1,550 (Cartesia was
+  812 / 1,301), **TTFA 4,296 / 7,093 ms** (budget 1,500: not met; Ask's agentic tail was shorter than
+  on 2026-10-14). The demo script uses Aura for the narrator, the doctor's question and the answer.
+  **Found: the one failed turn** (502 after 140 s) had every cloud fallback rate-limited and then the
+  local model timed out: the router's 60 s timeout is shorter than a cold Ollama load (~75 s). The gate
+  never saw this because its previous test leaves the model warm. Fixed: `timeout: 180` for
+  `clinscribe-fallback-local` (confirmed in LiteLLM's model info); the cloud-down gate test now unloads
+  the model first and uses a 300 s client. **Not run yet: C: had 0.18 GB free** (a model load grows the
+  C: page file by ~1 GB; this machine blue-screened once at low C: space), so the cold-start test and
+  the demo re-recording wait for space.
 
 ## Next
-- **You: review ADR-0012** (turn detection: punctuation off). **Cartesia credit is used up** for this
-  month: `just voice` cannot speak until it resets (or add an ElevenLabs/Cartesia key; switching the
-  agent's voice to Deepgram Aura is a one-line change if you prefer).
+- **You: free space on C: (0.18 GB free on 2026-10-19), e.g. a reboot (shrinks the page file) and
+  Disk Cleanup; then tell me and I run the cold-start failover test (`just test-live`) and re-record
+  the demo with the Aura voices.**
+- **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only

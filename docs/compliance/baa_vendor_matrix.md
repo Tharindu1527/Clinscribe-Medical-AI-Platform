@@ -12,7 +12,8 @@ only, and model and tracing vendors receive de-identified text only.
 | Ollama (local `llama3.2:3b`) | Last fallback; contextual-retrieval prefixes | De-identified text | Local GPU | No third party |
 | Langfuse Cloud (EU) | Traces, prompt versions, scores | De-identified, redacted spans; no message content | Hobby (free) | DPA on paid plans (verify), or self-host |
 | Deepgram / AssemblyAI | Speech-to-text (Phase 4) | **Raw audio, before de-ID** | Free credit | Must be BAA-covered for real use (verify); alternative: self-hosted Whisper |
-| Cartesia / ElevenLabs | Text-to-speech (Phase 4) | Reply text | Free tier | Verify enterprise terms, or local TTS |
+| Deepgram (Aura-2) | Text-to-speech, the agent's voice since 2026-10-19 (ADR-0013) | Reply text (de-identified answer) | Free credit | Same vendor and agreement as speech-to-text |
+| Cartesia / ElevenLabs | Text-to-speech (Cartesia until 2026-10-18; ElevenLabs not used) | Reply text | Free tier | Verify enterprise terms, or local TTS |
 | GitHub | Source code and CI | Code only (no data, no secrets) | Private repository | Not a processor of patient data |
 | Hugging Face Hub | Encoder downloads | Nothing sent (offline at run time) | Public models | Not a processor |
 
