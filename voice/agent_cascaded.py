@@ -9,8 +9,9 @@ guarded, cited one; citations are spoken as "sources are on screen" and listed b
   (Silero silence only). Both are built; SPEC asks to compare false cut-offs (ADR-0011 notes).
 - Barge-in: interruptions on, detected locally (VAD mode, no cloud service); when the doctor talks
   over the agent, TTS stops and the reply is cut to what was played (LiveKit's history truncation).
-- Echo cancellation, noise suppression and auto gain come from the client (browser WebRTC or the
-  console's audio device); the agent does no AEC itself.
+- Echo cancellation, noise suppression and auto gain run on the microphone before the agent hears
+  it: in console mode LiveKit's console applies WebRTC's audio processing module itself; in a
+  browser, WebRTC does. Measured in voice/turn_eval.py (evals/reports/voice/turn_taking.md).
 
   just voice              console mode: local microphone and speakers, no LiveKit server needed
   uv run --project voice python voice/agent_cascaded.py dev    (worker for a LiveKit room)
@@ -29,6 +30,7 @@ import httpx
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, llm
 from livekit.agents.voice import ModelSettings
 from livekit.plugins import cartesia, deepgram, silero
+from livekit.plugins.turn_detector.base import EOUModelBase
 from livekit.plugins.turn_detector.english import EnglishModel
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -137,16 +139,26 @@ class ClinScribeVoice(Agent):
         yield "Sources are on screen."
 
 
-async def entrypoint(ctx: JobContext) -> None:
-    await ctx.connect()
-    turn = os.environ.get("VOICE_TURN", "semantic")
-    session: AgentSession[Any] = AgentSession(
-        stt=deepgram.STT(model="nova-3-medical", endpointing_ms=300),
+def build_session(
+    turn: str, inference_executor: Any = None, punctuate: bool = False
+) -> AgentSession[Any]:
+    """The production session; voice/turn_eval.py measures this same configuration. The
+    semantic turn detector runs in the worker's inference process unless one is passed in.
+    Transcript punctuation is off (ADR-0012): with it, a question mark on a half-spoken sentence
+    made the end-of-turn model cut the doctor off (10 of 36 paused questions vs 1 of 36)."""
+    detector: Any = "vad"
+    if turn == "semantic" and inference_executor is None:
+        detector = EnglishModel()
+    elif turn == "semantic":  # EnglishModel's own __init__ insists on a job context
+        detector = EnglishModel.__new__(EnglishModel)
+        EOUModelBase.__init__(detector, model_type="en", inference_executor=inference_executor)
+    return AgentSession(
+        stt=deepgram.STT(model="nova-3-medical", endpointing_ms=300, punctuate=punctuate),
         vad=silero.VAD.load(min_silence_duration=0.55),
         llm=AskApi(),
         tts=cartesia.TTS(model="sonic-2", voice=VOICE),
         turn_handling={
-            "turn_detection": EnglishModel() if turn == "semantic" else "vad",
+            "turn_detection": detector,
             # barge-in detected locally from voice activity; LiveKit's default "adaptive" mode
             # streams audio to LiveKit Cloud (another vendor; failed with 401 here, no account)
             "interruption": {"enabled": True, "mode": "vad"},
@@ -155,6 +167,11 @@ async def entrypoint(ctx: JobContext) -> None:
             "preemptive_generation": {"enabled": False},
         },
     )
+
+
+async def entrypoint(ctx: JobContext) -> None:
+    await ctx.connect()
+    session = build_session(os.environ.get("VOICE_TURN", "semantic"))
     await session.start(room=ctx.room, agent=ClinScribeVoice())
     await session.say("ClinScribe is listening. Ask a clinical question.")
 

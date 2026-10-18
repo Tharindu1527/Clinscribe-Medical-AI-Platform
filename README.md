@@ -53,6 +53,7 @@ through one gateway; no clinical write without a doctor's approval token for the
 | Cost | one consultation (draft + 3 questions) at list price: $0.050 (Gemini 3.5 Flash) … $0.002 (Groq gpt-oss-20b); free tiers bill $0 | `llmops/cost_per_consultation.md` |
 | Voice | time to first audio p50 / p95 3.5 / 19.7 s (fast path 3.3 / 5.6 s) vs SPEC budget 1.5 s: **not met**, bottleneck is the non-streamed cited answer; Gemini Live speech-to-speech 3.5 / 6.1 s, no citations or guardrails | `voice/latency.md`, ADR-0011 |
 | Speech recognition | PriMock57: WER 0.119 (nova-3) vs **0.112 (nova-3-medical)**; medical-term errors 18 → 12 of 200; keyterm boosting no gain | `voice/asr_wer.md` |
+| Turn taking | 12 questions with a 0.7–2.0 s pause inside the sentence: cut off 27/36 (VAD only), 10/36 (semantic model), **1/36 (semantic, transcript punctuation off; adopted, ADR-0012)**, at the cost of a ~3 s end of turn on 4 of 12 whole questions; barge-in stops the agent's audio in p50 616 / p95 629 ms; self-interruption from echo 0/8 replies with echo cancellation, 8/8 without | `voice/turn_taking.md` |
 | Scribe from audio | PriMock57, doctor + patient mixed to one live stream with diarization: **0.979** of words to the right speaker (role rule refined on this set; first rule 0.783), doctor found 6/6, WER 0.143; drafts 5/6 (the 108-turn visit exceeded the free-tier output budget) | `voice/scribe_diarization.md` |
 | Incidents | 3 drills with postmortems: provider outage (found and fixed a fallback gap: 2/4 → 4/4 answered), retrieval drift, latency spike | `docs/postmortems/` |
 
@@ -105,5 +106,5 @@ noise. This is a reading note, not a claim of experience.
 ## Docs
 
 `docs/SPEC.md` (specification) · `docs/PROGRESS.md` (log of every task and number) · `docs/adr/`
-(nine decision records) · `docs/compliance/` · `docs/runbooks/` · `docs/postmortems/` ·
+(twelve decision records) · `docs/compliance/` · `docs/runbooks/` · `docs/postmortems/` ·
 `CONTRIBUTING.md`.
