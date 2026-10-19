@@ -45,8 +45,8 @@ the 1,500 ms budget. Over 30 questions the p50 / p95 are 4,296 / 7,093 ms (`eval
   before this take.
 - Earlier takes drafted the consultation a second time after the refused write; since 2026-10-19 a
   wrong identifier keeps the draft open (up to 3 attempts), and the take shows the correction.
-- The refusal shown to the doctor still starts with the tool library's "Error executing tool
-  write_fhir:" prefix (cosmetic).
+- The refusal shown in this take starts with the tool library's "Error executing tool write_fhir:"
+  prefix; since removed (the doctor now sees the server's reason only).
 
 ## Not shown
 
