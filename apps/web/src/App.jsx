@@ -108,6 +108,7 @@ function Draft({ draft, onDone }) {
   const [reason, setReason] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [refused, setRefused] = useState(draft.refused ? `${draft.refused}.` : "");
   const edited = JSON.stringify(statements) !== JSON.stringify(draft.draft.statements);
   const unsupported = new Set(draft.unsupported.map((s) => s.text));
 
@@ -118,6 +119,12 @@ function Draft({ draft, onDone }) {
     if (decision === "reject") body.reason = reason || "rejected by the doctor";
     try {
       const out = await call("POST", `/v1/drafts/${draft.draft_id}/review`, body);
+      if (out.awaiting_review) {  // wrong identifiers: refused and audited, the draft stays open
+        setRefused(`${out.result.reason}. Check the identifiers and try again `
+          + `(${out.attempts_left} attempt${out.attempts_left === 1 ? "" : "s"} left).`);
+        return;
+      }
+      setRefused("");
       setResult(out.result);
       onDone?.();
     } catch (e) { setError(e.message); }
@@ -149,6 +156,7 @@ function Draft({ draft, onDone }) {
       {!result && (
         <div className="review">
           <p>Confirm the patient (two identifiers) to approve:</p>
+          {refused && <p className="warn">{refused}</p>}
           <input placeholder="birth date YYYY-MM-DD" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
           <input placeholder="family name" value={family} onChange={(e) => setFamily(e.target.value)} />
           <div className="buttons">

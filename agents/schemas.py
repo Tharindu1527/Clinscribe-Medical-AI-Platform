@@ -19,6 +19,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 ChunkId = Annotated[str, Field(min_length=1, pattern=r"^(who|fda|pmc|graph):[^\n]+$")]
 Severity = Literal["Major", "Moderate", "Minor", "Unknown"]
 Mode = Literal["scribe", "ask", "lab"]
+# fhir-mcp's refusal when the doctor's two identifiers do not match the record. The graph keeps the
+# draft open for corrected identifiers on this refusal only (a typo should not cost a new draft).
+IDENTITY_MISMATCH = "patient identifiers do not match the record"
 Role = Literal["doctor", "admin", "operator"]
 SoapSection = Literal["subjective", "objective", "assessment", "plan"]
 

@@ -14,6 +14,7 @@ from agents.approval import approve, verify
 from agents.fhir_docs import note_to_resource
 from agents.graph import Agents, route_question
 from agents.schemas import (
+    IDENTITY_MISMATCH,
     CheckInteractionsInput,
     Evidence,
     GetPatientContextInput,
@@ -25,6 +26,7 @@ from agents.schemas import (
     WriteFhirInput,
     WriteFhirResult,
 )
+from agents.tools import ToolError
 from llmops.gateway.client import ChatMessage, Completion
 
 KEY = SecretStr("k" * 64)
@@ -99,6 +101,7 @@ class FakeTools:
         self.evidence = evidence
         self.searches: list[SearchGuidelinesInput] = []
         self.writes: list[WriteFhirInput] = []
+        self.refusals: list[str] = []  # reasons for the next writes to be refused, in order
 
     def search(self, request: SearchGuidelinesInput) -> list[Evidence]:
         self.searches.append(request)
@@ -120,6 +123,8 @@ class FakeTools:
         return PatientSummary(patient_id=request.patient_id, age_years=50, sex="female")
 
     def write(self, request: WriteFhirInput) -> WriteFhirResult:
+        if self.refusals:
+            raise ToolError(f"write refused: {self.refusals.pop(0)}")
         self.writes.append(request)
         return WriteFhirResult(resource_type="DocumentReference", resource_id="doc-1")
 
@@ -303,6 +308,61 @@ def test_edit_writes_the_edited_note_and_keeps_the_pair() -> None:
     body = tools.writes[0].resource["content"][0]["attachment"]["data"]
     assert "metformin" not in base64.b64decode(body).decode().lower()  # the plan line was removed
     assert verify(tools.writes[0].approval, KEY, content=tools.writes[0].resource)
+
+
+APPROVE = {"draft_id": "enc-1", "decision": "approve", "reviewer": "dr-house"}
+
+
+def test_wrong_identifiers_keep_the_draft_open_and_the_corrected_attempt_writes() -> None:
+    chat, tools = ScriptedChat(note=[NOTE_REPLY]), FakeTools([])
+    tools.refusals = [IDENTITY_MISMATCH]
+    graph, out = _scribe(chat, tools)
+    draft = out["__interrupt__"][0].value["draft"]
+    config = {"configurable": {"thread_id": "enc-1"}}
+    again = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+    assert again["result"] == {
+        "status": "write_refused",
+        "reason": f"write refused: {IDENTITY_MISMATCH}",
+        "retry": True,
+    }
+    (pending,) = again["__interrupt__"]  # back at the doctor's review, not ended
+    assert pending.value["refused"] == f"write refused: {IDENTITY_MISMATCH}"
+    assert pending.value["attempts_left"] == 2
+    done = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+    assert done["result"]["status"] == "written"
+    assert len(tools.writes) == 1
+
+
+def test_identifier_attempts_are_capped() -> None:
+    chat, tools = ScriptedChat(note=[NOTE_REPLY]), FakeTools([])
+    tools.refusals = [IDENTITY_MISMATCH] * 3
+    graph, out = _scribe(chat, tools)
+    draft = out["__interrupt__"][0].value["draft"]
+    config = {"configurable": {"thread_id": "enc-1"}}
+    for attempts_left in (2, 1):
+        out = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+        assert out["__interrupt__"][0].value["attempts_left"] == attempts_left
+    out = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+    assert "__interrupt__" not in out  # the third wrong entry ends the draft
+    assert out["result"]["status"] == "write_refused"
+    assert out["result"]["retry"] is False
+    assert tools.writes == []
+
+
+def test_any_other_refusal_ends_the_draft() -> None:
+    chat, tools = ScriptedChat(note=[NOTE_REPLY]), FakeTools([])
+    tools.refusals = ["approval expired"]
+    graph, out = _scribe(chat, tools)
+    draft = out["__interrupt__"][0].value["draft"]
+    out = graph.invoke(
+        Command(resume=_resume(draft, APPROVE)), {"configurable": {"thread_id": "enc-1"}}
+    )
+    assert "__interrupt__" not in out
+    assert out["result"] == {
+        "status": "write_refused",
+        "reason": "write refused: approval expired",
+        "retry": False,
+    }
 
 
 def test_reject_writes_nothing() -> None:
