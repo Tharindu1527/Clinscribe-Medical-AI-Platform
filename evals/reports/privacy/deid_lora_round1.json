@@ -1,0 +1,236 @@
+{
+  "spacy": {
+    "seeded": {
+      "PERSON": [
+        120,
+        120
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v1": {
+      "PERSON": [
+        107,
+        110
+      ],
+      "LOCATION": [
+        51,
+        60
+      ]
+    },
+    "heldout_v2": {
+      "PERSON": [
+        109,
+        110
+      ],
+      "LOCATION": [
+        57,
+        70
+      ]
+    },
+    "heldout_v3": {
+      "PERSON": [
+        90,
+        90
+      ],
+      "LOCATION": [
+        42,
+        50
+      ]
+    },
+    "negatives_v1": [
+      0,
+      80
+    ],
+    "negatives_v1_altered": [],
+    "negatives_v2": [
+      3,
+      40
+    ],
+    "negatives_v2_altered": [
+      "Spirometry shows an FEV1 of 62 percent predicted.",
+      "Bay 2 is ready for the next patient from recovery.",
+      "Sleeps poorly because of reflux at night."
+    ],
+    "latency_ms": [
+      14.257200000429293,
+      19.76009999998496
+    ]
+  },
+  "lora": {
+    "seeded": {
+      "PERSON": [
+        120,
+        120
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v1": {
+      "PERSON": [
+        110,
+        110
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v2": {
+      "PERSON": [
+        110,
+        110
+      ],
+      "LOCATION": [
+        70,
+        70
+      ]
+    },
+    "heldout_v3": {
+      "PERSON": [
+        88,
+        90
+      ],
+      "LOCATION": [
+        50,
+        50
+      ]
+    },
+    "negatives_v1": [
+      15,
+      80
+    ],
+    "negatives_v1_altered": [
+      "Valsalva maneuver did not terminate the tachycardia.",
+      "Normal sinus rhythm on the ECG.",
+      "Switched from Lipitor to Crestor because of myalgia.",
+      "Transferred from ICU to the medical ward overnight.",
+      "Discharged from physiotherapy after six sessions.",
+      "Seen in Cardiology clinic last month.",
+      "BP 142/88, heart rate 96, temperature 38.1 C.",
+      "HbA1c 7.9 percent, down from 8.4 percent.",
+      "Bed 12 on Ward 3 is ready for admission.",
+      "Room 4B has the portable ultrasound.",
+      "eGFR 58, creatinine 112 micromol/L.",
+      "Insulin glargine 18 units at night.",
+      "Patient reports chest pain on exertion relieved by rest.",
+      "Lungs clear to auscultation bilaterally.",
+      "Abdomen soft and non-tender, bowel sounds present."
+    ],
+    "negatives_v2": [
+      13,
+      40
+    ],
+    "negatives_v2_altered": [
+      "Swelling of both ankles, worse at the end of the day.",
+      "Spirometry shows an FEV1 of 62 percent predicted.",
+      "Paracetamol and ibuprofen have not helped the headache.",
+      "Chest X-ray shows no consolidation or effusion.",
+      "Wound dressing changed, no signs of infection.",
+      "Moved to Ward 7 after the operation.",
+      "Urine dip positive for nitrites and leucocytes.",
+      "Glasgow Coma Scale 15, pupils equal and reactive.",
+      "Bloods sent for full blood count and CRP.",
+      "Inhaler technique checked and spacer given.",
+      "Review in the Emergency Department if symptoms worsen.",
+      "ECG shows atrial fibrillation with a rate of 110.",
+      "Treated for Lyme disease after a tick bite last summer."
+    ],
+    "latency_ms": [
+      45.792099997925106,
+      60.938099999475526
+    ]
+  },
+  "both": {
+    "seeded": {
+      "PERSON": [
+        120,
+        120
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v1": {
+      "PERSON": [
+        110,
+        110
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v2": {
+      "PERSON": [
+        110,
+        110
+      ],
+      "LOCATION": [
+        70,
+        70
+      ]
+    },
+    "heldout_v3": {
+      "PERSON": [
+        90,
+        90
+      ],
+      "LOCATION": [
+        50,
+        50
+      ]
+    },
+    "negatives_v1": [
+      15,
+      80
+    ],
+    "negatives_v1_altered": [
+      "Valsalva maneuver did not terminate the tachycardia.",
+      "Normal sinus rhythm on the ECG.",
+      "Switched from Lipitor to Crestor because of myalgia.",
+      "Transferred from ICU to the medical ward overnight.",
+      "Discharged from physiotherapy after six sessions.",
+      "Seen in Cardiology clinic last month.",
+      "BP 142/88, heart rate 96, temperature 38.1 C.",
+      "HbA1c 7.9 percent, down from 8.4 percent.",
+      "Bed 12 on Ward 3 is ready for admission.",
+      "Room 4B has the portable ultrasound.",
+      "eGFR 58, creatinine 112 micromol/L.",
+      "Insulin glargine 18 units at night.",
+      "Patient reports chest pain on exertion relieved by rest.",
+      "Lungs clear to auscultation bilaterally.",
+      "Abdomen soft and non-tender, bowel sounds present."
+    ],
+    "negatives_v2": [
+      15,
+      40
+    ],
+    "negatives_v2_altered": [
+      "Swelling of both ankles, worse at the end of the day.",
+      "Spirometry shows an FEV1 of 62 percent predicted.",
+      "Paracetamol and ibuprofen have not helped the headache.",
+      "Chest X-ray shows no consolidation or effusion.",
+      "Wound dressing changed, no signs of infection.",
+      "Moved to Ward 7 after the operation.",
+      "Urine dip positive for nitrites and leucocytes.",
+      "Glasgow Coma Scale 15, pupils equal and reactive.",
+      "Bloods sent for full blood count and CRP.",
+      "Inhaler technique checked and spacer given.",
+      "Review in the Emergency Department if symptoms worsen.",
+      "ECG shows atrial fibrillation with a rate of 110.",
+      "Treated for Lyme disease after a tick bite last summer.",
+      "Bay 2 is ready for the next patient from recovery.",
+      "Sleeps poorly because of reflux at night."
+    ],
+    "latency_ms": [
+      45.10210000080406,
+      62.03389999791398
+    ]
+  }
+}

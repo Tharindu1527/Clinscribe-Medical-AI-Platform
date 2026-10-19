@@ -794,7 +794,26 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   take ran 5 min 31 s): wrong family name refused, the draft stays open ("2 attempts left"), the
   name is corrected, `Saved to FHIR: DocumentReference/62852`. Upload it in place of the earlier one.
 
+- 2026-10-19: **LoRA de-ID tagger, round 1** (you trained it on Colab; the install cell first failed on
+  `seqeval`, which no longer builds there: the notebook now computes the entity scores itself, equal
+  to seqeval on 300 random cases). `evals/privacy/lora_eval.py` compares spaCy, the tagger, and both,
+  through the same analyzer (`build_analyzer(spacy_ner=..., extra=...)`). The tagger's training
+  phrasings had been written after seeing held-out v1's misses, so new sets were frozen before any
+  model ran: held-out v2 and v3 (names/places) and PHI-free v2 (40 sentences). **Result
+  (`evals/reports/privacy/deid_lora_round1.md`): tagger recall 1.000 names and places on held-out v2
+  (spaCy 0.991 / 0.814), 0.978 / 1.000 on v3 (spaCy 1.000 / 0.840), but it altered 15/80 and 13/40
+  PHI-free sentences (spaCy 0 and 3)**: it tags capitalised sentence starts, acronyms and ward names,
+  because 9 of 12 round-1 templates start with a name and none was PHI-free. **Not adopted; the
+  service keeps spaCy.** Also found: spaCy alters 3 of the 40 new PHI-free sentences ("FEV1" and
+  "Bay 2" as places, "Sleeps"): its 0/80 was on the set its rules were tuned on. Not tuned now (that
+  would spend the new set). Round 2 data (`finetune/make_dataset.py`, default): 12 templates with
+  names away from the start, ~40% PHI-free clinical sentences from parts; fair sets for round 2 are
+  held-out v3 and PHI-free v2. Base model download: `distilbert-base-cased` (~260 MB, HF cache on D:);
+  `peft==0.21.2` only via `uv run --with` (not a project dependency unless adopted).
+
 ## Next
+- **You: train round 2 of the de-ID tagger** (`finetune/README.md`, "Round 2"): same notebook, upload the
+  `data/finetune/deid_ner_v2` files, put the zip at `data/finetune/deid_ner_lora_v2/`; I compare it.
 - **You: merge PR #25** (CI green; the built-in browser blocks GitHub's merge button for me).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;

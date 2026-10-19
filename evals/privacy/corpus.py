@@ -62,6 +62,39 @@ HELDOUT_TEMPLATES = [
 ]
 
 
+# Held-out v2 (2026-10-19), written before the LoRA name/place tagger was first run: the tagger's
+# training phrasings (finetune/make_dataset.py) were designed after seeing held-out v1's misses
+# ("originally from", "works in"), so v1 would flatter it. Speech-like, with and without cues.
+HELDOUT_V2_TEMPLATES = [
+    "Okay so {PERSON} rang this morning, she's been staying with family in {LOCATION}.",
+    "Can you send a copy of the letter to {PERSON} at the practice in {LOCATION}?",
+    "He declined the flu jab again; his wife {PERSON} will talk to him about it.",
+    "The ambulance took him from {LOCATION} straight to the emergency department.",
+    "{PERSON}, thirty-two, presents with chest tightness after a long flight from {LOCATION}.",
+    "Message from {PERSON}: the inhaler has run out and the pharmacy in {LOCATION} has none.",
+    "According to {PERSON} the rash started after the holiday in {LOCATION}.",
+    "Gave the leaflet to {PERSON}; follow-up booked with {PERSON} in two weeks.",
+    "We spoke to the care home in {LOCATION}, and the manager, {PERSON}, confirmed the doses.",
+    "{PERSON} asked whether {PERSON} could collect the prescription for her.",
+]
+HELDOUT_V2_SEED = 2026
+# Held-out v3 (2026-10-19), written before the tagger's second training round, whose phrasings were
+# written knowing v2: v3 is the unseen set for that round.
+HELDOUT_V3_TEMPLATES = [
+    "Results were explained over the phone to {PERSON}, who wants a second opinion.",
+    "her brother {PERSON} usually brings her in from {LOCATION} on Tuesdays.",
+    "Taxi booked to take {PERSON} home to {LOCATION} after discharge.",
+    "Letter copied to {PERSON} and to the rheumatology team in {LOCATION}.",
+    "No family nearby; {PERSON} is listed as the emergency contact.",
+    "She grew up in {LOCATION} and had all her vaccinations there.",
+    "Covering doctor tonight is {PERSON}, bleep via switchboard.",
+    "{PERSON} reports the same symptoms as her sister {PERSON}.",
+    "Previously under the care of the hospital in {LOCATION} for asthma.",
+    "Thanks for seeing {PERSON}, a keen cyclist with knee pain.",
+]
+HELDOUT_V3_SEED = 3031
+
+
 @dataclass(frozen=True)
 class Snippet:
     text: str
