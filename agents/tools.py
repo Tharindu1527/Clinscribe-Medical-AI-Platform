@@ -32,6 +32,13 @@ class ToolError(Exception):
     """A tool refused or failed; the message is the server's reason."""
 
 
+def server_reason(text: str, tool: str) -> str:
+    """The server's own words: the MCP SDK prefixes "Error executing tool <name>: ", which the
+    doctor saw in front of the refusal reason in the review screen."""
+    prefix = f"Error executing tool {tool}: "
+    return text[len(prefix) :] if text.startswith(prefix) else text
+
+
 class Tools(Protocol):
     def search(self, request: SearchGuidelinesInput) -> list[Evidence]: ...
     def interactions(self, request: CheckInteractionsInput) -> InteractionReport: ...
@@ -48,7 +55,8 @@ class McpTools:
             async with Client(self._urls[server], read_timeout_seconds=120) as client:
                 result = await client.call_tool(tool, {"request": request.model_dump(mode="json")})
             if result.is_error:
-                raise ToolError(" ".join(getattr(c, "text", "") for c in result.content))
+                text = " ".join(getattr(c, "text", "") for c in result.content)
+                raise ToolError(server_reason(text, tool))
             content = result.structured_content or {}
             return TypeAdapter(out).validate_python(content.get("result", content))
 

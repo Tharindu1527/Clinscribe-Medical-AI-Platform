@@ -26,7 +26,7 @@ from agents.schemas import (
     WriteFhirInput,
     WriteFhirResult,
 )
-from agents.tools import ToolError
+from agents.tools import ToolError, server_reason
 from llmops.gateway.client import ChatMessage, Completion
 
 KEY = SecretStr("k" * 64)
@@ -425,3 +425,10 @@ def test_review_survives_a_new_graph_instance_with_the_same_checkpointer() -> No
     assert done["result"]["status"] == "written"
     history = list(second.get_state_history(config))
     assert len(history) >= 5  # every step is checkpointed and can be replayed
+
+
+def test_the_doctor_sees_the_servers_reason_without_the_sdk_prefix() -> None:
+    sdk = f"Error executing tool write_fhir: write refused: {IDENTITY_MISMATCH}"
+    assert server_reason(sdk, "write_fhir") == f"write refused: {IDENTITY_MISMATCH}"
+    assert server_reason("no patient p-9", "write_fhir") == "no patient p-9"
+    assert server_reason(sdk, "parse_lab_report") == sdk  # another tool's prefix is left alone
