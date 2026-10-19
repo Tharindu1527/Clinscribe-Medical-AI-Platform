@@ -11,7 +11,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from livekit.agents import AgentSession
+from livekit.agents import AgentSession, utils
+from livekit.plugins import deepgram
 
 spec = importlib.util.spec_from_file_location(
     "agent", Path(__file__).with_name("agent_cascaded.py")
@@ -33,7 +34,13 @@ async def main() -> int:
     )
     print(f"spoken: {spoken}\nturn: {agent.turns}")
     ok = "warfarin" in spoken.lower() and spoken.rstrip().endswith("Sources are on screen.")
-    return 0 if ok else 1
+    # the answer is also synthesized with the production voice: a TTS vendor that stops working
+    # (Cartesia's free credit ran out on 2026-10-18) shows up here, not in front of a doctor
+    async with utils.http_context.open():
+        voice = deepgram.TTS(model=agent_module.VOICE)
+        seconds = sum([event.frame.duration async for event in voice.synthesize(spoken)])
+    print(f"speech: {seconds:.1f} s of audio from {agent_module.VOICE}")
+    return 0 if ok and seconds > 1.0 else 1
 
 
 if __name__ == "__main__":

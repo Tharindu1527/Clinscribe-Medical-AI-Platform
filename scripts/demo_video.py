@@ -1,11 +1,11 @@
 """Demo video (SPEC section 14): a scripted run of ClinScribe, recorded from a hidden Chrome.
 
 Every answer, draft and FHIR write in the video is a live call to the running stack. Two things are
-not live, and the video says so on screen: the doctor's voice (Cartesia speech streamed into the
-live voice steps, because a script cannot speak into a microphone) and the narrator (Cartesia).
+not live, and the video says so on screen: the doctor's voice (Deepgram Aura speech streamed into
+the live voice steps, because a script cannot speak into a microphone) and the narrator (Aura).
 Waits longer than 6 s are shown faster than real time, with the real elapsed time on screen.
 
-Scenes: title, architecture, voice question (Deepgram nova-3-medical -> /v1/ask -> Cartesia sonic-2,
+Scenes: title, architecture, voice question (Deepgram nova-3-medical -> /v1/ask -> Deepgram Aura-2,
 the steps of voice/agent_cascaded.py), Ask in the review UI (drug interaction, agentic path), Scribe
 (draft, flagged statements, a wrong identifier refused, the approved FHIR write), the audit log as
 admin, results, end card.
@@ -58,16 +58,16 @@ OUT = ROOT / ".artifacts" / "demo"
 FRAMES = OUT / "frames"
 UI = "http://127.0.0.1:5173"
 API = "http://127.0.0.1:8000"
-RATE = 24_000  # Cartesia output and Deepgram input, 16-bit mono PCM
-CARTESIA = {"Cartesia-Version": "2025-04-16"}
-NARRATOR = "5568a7df-e5ab-4442-9fae-2e9ba1b15ad8"  # Cartesia "Quentin - Refined Narrator"
-DOCTOR = "25d7abcb-4d6d-4aca-adce-8a1c85620c8b"  # Cartesia "Jessica - Clear Communicator"
-AGENT = "47c38ca4-5f35-497b-b1a3-415245fb35e1"  # Cartesia "Daniel", as in voice/agent_cascaded.py
+RATE = 24_000  # speech output and the video's audio track, 16-bit mono PCM
+# Deepgram Aura-2 voices (Cartesia until its free-tier credit ran out on 2026-10-18; ADR-0013)
+NARRATOR = "aura-2-draco-en"
+DOCTOR = "aura-2-thalia-en"
+AGENT = "aura-2-orpheus-en"  # as in voice/agent_cascaded.py
 PATIENT = {"id": "1617", "birth_date": "1986-03-18", "family": "Koepp521", "wrong": "Koepp"}
 # Scribe scene: a PriMock57 role-played consultation (CC BY 4.0; real voices, the doctor and patient
 # channels mixed). Two synthetic TTS voices were tried first: diarization did not tell them apart.
 CONSULTATION = "day3_consultation02"
-HEAD_S = 32.0  # heard at real time (name, birth date, address); the rest streams faster
+HEAD_S = 30.0  # heard at real time (name, birth date, address); the rest streams faster
 REST_SPEED = 2.0  # Deepgram reads a faster stream at ~2x anyway; faster dropped twice
 VOICE_QUESTION = "What is the usual starting dose of warfarin?"
 ASK_QUESTION = "Does clarithromycin interact with warfarin?"
@@ -76,28 +76,24 @@ SHOWN_WAIT = 2.5
 SCENES = ["title", "architecture", "voice", "ask", "scribe", "audit", "results", "end"]
 
 NARRATION = {
-    "title": "This is ClinScribe, a voice-first clinical copilot. It drafts consultation notes, "
-    "answers clinical questions with cited evidence, and never writes to the patient record "
-    "without a doctor's approval. Everything in this video runs locally, on synthetic and public "
-    "data.",
-    "architecture": "Speech becomes a transcript, and the transcript is de-identified before any "
-    "model sees it. A LangGraph agent retrieves guideline passages and drug facts through MCP "
-    "tools. Every model call goes through one LiteLLM gateway with failover, and guardrails check "
-    "each answer before the doctor sees it.",
-    "voice_intro": "First, voice. A doctor asks a question out loud. The doctor's voice here is "
-    "synthetic, because a script made this recording, but every step after it runs live: "
-    "Deepgram's medical speech model, ClinScribe's Ask agent, and Cartesia's text to speech.",
-    "voice_outro": "The spoken reply is the same de-identified, cited and guardrail-checked answer "
-    "that the screen shows. Over thirty questions, time to first audio misses its one and a half "
-    "second budget; the cited answer is the bottleneck.",
+    "title": "This is ClinScribe, a voice-first clinical copilot. It drafts notes, answers "
+    "clinical questions with cited evidence, and never writes to the record without a doctor's "
+    "approval. All data here is synthetic or public.",
+    "architecture": "Speech becomes a transcript, de-identified before any model sees it. A "
+    "LangGraph agent retrieves evidence through MCP tools, every model call goes through one "
+    "gateway, and guardrails check each answer.",
+    "voice_intro": "First, voice. The doctor's voice here is synthetic, because a script made "
+    "this recording, but every step after it runs live: speech recognition, the Ask agent and "
+    "text to speech.",
+    "voice_outro": "The reply is the same cited, guardrail-checked answer the screen shows. "
+    "Time to first audio still misses its one and a half second budget.",
     "ask_intro": "The same Ask agent in the review screen. A drug interaction question takes the "
     "agentic path: it grades the retrieved passages, rewrites the query when they are weak, and "
     "adds interaction facts from the DDInter drug graph.",
     "ask_answer": "Every sentence cites a source passage, and the passages can be opened and "
     "checked. When the evidence is missing, the agent abstains instead of guessing.",
-    "scribe_intro": "Scribe mode listens to the consultation and never speaks. This is a "
-    "role-played consultation from the PriMock57 dataset, with real voices. Deepgram's medical "
-    "model transcribes it live and tells the two speakers apart.",
+    "scribe_intro": "Scribe mode listens and never speaks. This is a role-played consultation "
+    "from the PriMock57 dataset, with real voices, transcribed live with the speakers told apart.",
     "scribe_roles": "The doctor is the first main speaker to say a full sentence. Each turn is "
     "de-identified, so the name, birth date and address said at the start become surrogates "
     "before the note writer sees them. The draft then waits for the doctor's review.",
@@ -108,18 +104,16 @@ NARRATION = {
     "scribe_wrong": "To approve, the doctor confirms two patient identifiers. Here the family name "
     "is wrong.",
     "scribe_refused": "So the FHIR server refuses the write, and the refusal is recorded in the "
-    "audit log.",
-    "scribe_retry": "The same recording is drafted again, and this time the identifiers are right.",
+    "audit log. The draft stays open, with three attempts in all.",
+    "scribe_retry": "The doctor corrects the family name and approves again.",
     "scribe_saved": "The approval token is signed for this exact note and this patient, so the "
     "write goes through. The note is now a FHIR Document Reference.",
-    "audit": "An administrator sees the audit trail: the questions, the drafts, the refused write "
-    "and the approved one, with the model and prompt version behind each. The rows are "
-    "hash-chained, so tampering is detectable.",
-    "results": "Every claim is measured. Hybrid search with ColBERT reranking and contextual "
-    "chunks lifts recall at ten from 0.81 to 0.91, and answer correctness from 0.76 to 0.91. The "
-    "Scribe gives 98 percent of words to the right speaker on six recorded consultations. The "
-    "red-team suite passes 63 of 63 cases, the seeded leak test finds no patient data in any trace "
-    "or log, and answers keep working with every cloud provider down.",
+    "audit": "An administrator sees the audit trail: questions, drafts, the refused write and the "
+    "approved one, each with its model and prompt version, in a hash-chained log.",
+    "results": "Every claim is measured. Hybrid search with reranking and contextual chunks lifts "
+    "recall at ten from 0.81 to 0.91, and answer correctness from 0.76 to 0.91. Scribe gives 98 "
+    "percent of words to the right speaker. The red-team suite passes 63 of 63, and the leak test "
+    "finds no patient data in any trace or log.",
     "end": "ClinScribe is designed for HIPAA, GDPR and the EU AI Act, not certified for them, and "
     "every result comes from synthetic and public data. Thanks for watching.",
 }
@@ -226,11 +220,11 @@ TITLE_CARD = """<div class="dc"><h1>ClinScribe</h1>
 <div class="chips"><span>Scribe: consultation → SOAP draft → FHIR</span>
 <span>Ask: spoken question → cited answer</span><span>Lab: report PDF → flagged Observations</span></div>
 <p class="foot">Synthetic and public data only · recorded by a script against the running stack ·
-narrator and doctor voices are synthetic (Cartesia)</p></div>"""  # noqa: E501
+narrator and doctor voices are synthetic (Deepgram Aura)</p></div>"""  # noqa: E501
 
 ARCHITECTURE_CARD = """<div class="dc"><h2>How a question is answered</h2>
 <div class="flow">
-<div><b>Voice</b>LiveKit Agents · Deepgram nova-3-medical · Cartesia sonic-2</div><div class="arrow">→</div>
+<div><b>Voice</b>LiveKit Agents · Deepgram nova-3-medical · Deepgram Aura-2</div><div class="arrow">→</div>
 <div><b>De-identification</b>Presidio + rules: identifiers become surrogates before any model</div>
 <div class="arrow">→</div>
 <div><b>Agent (LangGraph)</b>router · fast or agentic retrieval · guardrails · doctor-approval interrupt</div>
@@ -243,14 +237,14 @@ an approval token signed for the exact content of every clinical write</div></di
 
 VOICE_CARD = """<div class="dc" style="width:1120px"><h2>Voice · cascaded pipeline</h2>
 <p class="muted" style="margin:0 0 10px">The steps of the LiveKit agent, run live; the doctor's voice is
-synthetic (Cartesia), streamed in by the recording script</p>
+synthetic (Deepgram Aura), streamed in by the recording script</p>
 <div class="vrow"><div class="vwho">Doctor<small>synthetic voice</small></div>
 <div class="vbox" id="vp-q"><span class="muted">…</span></div></div>
 <div class="vrow"><div class="vwho">Transcript<small>Deepgram nova-3-medical</small></div>
 <div class="vbox" id="vp-t"><span class="muted">listening</span></div></div>
 <div class="vrow"><div class="vwho">ClinScribe<small>/v1/ask: de-ID, retrieval, citations, guardrails</small></div>
 <div class="vbox" id="vp-a"><span class="muted">waiting for the question</span></div></div>
-<div class="vrow"><div class="vwho">Speech<small>Cartesia sonic-2</small></div>
+<div class="vrow"><div class="vwho">Speech<small>Deepgram Aura-2</small></div>
 <div class="vbox" id="vp-s"><span class="muted">—</span></div></div>
 <table class="vm" id="vp-m"></table></div>"""  # noqa: E501
 
@@ -270,7 +264,7 @@ doctor found 6 / 6 (role rule refined on this set), drafts 5 / 6</li>
 <li>Red-team suite <b>63 / 63</b>: unsourced doses, diagnosis wording, injections, unapproved writes</li>
 <li>Seeded PHI leak test: <b>0</b> values in 6 sinks (traces, logs, Langfuse, spend logs, audit)</li>
 <li>Turns succeed with <b>every cloud provider down</b> (local Ollama fallback)</li>
-<li class="miss">Voice time to first audio p50 3.5 s / p95 19.7 s vs a 1.5 s budget: <b>not met</b>
+<li class="miss">Voice time to first audio p50 4.3 s / p95 7.1 s vs a 1.5 s budget: <b>not met</b>
 (the cited answer is the bottleneck)</li></ul></div>"""  # noqa: E501
 
 END_CARD = """<div class="dc"><h1>ClinScribe</h1>
@@ -282,48 +276,37 @@ BARS = '<span class="bars"><i></i><i></i><i></i><i></i><i></i></span>'
 
 
 def synthesize(text: str, voice: str, client: httpx.Client, rate: int = RATE) -> bytes:
-    """Cartesia sonic-2 speech as 16-bit PCM, cached by voice, rate and text (reruns are free)."""
+    """Deepgram Aura-2 speech as 16-bit PCM, cached by voice, rate and text (reruns are free)."""
     key = f"{voice}|{text}" if rate == RATE else f"{voice}|{rate}|{text}"
     path = OUT / "tts" / f"{hashlib.sha256(key.encode()).hexdigest()[:20]}.pcm"
     if path.exists():
         return path.read_bytes()
-    response = client.post(
-        "https://api.cartesia.ai/tts/bytes",
-        json=_tts_body(text, voice, rate),
-        headers=_cartesia_headers(),
-        timeout=120,
-    )
+    response = client.post(**_speak(text, voice, rate), timeout=120)
     response.raise_for_status()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(response.content)
     return response.content
 
 
-def _tts_body(text: str, voice: str, rate: int = RATE) -> dict[str, Any]:
+def _speak(text: str, voice: str, rate: int = RATE) -> dict[str, Any]:
     return {
-        "model_id": "sonic-2",
-        "transcript": text,
-        "voice": {"mode": "id", "id": voice},
-        "output_format": {"container": "raw", "encoding": "pcm_s16le", "sample_rate": rate},
-        "language": "en",
+        "url": "https://api.deepgram.com/v1/speak",
+        "params": {
+            "model": voice,
+            "encoding": "linear16",
+            "sample_rate": rate,
+            "container": "none",
+        },
+        "json": {"text": text},
+        "headers": {"Authorization": f"Token {Settings().deepgram_api_key.get_secret_value()}"},
     }
-
-
-def _cartesia_headers() -> dict[str, str]:
-    return {"X-API-Key": Settings().cartesia_api_key.get_secret_value(), **CARTESIA}
 
 
 async def speak_live(text: str, client: httpx.AsyncClient) -> tuple[bytes, float]:
     """The agent's spoken answer, streamed: the audio and the wall time of its first byte."""
     audio = bytearray()
     first = 0.0
-    async with client.stream(
-        "POST",
-        "https://api.cartesia.ai/tts/bytes",
-        json=_tts_body(text, AGENT),
-        headers=_cartesia_headers(),
-        timeout=60,
-    ) as response:
+    async with client.stream("POST", **_speak(text, AGENT), timeout=60) as response:
         response.raise_for_status()
         async for chunk in response.aiter_bytes():
             if chunk and not first:
@@ -644,14 +627,16 @@ async def open_waiting(rec: Recorder, draft_id: str, first: bool) -> None:
     await page.locator(".review").wait_for(timeout=30_000)
 
 
-async def approve(rec: Recorder, family: str) -> str:
+async def approve(rec: Recorder, family: str, expect: str) -> str:
+    """Type the two identifiers and approve; `expect` is the message to wait for: the refusal shown
+    in the still-open review, or the saved note."""
     page = rec.page
     await rec.scroll_to(page.locator(".review"))
     await rec.type(page.locator("input[placeholder^='birth date']"), PATIENT["birth_date"])
     await rec.type(page.locator("input[placeholder='family name']"), family)
     await rec.settle()
     await rec.click(page.locator(".review button", has_text="Approve"))
-    result = page.locator("p.ok, p.warn, p.error").first
+    result = page.locator(f"{expect}, p.error").first
     await rec.wait("Checking the identifiers and writing", result.wait_for(timeout=120_000))
     await rec.scroll_to(result)
     return str(await result.inner_text())
@@ -727,17 +712,12 @@ async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
         await rec.scroll_to(statements.nth(index))
         await asyncio.sleep(0.3)
     await rec.narrate("scribe_wrong")
-    refused = await approve(rec, PATIENT["wrong"])
+    refused = await approve(rec, PATIENT["wrong"], ".review p.warn")
     if "refused" not in refused:
         raise RuntimeError(f"expected a refused write, got: {refused}")
     await rec.narrate("scribe_refused")
     await rec.narrate("scribe_retry")
-    await rec.settle()
-    again = await rec.wait(
-        "Writing the draft", asyncio.to_thread(post_draft, transcript, PATIENT["id"], token)
-    )
-    await open_waiting(rec, again["draft_id"], first=False)
-    saved = await approve(rec, PATIENT["family"])
+    saved = await approve(rec, PATIENT["family"], "p.ok")
     if not saved.startswith("Saved to FHIR"):
         raise RuntimeError(f"approved write failed: {saved}")
     rec.measured["scribe"] = {"refused": refused, "saved": saved}
@@ -782,7 +762,7 @@ def assemble(rec: Recorder, stopped: float) -> Path:
         out.setnchannels(1)
         out.setsampwidth(2)
         out.setframerate(RATE)
-        headroom = track * 0.89  # -1 dB: Cartesia clips peak at full scale
+        headroom = track * 0.89  # -1 dB: synthetic speech peaks near full scale
         out.writeframes(np.clip(headroom, -32768, 32767).astype("<i2").tobytes())
 
     video = OUT / "clinscribe_demo.mp4"

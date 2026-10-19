@@ -1,12 +1,15 @@
 """Cascaded voice latency per stage (Phase 4; SPEC section 4: TTFA and turn time, p50/p95).
 
 For N golden questions, one turn each, measured stage by stage with the production providers:
-1. question audio: Cartesia TTS (16 kHz PCM), standing in for the doctor's voice;
-2. STT final: the audio is streamed to Deepgram live (nova-3) at real-time pace; latency = from the
+1. question audio: synthetic speech (16 kHz PCM; Cartesia, cached since 2026-10-14), standing in
+   for the doctor's voice;
+2. STT final: the audio is streamed to Deepgram live (nova-3-medical, as the agent) at real-time
+   pace; latency = from the
    last audio frame to the final transcript (includes Deepgram's 300 ms endpointing, the turn end);
 3. Ask: the transcript goes to `/v1/ask` (de-ID, graph, retrieval, cited answer, guardrails); the
    answer is not streamed, so this is the time to the whole answer;
-4. TTS first byte: Cartesia streaming synthesis of the answer's first sentence.
+4. TTS first byte: Deepgram Aura-2 streaming synthesis of the answer's first sentence, the agent's
+   voice (ADR-0013; Cartesia sonic-2 until 2026-10-18).
 TTFA per turn = STT final + Ask + TTS first byte (network included; turn-detection beyond the
 endpointing and the WebRTC hop are not in it). Turn time adds the full spoken answer duration.
 Each stage is also written as a span-like record (evals/reports/voice/latency_turns.jsonl).
@@ -38,29 +41,23 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORTS = ROOT / "evals" / "reports" / "voice"
 API = "http://127.0.0.1:8000"
 RATE = 16_000
-VOICE = "47c38ca4-5f35-497b-b1a3-415245fb35e1"  # Cartesia "Daniel - Modern Assistant"
-CARTESIA = {"Cartesia-Version": "2025-04-16"}
+VOICE = "aura-2-orpheus-en"  # the agent's voice (voice/agent_cascaded.py)
+DOCTOR = "aura-2-thalia-en"  # only for questions missing from the audio cache
 SEED = 4
 
 
-def tts(text: str, client: httpx.Client) -> tuple[bytes, float]:
-    """PCM bytes and time to the first byte (ms)."""
-    key = Settings().cartesia_api_key.get_secret_value()
-    body = {
-        "model_id": "sonic-2",
-        "transcript": text,
-        "voice": {"mode": "id", "id": VOICE},
-        "output_format": {"container": "raw", "encoding": "pcm_s16le", "sample_rate": RATE},
-        "language": "en",
-    }
+def tts(text: str, client: httpx.Client, voice: str = VOICE) -> tuple[bytes, float]:
+    """PCM bytes and time to the first byte (ms), Deepgram Aura-2 streaming."""
+    key = Settings().deepgram_api_key.get_secret_value()
     started = time.perf_counter()
     first = None
     audio = bytearray()
     with client.stream(
         "POST",
-        "https://api.cartesia.ai/tts/bytes",
-        json=body,
-        headers={"X-API-Key": key, **CARTESIA},
+        "https://api.deepgram.com/v1/speak",
+        params={"model": voice, "encoding": "linear16", "sample_rate": RATE, "container": "none"},
+        json={"text": text},
+        headers={"Authorization": f"Token {key}"},
         timeout=60,
     ) as response:
         response.raise_for_status()
@@ -76,7 +73,7 @@ async def stt(audio: bytes) -> tuple[str, float, bool]:
     Deepgram ended the utterance early (a pause inside the question: a false cut-off at 300 ms)."""
     key = Settings().deepgram_api_key.get_secret_value()
     url = (
-        "wss://api.deepgram.com/v1/listen?model=nova-3&encoding=linear16"
+        "wss://api.deepgram.com/v1/listen?model=nova-3-medical&encoding=linear16"
         f"&sample_rate={RATE}&channels=1&endpointing=300&interim_results=false"
     )
     frame = RATE * 2 // 50  # 20 ms of 16-bit audio
@@ -139,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         for n, question in enumerate(warm):
             wav = cache / f"{hashlib.sha256(question.encode()).hexdigest()[:16]}.pcm"
             if not wav.exists():
-                wav.write_bytes(tts(question, client)[0])
+                wav.write_bytes(tts(question, client, DOCTOR)[0])
             audio = wav.read_bytes()
             try:
                 transcript, stt_ms, early = asyncio.run(stt(audio))
@@ -197,8 +194,9 @@ def main(argv: list[str] | None = None) -> int:
         "# Cascaded voice latency per stage (Phase 4)",
         "",
         f"{len(ok)} of {len(turns)} turns answered (golden questions, seed {SEED}); production",
-        "providers: Deepgram nova-3 streaming (endpointing 300 ms), the ClinScribe Ask graph",
-        "(Groq gpt-oss-20b answer, CPU retrieval), Cartesia sonic-2 streaming TTS.",
+        "providers: Deepgram nova-3-medical streaming (endpointing 300 ms), the ClinScribe Ask",
+        "graph (Groq gpt-oss-20b answer, CPU retrieval), Deepgram Aura-2 streaming TTS",
+        f"({VOICE}; ADR-0013). Measured {time.strftime('%Y-%m-%d')}.",
         "Budget (SPEC §1):TTFA p95 < 1,500 ms, turn time p95 < 2,500 ms.",
         "",
         "| stage | p50 ms | p95 ms |",

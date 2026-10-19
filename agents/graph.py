@@ -33,6 +33,7 @@ from agents.fhir_docs import note_to_resource
 from agents.guardrails import Guardrails
 from agents.prompts import Prompt, load
 from agents.schemas import (
+    IDENTITY_MISMATCH,
     AnswerSentence,
     AskAnswer,
     CheckInteractionsInput,
@@ -147,8 +148,12 @@ class State(TypedDict, total=False):
     attempts: int
     feedback: str
     review: dict[str, Any]
+    identity_attempts: int
     result: dict[str, Any]
     events: list[str]
+
+
+MAX_IDENTITY_ATTEMPTS = 3  # identifier entries per draft; more would allow guessing birth dates
 
 
 def route_question(question: str) -> Literal["fast", "agentic"]:
@@ -391,14 +396,16 @@ class Agents:
 
     def hitl_review(self, state: State) -> State:
         note = SoapNote.model_validate(state["note"])
-        review = interrupt(
-            {
-                "draft": note.model_dump(),
-                "unsupported": [s.model_dump() for s in note.unsupported()],
-                "removed": state.get("violations", []),
-            }
-        )
-        return {"review": review}
+        payload: dict[str, Any] = {
+            "draft": note.model_dump(),
+            "unsupported": [s.model_dump() for s in note.unsupported()],
+            "removed": state.get("violations", []),
+        }
+        last = state.get("result") or {}
+        if last.get("retry"):  # back after a refused write: say why, and how many tries are left
+            payload["refused"] = last["reason"]
+            payload["attempts_left"] = MAX_IDENTITY_ATTEMPTS - state.get("identity_attempts", 0)
+        return {"review": interrupt(payload)}
 
     def commit(self, state: State) -> State:
         decision = ReviewDecision.model_validate(state["review"]["decision"])
@@ -413,7 +420,13 @@ class Agents:
         try:
             written = self.tools.write(request)
         except ToolError as exc:
-            return {"result": {"status": "write_refused", "reason": str(exc)}}
+            # wrong identifiers: back to the doctor, at most MAX_IDENTITY_ATTEMPTS times in all
+            # (every attempt is refused and audited by fhir-mcp); any other refusal ends the draft
+            mismatch = IDENTITY_MISMATCH in str(exc)
+            attempts = state.get("identity_attempts", 0) + int(mismatch)
+            retry = mismatch and attempts < MAX_IDENTITY_ATTEMPTS
+            result = {"status": "write_refused", "reason": str(exc), "retry": retry}
+            return {"result": result, "identity_attempts": attempts}
         edits = None
         if decision.edited is not None:
             edits = {"before": state["note"], "after": decision.edited.model_dump()}
@@ -453,5 +466,9 @@ class Agents:
             "guardrail_note", self.after_guardrail_note, ["note_writer", "hitl_review", END]
         )
         graph.add_edge("hitl_review", "commit")
-        graph.add_edge("commit", END)
+        graph.add_conditional_edges(
+            "commit",
+            lambda s: "hitl_review" if s["result"].get("retry") else END,
+            ["hitl_review", END],
+        )
         return graph.compile(checkpointer=checkpointer)

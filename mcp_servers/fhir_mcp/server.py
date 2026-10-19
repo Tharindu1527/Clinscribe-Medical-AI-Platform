@@ -28,6 +28,7 @@ from pypdf.errors import PdfReadError
 from agents.approval import ApprovalError, verify
 from agents.lab.parser import identity_matches, parse, to_observation
 from agents.schemas import (
+    IDENTITY_MISMATCH,
     CodedItem,
     GetPatientContextInput,
     LabParseResult,
@@ -244,7 +245,7 @@ def build_server(
         if not identifiers_match(
             store.read("Patient", request.identifiers.patient_id), request.identifiers
         ):
-            raise refuse("patient identifiers do not match the record")
+            raise refuse(IDENTITY_MISMATCH)
         if not about_patient(request.resource, request.identifiers.patient_id):
             raise refuse("resource is not about the identified patient")
         resource = dict(request.resource)

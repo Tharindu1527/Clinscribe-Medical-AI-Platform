@@ -263,7 +263,10 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
             "edited": body.decision == "edit",
         },
     )
-    return {"draft_id": draft_id, "result": result}
+    response: dict[str, Any] = {"draft_id": draft_id, "result": result}
+    if pending := out.get("__interrupt__"):  # wrong identifiers: the draft is still open
+        response |= {"awaiting_review": True, "attempts_left": pending[0].value["attempts_left"]}
+    return response
 
 
 @router.get("/audit")

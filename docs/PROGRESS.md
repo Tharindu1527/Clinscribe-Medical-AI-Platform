@@ -756,11 +756,47 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   console echo cancellation came from the OS: it is LiveKit's console (WebRTC APM); corrected.
   **Cartesia's free-tier credit ran out on 2026-10-18 (HTTP 402)**: the eval uses Deepgram Aura voices;
   `just voice` speaks with Cartesia, so spoken answers fail until the credit resets.
+- 2026-10-19: **The voice agent speaks with Deepgram Aura-2** (`aura-2-orpheus-en`; you asked;
+  ADR-0013, proposed). The LiveKit Cartesia plugin is removed from `voice/` (lock: only that package
+  left). The voice smoke test (gate 4) now also synthesizes the answer with the production voice
+  (6.6 s of audio), so a TTS vendor that stops working fails the gate. The latency eval moved to Aura
+  for the answer and to nova-3-medical (production; it measured nova-3 before); question audio is the
+  same cached Cartesia speech. **Re-measured** (`evals/reports/voice/latency.md`, 29/30 answered):
+  STT final p50 730 / p95 1,910 ms, Ask 2,113 / 4,856, TTS first byte 1,413 / 1,550 (Cartesia was
+  812 / 1,301), **TTFA 4,296 / 7,093 ms** (budget 1,500: not met; Ask's agentic tail was shorter than
+  on 2026-10-14). The demo script uses Aura for the narrator, the doctor's question and the answer.
+  **Found: the one failed turn** (502 after 140 s) had every cloud fallback rate-limited and then the
+  local model timed out: the router's 60 s timeout is shorter than a cold Ollama load (~75 s). The gate
+  never saw this because its previous test leaves the model warm. Fixed: `timeout: 180` for
+  `clinscribe-fallback-local` (confirmed in LiteLLM's model info); the cloud-down gate test now unloads
+  the model first and uses a 300 s client. **Not run yet: C: had 0.18 GB free** (a model load grows the
+  C: page file by ~1 GB; this machine blue-screened once at low C: space), so the cold-start test and
+  the demo re-recording wait for space.
+- 2026-10-19: **C: space recovered** (you asked): regenerable caches moved, not deleted, to
+  `D:\devcache\c-cleanup-quarantine\2026-10-19\` (15.6 GB: NVIDIA DirectX shader cache 8.9 GB, Yarn
+  package cache 6.3 GB, crash dumps 0.2 GB, temp files older than 2 days 0.2 GB; files in use were
+  skipped); C: 0.18 → 18.1 GB free (11.5 GB after Docker started and the model loaded: page file).
+  Programs, browser profiles and app data untouched. Delete the quarantine folder when nothing
+  misses it. **Cold-start failover test PASS**: model unloaded, every cloud provider down, the turn
+  served by the local model in 126 s (it timed out at 60 s before the fix). PR #25 opened from the
+  built-in browser (CI green); merging there is blocked by the browser (`ERR_BLOCKED_BY_CLIENT` on
+  GitHub's merge box), so the merge click is yours.
+- 2026-10-19: **A refused write for wrong identifiers keeps the draft open** (was: the draft ended, so
+  a typo in the family name meant drafting again). `commit` returns to the doctor's review on
+  fhir-mcp's identifier refusal only (`agents.schemas.IDENTITY_MISMATCH`, shared with fhir-mcp), at
+  most 3 attempts per draft (`MAX_IDENTITY_ATTEMPTS`: more would allow guessing birth dates); every
+  attempt is still refused and audited by fhir-mcp; any other refusal (bad token, wrong resource)
+  ends the draft as before. The review payload carries the refusal and the attempts left; the API
+  answers `awaiting_review` + `attempts_left`; the UI keeps the identifier fields open and shows the
+  reason. Unit tests +3 (corrected attempt writes; cap at 3; other refusals end), graph tests 14/14,
+  red-team 63/63. **Demo video re-recorded** with the Deepgram Aura voices and this flow (4 min 50 s;
+  the narration was tightened because the Aura narrator reads at ~125 words per minute and the first
+  take ran 5 min 31 s): wrong family name refused, the draft stays open ("2 attempts left"), the
+  name is corrected, `Saved to FHIR: DocumentReference/62852`. Upload it in place of the earlier one.
 
 ## Next
-- **You: review ADR-0012** (turn detection: punctuation off). **Cartesia credit is used up** for this
-  month: `just voice` cannot speak until it resets (or add an ElevenLabs/Cartesia key; switching the
-  agent's voice to Deepgram Aura is a one-line change if you prefer).
+- **You: merge PR #25** (CI green; the built-in browser blocks GitHub's merge button for me).
+- **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
@@ -770,8 +806,6 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   link** for `docs/presentation/demo_video.md`; open the PR for `fix-voice-console`.
 - Optional: try `just scribe 1617` with two people at one microphone (the eval mixed two close-talk
   microphones; a room is harder).
-- Open (product): a write refused for wrong identifiers ends the draft, so a typo means drafting
-  again; keeping the draft open for corrected identifiers (still audited) would be kinder.
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
   Optional: a throwaway PR that breaks the BM25 tokenizer, to see CI go red on GitHub (shown locally).
 - You (recommended after the 0x1A blue screen): run Windows Memory Diagnostic (`mdsched.exe`).
