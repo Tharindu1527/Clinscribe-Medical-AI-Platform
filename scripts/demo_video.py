@@ -67,7 +67,7 @@ PATIENT = {"id": "1617", "birth_date": "1986-03-18", "family": "Koepp521", "wron
 # Scribe scene: a PriMock57 role-played consultation (CC BY 4.0; real voices, the doctor and patient
 # channels mixed). Two synthetic TTS voices were tried first: diarization did not tell them apart.
 CONSULTATION = "day3_consultation02"
-HEAD_S = 32.0  # heard at real time (name, birth date, address); the rest streams faster
+HEAD_S = 30.0  # heard at real time (name, birth date, address); the rest streams faster
 REST_SPEED = 2.0  # Deepgram reads a faster stream at ~2x anyway; faster dropped twice
 VOICE_QUESTION = "What is the usual starting dose of warfarin?"
 ASK_QUESTION = "Does clarithromycin interact with warfarin?"
@@ -76,28 +76,24 @@ SHOWN_WAIT = 2.5
 SCENES = ["title", "architecture", "voice", "ask", "scribe", "audit", "results", "end"]
 
 NARRATION = {
-    "title": "This is ClinScribe, a voice-first clinical copilot. It drafts consultation notes, "
-    "answers clinical questions with cited evidence, and never writes to the patient record "
-    "without a doctor's approval. Everything in this video runs locally, on synthetic and public "
-    "data.",
-    "architecture": "Speech becomes a transcript, and the transcript is de-identified before any "
-    "model sees it. A LangGraph agent retrieves guideline passages and drug facts through MCP "
-    "tools. Every model call goes through one LiteLLM gateway with failover, and guardrails check "
-    "each answer before the doctor sees it.",
-    "voice_intro": "First, voice. A doctor asks a question out loud. The doctor's voice here is "
-    "synthetic, because a script made this recording, but every step after it runs live: "
-    "Deepgram's medical speech model, ClinScribe's Ask agent, and Deepgram's text to speech.",
-    "voice_outro": "The spoken reply is the same de-identified, cited and guardrail-checked answer "
-    "that the screen shows. Over thirty questions, time to first audio misses its one and a half "
-    "second budget; the cited answer is the bottleneck.",
+    "title": "This is ClinScribe, a voice-first clinical copilot. It drafts notes, answers "
+    "clinical questions with cited evidence, and never writes to the record without a doctor's "
+    "approval. All data here is synthetic or public.",
+    "architecture": "Speech becomes a transcript, de-identified before any model sees it. A "
+    "LangGraph agent retrieves evidence through MCP tools, every model call goes through one "
+    "gateway, and guardrails check each answer.",
+    "voice_intro": "First, voice. The doctor's voice here is synthetic, because a script made "
+    "this recording, but every step after it runs live: speech recognition, the Ask agent and "
+    "text to speech.",
+    "voice_outro": "The reply is the same cited, guardrail-checked answer the screen shows. "
+    "Time to first audio still misses its one and a half second budget.",
     "ask_intro": "The same Ask agent in the review screen. A drug interaction question takes the "
     "agentic path: it grades the retrieved passages, rewrites the query when they are weak, and "
     "adds interaction facts from the DDInter drug graph.",
     "ask_answer": "Every sentence cites a source passage, and the passages can be opened and "
     "checked. When the evidence is missing, the agent abstains instead of guessing.",
-    "scribe_intro": "Scribe mode listens to the consultation and never speaks. This is a "
-    "role-played consultation from the PriMock57 dataset, with real voices. Deepgram's medical "
-    "model transcribes it live and tells the two speakers apart.",
+    "scribe_intro": "Scribe mode listens and never speaks. This is a role-played consultation "
+    "from the PriMock57 dataset, with real voices, transcribed live with the speakers told apart.",
     "scribe_roles": "The doctor is the first main speaker to say a full sentence. Each turn is "
     "de-identified, so the name, birth date and address said at the start become surrogates "
     "before the note writer sees them. The draft then waits for the doctor's review.",
@@ -108,18 +104,16 @@ NARRATION = {
     "scribe_wrong": "To approve, the doctor confirms two patient identifiers. Here the family name "
     "is wrong.",
     "scribe_refused": "So the FHIR server refuses the write, and the refusal is recorded in the "
-    "audit log.",
-    "scribe_retry": "The same recording is drafted again, and this time the identifiers are right.",
+    "audit log. The draft stays open, with three attempts in all.",
+    "scribe_retry": "The doctor corrects the family name and approves again.",
     "scribe_saved": "The approval token is signed for this exact note and this patient, so the "
     "write goes through. The note is now a FHIR Document Reference.",
-    "audit": "An administrator sees the audit trail: the questions, the drafts, the refused write "
-    "and the approved one, with the model and prompt version behind each. The rows are "
-    "hash-chained, so tampering is detectable.",
-    "results": "Every claim is measured. Hybrid search with ColBERT reranking and contextual "
-    "chunks lifts recall at ten from 0.81 to 0.91, and answer correctness from 0.76 to 0.91. The "
-    "Scribe gives 98 percent of words to the right speaker on six recorded consultations. The "
-    "red-team suite passes 63 of 63 cases, the seeded leak test finds no patient data in any trace "
-    "or log, and answers keep working with every cloud provider down.",
+    "audit": "An administrator sees the audit trail: questions, drafts, the refused write and the "
+    "approved one, each with its model and prompt version, in a hash-chained log.",
+    "results": "Every claim is measured. Hybrid search with reranking and contextual chunks lifts "
+    "recall at ten from 0.81 to 0.91, and answer correctness from 0.76 to 0.91. Scribe gives 98 "
+    "percent of words to the right speaker. The red-team suite passes 63 of 63, and the leak test "
+    "finds no patient data in any trace or log.",
     "end": "ClinScribe is designed for HIPAA, GDPR and the EU AI Act, not certified for them, and "
     "every result comes from synthetic and public data. Thanks for watching.",
 }
@@ -633,14 +627,16 @@ async def open_waiting(rec: Recorder, draft_id: str, first: bool) -> None:
     await page.locator(".review").wait_for(timeout=30_000)
 
 
-async def approve(rec: Recorder, family: str) -> str:
+async def approve(rec: Recorder, family: str, expect: str) -> str:
+    """Type the two identifiers and approve; `expect` is the message to wait for: the refusal shown
+    in the still-open review, or the saved note."""
     page = rec.page
     await rec.scroll_to(page.locator(".review"))
     await rec.type(page.locator("input[placeholder^='birth date']"), PATIENT["birth_date"])
     await rec.type(page.locator("input[placeholder='family name']"), family)
     await rec.settle()
     await rec.click(page.locator(".review button", has_text="Approve"))
-    result = page.locator("p.ok, p.warn, p.error").first
+    result = page.locator(f"{expect}, p.error").first
     await rec.wait("Checking the identifiers and writing", result.wait_for(timeout=120_000))
     await rec.scroll_to(result)
     return str(await result.inner_text())
@@ -716,17 +712,12 @@ async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
         await rec.scroll_to(statements.nth(index))
         await asyncio.sleep(0.3)
     await rec.narrate("scribe_wrong")
-    refused = await approve(rec, PATIENT["wrong"])
+    refused = await approve(rec, PATIENT["wrong"], ".review p.warn")
     if "refused" not in refused:
         raise RuntimeError(f"expected a refused write, got: {refused}")
     await rec.narrate("scribe_refused")
     await rec.narrate("scribe_retry")
-    await rec.settle()
-    again = await rec.wait(
-        "Writing the draft", asyncio.to_thread(post_draft, transcript, PATIENT["id"], token)
-    )
-    await open_waiting(rec, again["draft_id"], first=False)
-    saved = await approve(rec, PATIENT["family"])
+    saved = await approve(rec, PATIENT["family"], "p.ok")
     if not saved.startswith("Saved to FHIR"):
         raise RuntimeError(f"approved write failed: {saved}")
     rec.measured["scribe"] = {"refused": refused, "saved": saved}
