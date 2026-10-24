@@ -140,7 +140,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ✅ 2026-10-14: 8 dialogues: 6 drafts, 5 clean on the first attempt; 2 long ones truncated |
 | 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ✅ 2026-10-13: 6/6 |
 | 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ✅ 2026-10-13: fhir-mcp checks (task 2) + API signs the token for the exact resource at review; live approve → write |
-| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ✅ 2026-10-13: 6/6 (401 no/forged/expired token, 403 by role) |
+| 9 | Auth + RBAC (doctor, admin, operator); `/reidentify` doctor-only | Access tests per role | ✅ 2026-10-13: 6/6 (401 no/forged/expired token, 403 by role); `/reidentify` itself was not built then: added 2026-10-24 (ADR-0015) |
 | 10 | Review UI (React + Vite): drafts, unsupported statements highlighted, approve / edit / reject; edits saved as before/after pairs | End-to-end test; screenshots | ✅ 2026-10-13: driven in the browser against the live stack: draft → approve → DocumentReference/59139 |
 | 11 | Red-team set (~60): unsourced doses, diagnosis wording, injections in documents/PDFs, PHI in output | `just eval redteam` 100% (cached) | ✅ 2026-10-13: 63/63; negative control 23/63 |
 | 12 | ADRs: orchestrator (LangGraph vs Pydantic AI vs OpenAI Agents SDK on one task, isolated project) and A2A | ADRs with numbers | ✅ 2026-10-14: ADR-0008 (LangGraph; footprint + approval mechanisms measured, same-task build not done), ADR-0009 (A2A at the edge only) — proposed |
@@ -835,10 +835,29 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   A first attempt on 2026-10-19 stopped when the internet dropped (`uv run` re-checks the spaCy wheel
   URL; `UV_NO_SYNC=1` avoids it).
 
+- 2026-10-24: **Re-identification for the doctor's screen and the approved record** (ADR-0015,
+  proposed). SPEC §8 asks for it; it existed only as a library function, and PROGRESS had listed a
+  doctor-only `/reidentify` as done in Phase 3 (corrected above). Doctors therefore reviewed
+  "PERSON_1 ... LOCATION_1", and approved notes were saved to FHIR in surrogate form (dates lost,
+  readable only through the mapping). Now: `POST /reidentify` on the de-ID service, callable only
+  with `DEID_REIDENTIFY_KEY` (held by the API and the de-ID service; 403 otherwise, checked live);
+  the API serves originals to doctors on request (`?identified=true` on Ask, draft creation and the
+  draft view) and audits each disclosure as `phi.reidentify` (counts only); on approval it
+  re-identifies the note and signs the token over that exact resource, so the record holds what the
+  doctor read; edits typed on the identified view are de-identified again before they re-enter the
+  graph, so edit pairs stay PHI-free. UI: originals by default, "Show what the AI saw" toggle
+  (surrogates, read-only). Voice answers stay surrogate-only (the TTS vendor would receive
+  originals). Checked in the browser against the live stack: a synthetic name and town shown to the
+  doctor, `LOCATION_1` / `PERSON_1` in the AI view, the doctor's edit saved as
+  `DocumentReference/63553` with the real name, `phi.reidentify` in the audit log; then 0
+  occurrences of either value in 70 MB of container logs and the trace export. Tests: unit 8
+  (route key checks, client, API flow with a scripted model), live 3/3 (new: model sees a
+  surrogate, doctor the name, record the doctor's words, edit pair none).
+
 ## Next
-- **You: review ADR-0014** (de-ID tagger behind `DEID_NER=tagger`; spaCy stays the default).
-- **You: open the PR for `deid-lora`** (merges cleanly into `main`; the built-in browser is signed
-  out of GitHub).
+- **You: review ADR-0015** (re-identification for the doctor's screen and the approved record) and
+  **ADR-0014** (de-ID tagger behind `DEID_NER=tagger`).
+- **You: open the PR for `reidentify-for-doctor`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
@@ -879,8 +898,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 
 - Pending drafts live in LangGraph's in-memory checkpointer, so an API restart loses drafts awaiting review.
   A durable checkpointer (Postgres) is the fix when it matters; FHIR writes and the audit log are unaffected.
-- Drafts and answers are shown in surrogate form (PATIENT_1); re-identification on the doctor's screen needs
-  the deid `/reidentify` route behind the new doctor-only auth.
+- ~~Drafts and answers are shown in surrogate form (PATIENT_1)~~: resolved 2026-10-24 (ADR-0015): doctors
+  see the originals, the approved record holds them, models, logs and traces stay surrogate-only.
 
 - Langfuse free tier: resolved for the future on 2026-10-13 (collector filter + `no-log` for bulk calls); the
   current month stays suspended until a new organisation key or the reset.

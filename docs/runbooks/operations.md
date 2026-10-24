@@ -27,6 +27,8 @@ PowerShell; nothing below prints a secret.
      (a real deployment keeps old keys for verification).
    - `DEID_MAPPING_KEY`: existing surrogate mappings cannot be decrypted; rotate only with a
      re-encryption job (not built).
+   - `DEID_REIDENTIFY_KEY`: only the API and the de-ID service hold it; rotate like the plain keys
+     and restart both (`just up`), nothing else is affected (ADR-0015).
    - LiteLLM virtual keys: `just gateway-keys` re-registers them with their limits.
 3. Provider keys (Gemini, Groq, OpenRouter, Langfuse): paste the new value into `.env`, `just up`.
 
