@@ -1,11 +1,12 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-18 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-24 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
 **Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
-**Phase 5 — Lab + open models: COMPLETE (2026-10-14, `just gate 5` PASS)**; LoRA training is yours (Colab).
-**Phase 6 — Hardening: done; demo video recorded 2026-10-18 (upload pending)**.
+**Phase 5 — Lab + open models: COMPLETE (2026-10-14, `just gate 5` PASS)**; LoRA de-ID tagger trained
+(round 2) and adopted behind `DEID_NER=tagger` (2026-10-24, ADR-0014).
+**Phase 6 — Hardening: done; demo video re-recorded 2026-10-19 (upload pending)**.
 Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -156,7 +157,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 |---|---|
 | All-cloud-down failover to local Ollama (`just chaos cloud-down`) | ✅ live: turn served by `clinscribe-fallback-local` |
 | Lab mode: PDF → preliminary Observations, flags, confirm → final (`/v1/lab/*`, `parse_lab_report`) | ✅ 162/162 values, wrong-patient 20/20 |
-| LoRA fine-tune of the de-ID tagger (`finetune/`) | ◐ data generator + Colab notebook ready; training and integration are yours |
+| LoRA fine-tune of the de-ID tagger (`finetune/`) | ✅ trained on Colab (you); round 1 rejected, round 2 adopted behind `DEID_NER=tagger` (ADR-0014) |
 | Load test p50/p95 at 10 / 50 / 100 sessions (`evals/load`) | ✅ with before/after of the de-ID fix |
 | Three injected incidents + postmortems (`evals/incidents`, `docs/postmortems`) | ✅ outage (found and fixed a fallback gap), drift, latency |
 | Cost per consultation by model (`evals/llmops/cost_report.py`) | ✅ |
@@ -794,8 +795,50 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   take ran 5 min 31 s): wrong family name refused, the draft stays open ("2 attempts left"), the
   name is corrected, `Saved to FHIR: DocumentReference/62852`. Upload it in place of the earlier one.
 
+- 2026-10-19: **LoRA de-ID tagger, round 1** (you trained it on Colab; the install cell first failed on
+  `seqeval`, which no longer builds there: the notebook now computes the entity scores itself, equal
+  to seqeval on 300 random cases). `evals/privacy/lora_eval.py` compares spaCy, the tagger, and both,
+  through the same analyzer (`build_analyzer(spacy_ner=..., extra=...)`). The tagger's training
+  phrasings had been written after seeing held-out v1's misses, so new sets were frozen before any
+  model ran: held-out v2 and v3 (names/places) and PHI-free v2 (40 sentences). **Result
+  (`evals/reports/privacy/deid_lora_round1.md`): tagger recall 1.000 names and places on held-out v2
+  (spaCy 0.991 / 0.814), 0.978 / 1.000 on v3 (spaCy 1.000 / 0.840), but it altered 15/80 and 13/40
+  PHI-free sentences (spaCy 0 and 3)**: it tags capitalised sentence starts, acronyms and ward names,
+  because 9 of 12 round-1 templates start with a name and none was PHI-free. **Not adopted; the
+  service keeps spaCy.** Also found: spaCy alters 3 of the 40 new PHI-free sentences ("FEV1" and
+  "Bay 2" as places, "Sleeps"): its 0/80 was on the set its rules were tuned on. Not tuned now (that
+  would spend the new set). Round 2 data (`finetune/make_dataset.py`, default): 12 templates with
+  names away from the start, ~40% PHI-free clinical sentences from parts; fair sets for round 2 are
+  held-out v3 and PHI-free v2. Base model download: `distilbert-base-cased` (~260 MB, HF cache on D:);
+  `peft==0.21.2` only via `uv run --with` (not a project dependency unless adopted).
+
+- 2026-10-24: **LoRA de-ID tagger, round 2: adopted behind `DEID_NER=tagger` (ADR-0014, proposed).**
+  You trained round 2 on Colab. On the sets frozen before it was trained
+  (`evals/reports/privacy/deid_lora_round2.md`): names 90/90 and places 50/50 (spaCy 90/90 and
+  42/50), PHI-free sentences altered 1 of 40 (spaCy 3); the union of both models adds no recall and
+  keeps spaCy's over-redaction (4 of 40). `finetune/merge.py` merges the adapter into one model
+  (`data/finetune/deid_ner_tagger/`, SHA-256 in the ADR), so the service needs no peft;
+  `privacy/deid/tagger.py` is a Presidio recogniser that replaces spaCy's NER (context cues, the
+  clinical-term filter and every structured pattern unchanged). The local `.env` now runs it
+  (`DEID_NER=tagger` + the rag image and a 3.5 GiB limit through three Compose variables); code, CI
+  and a fresh clone default to spaCy (the model lives in git-ignored `data/`). Found and fixed
+  before adoption: (1) a span took the sentence's full stop ("Denver."), (2) a 200-word window past
+  the 512-token limit would have left the words after the cut unseen and labelled "O" (a leak); the
+  window now continues at the first word left out, tested with a fake tokenizer so CI covers it
+  without the model, and the old logic fails that test. As the configured service: `just eval
+  privacy` gate PASS (seeded 1.000 / 1.000, over-redaction 0 of 80, held-out v1 names 0.991 and
+  places 1.000 vs spaCy 0.973 / 0.850), p50 52 / p95 82 ms per snippet (spaCy ~19 ms). **Leak test
+  run `8697df2f`: gate b PASS**, 0 of 66 seed values reached the model. **Load** (warm, back to back:
+  tagger, spaCy, tagger): about 14% less throughput (5.3 → 4.1-4.9 req/s), +0.3-1.8 s at p50; de-ID
+  2.1-2.3 GiB vs 1.1; stack 5.9 GiB (`evals/reports/load/load_test.md`). The first load run straight
+  after a cold start looked much worse (p95 8.6 s at 10 sessions), which warm runs did not repeat.
+  A first attempt on 2026-10-19 stopped when the internet dropped (`uv run` re-checks the spaCy wheel
+  URL; `UV_NO_SYNC=1` avoids it).
+
 ## Next
-- **You: merge PR #25** (CI green; the built-in browser blocks GitHub's merge button for me).
+- **You: review ADR-0014** (de-ID tagger behind `DEID_NER=tagger`; spaCy stays the default).
+- **You: open the PR for `deid-lora`** (merges cleanly into `main`; the built-in browser is signed
+  out of GitHub).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
@@ -873,6 +916,9 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   optimistic (cues were designed on that set). Next steps: Phase 2 transcripts as a harder test, a new
   held-out set for any further tuning, and the Phase 5 fine-tuned NER. Known gap: an uncommon first name that
   is also a drug brand (e.g. "Allegra") is not redacted when it appears alone with no cue (ADR-0004).
+  **Update 2026-10-24:** the fine-tuned tagger (ADR-0014) finds every name and place on held-out v3
+  (frozen before round 2 was trained; v2 also, but round 2's data was written after seeing it);
+  spaCy rules stay the default. Real dictation is still the harder, untested case.
 - `/reidentify` HTTP route deferred to Phase 3 (needs authentication); re-identification exists as a library
   function with a round-trip test.
 

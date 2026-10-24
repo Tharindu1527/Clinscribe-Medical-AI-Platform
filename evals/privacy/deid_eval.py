@@ -25,11 +25,12 @@ from pydantic import SecretStr
 from config.settings import Settings
 from evals.privacy.clinical_negatives import SENTENCES
 from evals.privacy.corpus import HELDOUT_TEMPLATES, NER, STRUCTURED, TEMPLATES, build
-from privacy.deid.engine import SURROGATE_RE, Deidentifier, build_analyzer
+from privacy.deid.engine import SURROGATE_RE, Deidentifier, analyzer_for
 from privacy.deid.store import InMemoryStore, normalise
 
 REPORT_DIR = Path(__file__).resolve().parents[1] / "reports" / "privacy"
-REPORT_PREFIX = "deid_v1"  # one report per spaCy model: deid_v1_en_core_web_md.md, ..._lg.md
+# one report per name/place recogniser: deid_v1_en_core_web_md (spaCy), deid_v2_tagger (ADR-0014)
+REPORT_PREFIX = "deid_v1"
 RECALL_GATES = {"PERSON": 0.99, "LOCATION": 0.98, **{t: 1.0 for t in STRUCTURED}}
 MAX_OVER_REDACTION = 0.01
 # Honorifics and degrees are not identifiers: "Mrs. PERSON_1" or "PERSON_1 DVM" is not a leak
@@ -61,8 +62,9 @@ def leaked(entity: str, value: str, output: str) -> bool:
 
 def main() -> int:
     settings = Settings()
+    model = settings.deid_spacy_model
     deidentifier = Deidentifier(
-        build_analyzer(settings.deid_spacy_model),
+        analyzer_for(settings.deid_ner, settings.deid_spacy_model, settings.deid_tagger_path),
         InMemoryStore(SecretStr(Fernet.generate_key().decode())),  # throwaway; nothing persisted
     )
 
@@ -130,6 +132,7 @@ def main() -> int:
 
     summary = {
         "spacy_model": settings.deid_spacy_model,
+        "ner": settings.deid_ner,
         "snippets": len(corpus),
         "seed": 42,
         "latency_ms_p50": round(p50, 1),
@@ -145,13 +148,13 @@ def main() -> int:
         "failed": failed,
     }
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    (REPORT_DIR / f"{REPORT_PREFIX}_{settings.deid_spacy_model}.json").write_text(
-        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
-    )
+    name = "deid_v2_tagger" if settings.deid_ner == "tagger" else f"{REPORT_PREFIX}_{model}"
+    (REPORT_DIR / f"{name}.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     lines = [
-        "# De-ID v1: recall and over-redaction (synthetic data)",
+        f"# De-ID ({settings.deid_ner}): recall and over-redaction (synthetic data)",
         "",
-        f"Model `{settings.deid_spacy_model}`; {len(corpus)} seeded snippets (Faker seed 42), "
+        f"Names/places: `{settings.deid_ner}` (tokens: `{model}`); {len(corpus)} seeded snippets "
+        "(Faker seed 42), "
         f"{elapsed:.1f} s; per snippet p50 {p50:.1f} ms, p95 {p95:.1f} ms (in-process).",
         "",
         "| Entity | N | Recall | Gate |",
@@ -178,9 +181,7 @@ def main() -> int:
         "Limits: template-based synthetic text; Faker draws names from US Census-style lists, so",
         "recall is optimistic. Real dictation (Phase 2 transcripts) is the harder test.",
     ]
-    (REPORT_DIR / f"{REPORT_PREFIX}_{settings.deid_spacy_model}.md").write_text(
-        "\n".join(lines) + "\n", encoding="utf-8"
-    )
+    (REPORT_DIR / f"{name}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
     return 1 if failed else 0
 

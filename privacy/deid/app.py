@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from config.db import app_conninfo
 from config.settings import Settings
 from llmops.telemetry.setup import configure_logging, configure_tracing, instrument
-from privacy.deid.engine import Deidentifier, build_analyzer
+from privacy.deid.engine import Deidentifier, analyzer_for
 from privacy.deid.store import PostgresStore
 
 SERVICE = "deid"
@@ -41,7 +41,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     provider = configure_tracing(SERVICE, settings.otel_exporter_otlp_endpoint)
     store = PostgresStore(app_conninfo(settings), settings.deid_mapping_key)
-    app.state.deidentifier = Deidentifier(build_analyzer(settings.deid_spacy_model), store)
+    analyzer = analyzer_for(settings.deid_ner, settings.deid_spacy_model, settings.deid_tagger_path)
+    app.state.deidentifier = Deidentifier(analyzer, store)
     yield
     provider.shutdown()
 

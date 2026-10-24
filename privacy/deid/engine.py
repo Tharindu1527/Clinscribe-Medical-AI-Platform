@@ -1,9 +1,15 @@
 """De-identification: detect PHI, replace it with consistent surrogates, return DeidentifiedText."""
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
-from presidio_analyzer import AnalyzerEngine, RecognizerRegistry, RecognizerResult
+from presidio_analyzer import (
+    AnalyzerEngine,
+    EntityRecognizer,
+    RecognizerRegistry,
+    RecognizerResult,
+)
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_analyzer.predefined_recognizers import SpacyRecognizer
 
@@ -31,8 +37,16 @@ class DeidResult:
     replacements: list[Replacement]
 
 
-def build_analyzer(spacy_model: str) -> AnalyzerEngine:
-    """Presidio with an explicit recogniser list: spaCy for names/places, regexes for the rest."""
+def build_analyzer(
+    spacy_model: str,
+    *,
+    spacy_ner: bool = True,
+    extra: Sequence[EntityRecognizer] = (),
+) -> AnalyzerEngine:
+    """Presidio with an explicit recogniser list: spaCy for names/places, regexes for the rest.
+
+    `spacy_ner=False` and `extra` swap in another name/place recogniser for comparison
+    (evals/privacy/lora_eval.py); spaCy still tokenises the text either way."""
     nlp_engine = NlpEngineProvider(
         nlp_configuration={
             "nlp_engine_name": "spacy",
@@ -40,12 +54,27 @@ def build_analyzer(spacy_model: str) -> AnalyzerEngine:
         }
     ).create_engine()
     registry = RecognizerRegistry(supported_languages=["en"])
-    registry.add_recognizer(SpacyRecognizer(supported_entities=list(NER_TYPES)))
+    if spacy_ner:
+        registry.add_recognizer(SpacyRecognizer(supported_entities=list(NER_TYPES)))
+    for recognizer in extra:
+        registry.add_recognizer(recognizer)
     registry.add_recognizer(RegexRecognizer())
     registry.add_recognizer(
         RegexRecognizer(CONTEXT_PATTERNS, name=CONTEXT_RECOGNIZER, score=CUE_SCORE)
     )
     return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["en"])
+
+
+def analyzer_for(ner: str, spacy_model: str, tagger_path: str = "") -> AnalyzerEngine:
+    """The service's analyzer for `DEID_NER`: "spacy" (default) or "tagger", the fine-tuned
+    name/place model instead of spaCy's NER (ADR-0014; spaCy still tokenises). Needs torch."""
+    if ner == "spacy":
+        return build_analyzer(spacy_model)
+    if ner == "tagger":
+        from privacy.deid.tagger import TaggerRecognizer  # torch only when chosen
+
+        return build_analyzer(spacy_model, spacy_ner=False, extra=[TaggerRecognizer(tagger_path)])
+    raise ValueError(f"DEID_NER must be spacy or tagger, not {ner!r}")
 
 
 def _not_phi(text: str, result: RecognizerResult) -> bool:

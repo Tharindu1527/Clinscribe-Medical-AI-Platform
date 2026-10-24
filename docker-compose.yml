@@ -99,8 +99,14 @@ services:
 
   deid:
     <<: *python-service
+    # DEID_NER=tagger (ADR-0014) needs torch, i.e. the rag image, and the merged model mounted below;
+    # the defaults (spaCy, app image) are what CI runs
+    build:
+      context: .
+      target: ${DEID_TARGET:-app}
+    image: ${DEID_IMAGE:-clinscribe-python:dev}
     profiles: [core]
-    mem_limit: 2560m  # 3 workers x ~0.4-0.5 GB (spaCy model per process)
+    mem_limit: ${DEID_MEM_LIMIT:-2560m}  # 3 workers x ~0.4-0.5 GB (spaCy model per process)
     # 3 workers (Phase 6 load test): one process queued to p95 26 s at 10+ sessions
     command: ["uvicorn", "privacy.deid.app:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "3"]
     environment:
@@ -108,7 +114,13 @@ services:
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       DEID_MAPPING_KEY: ${DEID_MAPPING_KEY:?run just gen-keys}
       DEID_SPACY_MODEL: ${DEID_SPACY_MODEL:-en_core_web_md}
+      DEID_NER: ${DEID_NER:-spacy}
+      DEID_TAGGER_PATH: /app/data/finetune/deid_ner_tagger
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    volumes:
+      - ./data/finetune/deid_ner_tagger:/app/data/finetune/deid_ner_tagger:ro
     ports:
       - "127.0.0.1:8001:8001"
     healthcheck:
