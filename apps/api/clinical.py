@@ -6,7 +6,9 @@ FHIR resource the reviewed note becomes, and fhir-mcp verifies it again before w
 Doctors see the originals (`?identified=true`), and the record holds them (ADR-0015): the API
 re-identifies through the de-ID service, audits every disclosure, and de-identifies the doctor's
 edits again before they go back into the graph.
-Drafts live in the graph's checkpointer (in memory: a restart drops pending drafts; see PROGRESS).
+Drafts awaiting review are checkpointed in Postgres and listed in the `drafts` table, so they
+survive a restart; the PHI a write needs is passed as run context, never checkpointed, and a
+draft's checkpoints are deleted when it ends (ADR-0016).
 """
 
 import logging
@@ -22,9 +24,11 @@ from pydantic import BaseModel, Field
 
 from agents.approval import approve
 from agents.fhir_docs import note_to_resource
+from agents.graph import WriteContext
 from agents.schemas import ReviewDecision, SoapNote
 from apps.api.audit import AuditEntry
 from apps.api.auth import Principal, issue_token, require, users
+from apps.api.drafts import WAITING, Draft
 from config.db import app_conninfo
 from config.settings import Settings
 
@@ -141,7 +145,7 @@ def ask(
     deid = request.app.state.deid.deidentify(body.question, body.encounter_id)
     thread = f"ask-{uuid.uuid4().hex}"
     out = _run(
-        lambda: request.app.state.graph.invoke(
+        lambda: request.app.state.ask_graph.invoke(
             {"mode": "ask", "encounter_id": body.encounter_id, "question": deid.text.text},
             _config(thread),
         )
@@ -207,7 +211,7 @@ def create_draft(
     if "__interrupt__" not in out:
         raise HTTPException(422, (out.get("result") or {}).get("reason", "no draft produced"))
     payload = out["__interrupt__"][0].value
-    request.app.state.drafts[draft_id] = {"patient_id": body.patient_id, "created_by": who.user}
+    request.app.state.drafts.add(Draft(draft_id, body.patient_id, body.encounter_id, who.user))
     _audit(
         request,
         who,
@@ -235,15 +239,15 @@ def create_draft(
 def list_drafts(request: Request, who: Doctor) -> list[dict[str, Any]]:
     """Drafts awaiting a doctor's review, newest first (e.g. made by the Scribe audio listener)."""
     waiting = []
-    for draft_id, meta in reversed(request.app.state.drafts.items()):
-        state = request.app.state.graph.get_state(_config(draft_id))
+    for draft in request.app.state.drafts.waiting():
+        state = request.app.state.graph.get_state(_config(draft.draft_id))
         if any(task.interrupts for task in state.tasks):
             note = state.values.get("note") or {}
             waiting.append(
                 {
-                    "draft_id": draft_id,
-                    "patient_id": meta["patient_id"],
-                    "created_by": meta["created_by"],
+                    "draft_id": draft.draft_id,
+                    "patient_id": draft.patient_id,
+                    "created_by": draft.created_by,
                     "statements": len(note.get("statements", [])),
                 }
             )
@@ -254,12 +258,16 @@ def list_drafts(request: Request, who: Doctor) -> list[dict[str, Any]]:
 def get_draft(
     draft_id: str, request: Request, who: Doctor, identified: bool = False
 ) -> dict[str, Any]:
-    if draft_id not in request.app.state.drafts:
+    draft = request.app.state.drafts.get(draft_id)
+    if draft is None:
         raise HTTPException(404, "no such draft")
+    if draft.status != WAITING:  # ended: its checkpoints are gone, the outcome is recorded
+        result = {"status": draft.status, "resource_id": draft.resource_id}
+        return {"draft_id": draft_id, "status": "done", "result": result}
     state = request.app.state.graph.get_state(_config(draft_id))
     pending = [i.value for task in state.tasks for i in task.interrupts]
     if not pending:
-        return {"draft_id": draft_id, "status": "done", "result": state.values.get("result")}
+        raise HTTPException(410, "the draft's saved state is gone")
     transcript = state.values.get("transcript", [])
     response = {
         "draft_id": draft_id,
@@ -278,6 +286,8 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
     meta = request.app.state.drafts.get(draft_id)
     if meta is None:
         raise HTTPException(404, "no such draft")
+    if meta.status != WAITING:
+        raise HTTPException(409, "draft is not awaiting review")
     graph = request.app.state.graph
     state = graph.get_state(_config(draft_id))
     if not state.tasks or not any(t.interrupts for t in state.tasks):
@@ -293,6 +303,7 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     resume: dict[str, Any] = {}
+    context: WriteContext | None = None
     if body.decision != "reject":
         if not (body.birth_date and body.family_name):
             raise HTTPException(422, "approval needs the patient's birth date and family name")
@@ -312,22 +323,26 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
                 note, _reidentify(request, who, encounter_id, texts, "record", draft_id)
             )
         # the approval covers exactly what is written: the note as the doctor read it (ADR-0015)
-        resource = note_to_resource(record, meta["patient_id"])
+        resource = note_to_resource(record, meta.patient_id)
         token = approve(
-            draft_id, resource, meta["patient_id"], who.user, Settings().approval_token_key
+            draft_id, resource, meta.patient_id, who.user, Settings().approval_token_key
         )
-        resume |= {
-            "approval": token.model_dump(mode="json"),
-            "resource": resource,
-            "identifiers": {
-                "patient_id": meta["patient_id"],
+        resume["approval"] = token.model_dump(mode="json")
+        # PHI for the write only: run context is never checkpointed (ADR-0016)
+        context = WriteContext(
+            identifiers={
+                "patient_id": meta.patient_id,
                 "birth_date": body.birth_date,
                 "family_name": body.family_name,
             },
-        }
+            resource=resource,
+        )
     resume["decision"] = decision.model_dump(mode="json")
-    out = _run(lambda: graph.invoke(Command(resume=resume), _config(draft_id)))
+    out = _run(lambda: graph.invoke(Command(resume=resume), _config(draft_id), context=context))
     result = out.get("result", {})
+    if not out.get("__interrupt__"):  # the draft ended: keep the outcome, drop its state
+        request.app.state.drafts.finish(draft_id, result.get("status"), result.get("resource_id"))
+        request.app.state.checkpointer.delete_thread(draft_id)
     _audit(
         request,
         who,

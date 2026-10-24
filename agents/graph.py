@@ -14,19 +14,23 @@
 - note_writer + guardrail_note: SOAP statements tied to transcript turns; one retry with the
   problems attached, then statements that still fail are removed and listed for the doctor.
 - hitl_review: LangGraph interrupt(); the doctor approves, edits or rejects. Resuming carries the
-  decision, the approval token (signed by the API for the exact FHIR resource), that resource (the
-  note re-identified for the record, ADR-0015) and two identifiers.
-- commit: write_fhir through fhir-mcp, which re-verifies everything (agents/approval.py).
-State holds only JSON-serialisable values, so any checkpointer can store it and runs can replay.
+  decision and the approval token (signed by the API for the exact FHIR resource).
+- commit: write_fhir through fhir-mcp, which re-verifies everything (agents/approval.py). The PHI
+  the write needs, the two identifiers and the resource (the note re-identified for the record,
+  ADR-0015), comes as run context (`WriteContext`), which LangGraph never checkpoints (ADR-0016).
+State holds only JSON-serialisable values without PHI, so a durable checkpointer can store it and
+runs can replay.
 """
 
 import json
 import re
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any, Literal, Protocol, TypedDict
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 from pydantic import ValidationError
 
@@ -40,6 +44,7 @@ from agents.schemas import (
     CheckInteractionsInput,
     Evidence,
     NoteStatement,
+    PatientIdentifiers,
     ReviewDecision,
     SearchGuidelinesInput,
     SoapNote,
@@ -130,6 +135,15 @@ class Chat(Protocol):
         max_tokens: int = 512,
         response_format: dict[str, object] | None = None,
     ) -> Completion: ...
+
+
+@dataclass(frozen=True)
+class WriteContext:
+    """PHI that one review run needs for its write, passed as LangGraph run context
+    (`graph.invoke(..., context=WriteContext(...))`), which is never checkpointed (ADR-0016)."""
+
+    identifiers: dict[str, str] | None = None  # patient id, birth date, family name
+    resource: dict[str, Any] | None = None  # the signed FHIR resource (ADR-0015)
 
 
 class State(TypedDict, total=False):
@@ -408,19 +422,20 @@ class Agents:
             payload["attempts_left"] = MAX_IDENTITY_ATTEMPTS - state.get("identity_attempts", 0)
         return {"review": interrupt(payload)}
 
-    def commit(self, state: State) -> State:
+    def commit(self, state: State, runtime: Runtime["WriteContext"]) -> State:
         decision = ReviewDecision.model_validate(state["review"]["decision"])
         if decision.decision == "reject":
             return {"result": {"status": "rejected", "reason": decision.reason}}
+        write = runtime.context or WriteContext()
+        if write.identifiers is None:
+            return {"result": {"status": "write_refused", "reason": "no patient identifiers given"}}
         note = decision.edited or SoapNote.model_validate(state["note"])
-        # the API passes the resource it signed: the note re-identified for the record (ADR-0015).
-        # Like the identifiers, it is PHI kept only in the review payload for this write; the note
-        # and the edit pair stay in surrogate form
-        resource = state["review"].get("resource") or note_to_resource(note, state["patient_id"])
+        # the API passes the resource it signed: the note re-identified for the record (ADR-0015)
+        resource = write.resource or note_to_resource(note, state["patient_id"])
         request = WriteFhirInput(
             resource=resource,
             approval=state["review"]["approval"],
-            identifiers=state["review"]["identifiers"],
+            identifiers=PatientIdentifiers.model_validate(write.identifiers),
         )
         try:
             written = self.tools.write(request)
@@ -439,7 +454,7 @@ class Agents:
 
     # ---------------------------------------------------------------- wiring
     def build(self, checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any:
-        graph = StateGraph(State)
+        graph = StateGraph(State, context_schema=WriteContext)
         for name in (
             "intake",
             "router",

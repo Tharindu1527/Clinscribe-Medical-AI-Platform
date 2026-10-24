@@ -3,6 +3,7 @@ guardrail retries, the approval interrupt, commit, and resuming from a checkpoin
 
 import base64
 import json
+import pickle
 from collections.abc import Sequence
 from typing import Any
 
@@ -12,7 +13,7 @@ from pydantic import SecretStr
 
 from agents.approval import approve, verify
 from agents.fhir_docs import note_to_resource
-from agents.graph import Agents, route_question
+from agents.graph import Agents, WriteContext, route_question
 from agents.schemas import (
     IDENTITY_MISMATCH,
     CheckInteractionsInput,
@@ -268,8 +269,13 @@ def _resume(note: dict[str, Any], decision: dict[str, Any]) -> dict[str, Any]:
     return {
         "decision": decision,
         "approval": token.model_dump(mode="json"),
-        "identifiers": {"patient_id": "p-1", "birth_date": "1970-01-02", "family_name": "Doe"},
     }
+
+
+# the write's PHI travels as run context, never in the resume payload or state (ADR-0016)
+CTX = WriteContext(
+    identifiers={"patient_id": "p-1", "birth_date": "1970-01-02", "family_name": "Doe"}
+)
 
 
 def test_scribe_stops_for_review_then_writes_exactly_the_approved_note() -> None:
@@ -288,6 +294,7 @@ def test_scribe_stops_for_review_then_writes_exactly_the_approved_note() -> None
             )
         ),
         {"configurable": {"thread_id": "enc-1"}},
+        context=CTX,
     )
     assert done["result"]["status"] == "written"
     (write,) = tools.writes
@@ -301,7 +308,9 @@ def test_edit_writes_the_edited_note_and_keeps_the_pair() -> None:
     edited = {**draft, "statements": draft["statements"][:2]}
     decision = {"draft_id": "enc-1", "decision": "edit", "reviewer": "dr-house", "edited": edited}
     done = graph.invoke(
-        Command(resume=_resume(draft, decision)), {"configurable": {"thread_id": "enc-1"}}
+        Command(resume=_resume(draft, decision)),
+        {"configurable": {"thread_id": "enc-1"}},
+        context=CTX,
     )
     assert done["result"]["status"] == "written"
     assert len(done["result"]["edit_pair"]["after"]["statements"]) == 2
@@ -319,7 +328,7 @@ def test_wrong_identifiers_keep_the_draft_open_and_the_corrected_attempt_writes(
     graph, out = _scribe(chat, tools)
     draft = out["__interrupt__"][0].value["draft"]
     config = {"configurable": {"thread_id": "enc-1"}}
-    again = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+    again = graph.invoke(Command(resume=_resume(draft, APPROVE)), config, context=CTX)
     assert again["result"] == {
         "status": "write_refused",
         "reason": f"write refused: {IDENTITY_MISMATCH}",
@@ -328,7 +337,7 @@ def test_wrong_identifiers_keep_the_draft_open_and_the_corrected_attempt_writes(
     (pending,) = again["__interrupt__"]  # back at the doctor's review, not ended
     assert pending.value["refused"] == f"write refused: {IDENTITY_MISMATCH}"
     assert pending.value["attempts_left"] == 2
-    done = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+    done = graph.invoke(Command(resume=_resume(draft, APPROVE)), config, context=CTX)
     assert done["result"]["status"] == "written"
     assert len(tools.writes) == 1
 
@@ -340,9 +349,9 @@ def test_identifier_attempts_are_capped() -> None:
     draft = out["__interrupt__"][0].value["draft"]
     config = {"configurable": {"thread_id": "enc-1"}}
     for attempts_left in (2, 1):
-        out = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+        out = graph.invoke(Command(resume=_resume(draft, APPROVE)), config, context=CTX)
         assert out["__interrupt__"][0].value["attempts_left"] == attempts_left
-    out = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+    out = graph.invoke(Command(resume=_resume(draft, APPROVE)), config, context=CTX)
     assert "__interrupt__" not in out  # the third wrong entry ends the draft
     assert out["result"]["status"] == "write_refused"
     assert out["result"]["retry"] is False
@@ -355,7 +364,9 @@ def test_any_other_refusal_ends_the_draft() -> None:
     graph, out = _scribe(chat, tools)
     draft = out["__interrupt__"][0].value["draft"]
     out = graph.invoke(
-        Command(resume=_resume(draft, APPROVE)), {"configurable": {"thread_id": "enc-1"}}
+        Command(resume=_resume(draft, APPROVE)),
+        {"configurable": {"thread_id": "enc-1"}},
+        context=CTX,
     )
     assert "__interrupt__" not in out
     assert out["result"] == {
@@ -421,6 +432,7 @@ def test_review_survives_a_new_graph_instance_with_the_same_checkpointer() -> No
             resume=_resume(draft, {"draft_id": "enc-1", "decision": "approve", "reviewer": "dr"})
         ),
         config,
+        context=CTX,
     )
     assert done["result"]["status"] == "written"
     history = list(second.get_state_history(config))
@@ -432,3 +444,32 @@ def test_the_doctor_sees_the_servers_reason_without_the_sdk_prefix() -> None:
     assert server_reason(sdk, "write_fhir") == f"write refused: {IDENTITY_MISMATCH}"
     assert server_reason("no patient p-9", "write_fhir") == "no patient p-9"
     assert server_reason(sdk, "parse_lab_report") == sdk  # another tool's prefix is left alone
+
+
+def test_the_identifiers_never_reach_the_checkpointer() -> None:
+    saver = InMemorySaver()
+    tools = FakeTools([])
+    graph = _agents(ScriptedChat(note=[NOTE_REPLY]), tools).build(saver)
+    config = {"configurable": {"thread_id": "enc-1"}}
+    out = graph.invoke(
+        {"mode": "scribe", "encounter_id": "enc-1", "patient_id": "p-1", "transcript": TRANSCRIPT},
+        config,
+    )
+    draft = out["__interrupt__"][0].value["draft"]
+    done = graph.invoke(Command(resume=_resume(draft, APPROVE)), config, context=CTX)
+    assert done["result"]["status"] == "written"
+    assert str(tools.writes[0].identifiers.birth_date) == "1970-01-02"  # the write got them
+    stored = pickle.dumps((dict(saver.storage), dict(saver.writes), dict(saver.blobs)))
+    assert b"Thirsty for two weeks" in stored  # positive control: the draft is checkpointed
+    assert b"1970-01-02" not in stored
+    assert b"Doe" not in stored
+
+
+def test_an_approval_without_identifiers_writes_nothing() -> None:
+    chat, tools = ScriptedChat(note=[NOTE_REPLY]), FakeTools([])
+    graph, out = _scribe(chat, tools)
+    draft = out["__interrupt__"][0].value["draft"]
+    config = {"configurable": {"thread_id": "enc-1"}}
+    done = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
+    assert done["result"] == {"status": "write_refused", "reason": "no patient identifiers given"}
+    assert tools.writes == []

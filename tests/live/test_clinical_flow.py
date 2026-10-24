@@ -5,6 +5,8 @@ Needs `just up` and `just up rag`. Run with `just test-live`.
 """
 
 import base64
+import subprocess
+import time
 from typing import Any
 
 import httpx
@@ -121,3 +123,43 @@ def test_the_doctor_reads_and_the_record_holds_the_originals(patient: dict[str, 
         f"{Settings().fhir_base_url}/DocumentReference/{result['resource_id']}", timeout=30
     ).json()
     assert name in base64.b64decode(doc["content"][0]["attachment"]["data"]).decode()
+
+
+def _wait_for_api(timeout_s: float = 180) -> None:
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            if httpx.get(f"{API}/health", timeout=5).status_code == 200:
+                return
+        except httpx.HTTPError:
+            pass
+        time.sleep(2)
+    raise TimeoutError("the API did not come back")
+
+
+def test_a_pending_draft_survives_an_api_restart(patient: dict[str, Any]) -> None:
+    """ADR-0016: drafts awaiting review are checkpointed in Postgres, not in the API's memory."""
+    body = {
+        "encounter_id": "live-enc-restart",
+        "patient_id": patient["id"],
+        "transcript": TRANSCRIPT,
+    }
+    response = httpx.post(f"{API}/v1/scribe/drafts", json=body, headers=_headers(), timeout=300)
+    assert response.status_code == 200, response.text
+    draft_id = response.json()["draft_id"]
+    subprocess.run(["docker", "compose", "restart", "api"], check=True, timeout=180)
+    _wait_for_api()
+    waiting = httpx.get(f"{API}/v1/drafts", headers=_headers(), timeout=30).json()
+    assert draft_id in [d["draft_id"] for d in waiting]
+    review = {
+        "decision": "approve",
+        "birth_date": patient["birthDate"],
+        "family_name": patient["name"][0]["family"],
+    }
+    response = httpx.post(
+        f"{API}/v1/drafts/{draft_id}/review", json=review, headers=_headers(), timeout=120
+    )
+    assert response.json()["result"]["status"] == "written", response.text
+    done = httpx.get(f"{API}/v1/drafts/{draft_id}", headers=_headers(), timeout=30).json()
+    assert done["status"] == "done"
+    assert done["result"]["status"] == "written"
