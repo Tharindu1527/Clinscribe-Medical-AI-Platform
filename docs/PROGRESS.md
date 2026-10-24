@@ -837,7 +837,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 
 ## Next
 - **You: review ADR-0014** (de-ID tagger behind `DEID_NER=tagger`; spaCy stays the default).
-- **You: merge PR #25** (CI green; the built-in browser blocks GitHub's merge button for me).
+- **You: open the PR for `deid-lora`** (merges cleanly into `main`; title and description in the
+  session notes).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
