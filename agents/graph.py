@@ -14,7 +14,8 @@
 - note_writer + guardrail_note: SOAP statements tied to transcript turns; one retry with the
   problems attached, then statements that still fail are removed and listed for the doctor.
 - hitl_review: LangGraph interrupt(); the doctor approves, edits or rejects. Resuming carries the
-  decision, the approval token (signed by the API for the exact FHIR resource) and two identifiers.
+  decision, the approval token (signed by the API for the exact FHIR resource), that resource (the
+  note re-identified for the record, ADR-0015) and two identifiers.
 - commit: write_fhir through fhir-mcp, which re-verifies everything (agents/approval.py).
 State holds only JSON-serialisable values, so any checkpointer can store it and runs can replay.
 """
@@ -412,8 +413,12 @@ class Agents:
         if decision.decision == "reject":
             return {"result": {"status": "rejected", "reason": decision.reason}}
         note = decision.edited or SoapNote.model_validate(state["note"])
+        # the API passes the resource it signed: the note re-identified for the record (ADR-0015).
+        # Like the identifiers, it is PHI kept only in the review payload for this write; the note
+        # and the edit pair stay in surrogate form
+        resource = state["review"].get("resource") or note_to_resource(note, state["patient_id"])
         request = WriteFhirInput(
-            resource=note_to_resource(note, state["patient_id"]),
+            resource=resource,
             approval=state["review"]["approval"],
             identifiers=state["review"]["identifiers"],
         )

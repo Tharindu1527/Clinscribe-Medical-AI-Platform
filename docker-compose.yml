@@ -113,6 +113,7 @@ services:
       POSTGRES_HOST: postgres
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       DEID_MAPPING_KEY: ${DEID_MAPPING_KEY:?run just gen-keys}
+      DEID_REIDENTIFY_KEY: ${DEID_REIDENTIFY_KEY:?run just gen-keys}
       DEID_SPACY_MODEL: ${DEID_SPACY_MODEL:-en_core_web_md}
       DEID_NER: ${DEID_NER:-spacy}
       DEID_TAGGER_PATH: /app/data/finetune/deid_ner_tagger
@@ -150,6 +151,7 @@ services:
       FHIR_MCP_URL: http://fhir-mcp:8012/mcp
       APPROVAL_TOKEN_KEY: ${APPROVAL_TOKEN_KEY:?run just gen-keys}
       AUTH_TOKEN_KEY: ${AUTH_TOKEN_KEY:?run just gen-keys}
+      DEID_REIDENTIFY_KEY: ${DEID_REIDENTIFY_KEY:?run just gen-keys}
       DEV_LOGIN: ${DEV_LOGIN:-false}
       CLINSCRIBE_MODEL_OVERRIDE: ${CLINSCRIBE_MODEL_OVERRIDE:-}  # load tests: clinscribe-mock
     ports:

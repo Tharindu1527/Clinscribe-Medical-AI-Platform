@@ -3,6 +3,9 @@
 Everything a model sees is de-identified first (the de-ID service), every action is audited, and a
 clinical write happens only after a doctor's review: the API signs an approval token for the exact
 FHIR resource the reviewed note becomes, and fhir-mcp verifies it again before writing.
+Doctors see the originals (`?identified=true`), and the record holds them (ADR-0015): the API
+re-identifies through the de-ID service, audits every disclosure, and de-identifies the doctor's
+edits again before they go back into the graph.
 Drafts live in the graph's checkpointer (in memory: a restart drops pending drafts; see PROGRESS).
 """
 
@@ -57,6 +60,7 @@ class ReviewRequest(BaseModel):
     reason: str | None = None
     birth_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     family_name: str | None = None
+    edited_identified: bool = False  # the edits were typed on the re-identified view (ADR-0015)
 
 
 def _audit(request: Request, who: Principal, action: str, **fields: Any) -> int:
@@ -68,6 +72,41 @@ def _audit(request: Request, who: Principal, action: str, **fields: Any) -> int:
 
 def _config(thread: str) -> dict[str, Any]:
     return {"configurable": {"thread_id": thread}}
+
+
+def _reidentify(
+    request: Request, who: Principal, encounter_id: str, texts: list[str], context: str, ref: str
+) -> list[str]:
+    """Originals for the doctor's screen or the approved record (ADR-0015). Every call that restores
+    anything is audited, with counts only, never the text."""
+    out = request.app.state.deid.reidentify(texts, encounter_id)
+    if out.restored:
+        _audit(
+            request,
+            who,
+            "phi.reidentify",
+            resource_id=ref,
+            encounter_id=encounter_id,
+            details={"context": context, "texts": len(texts), "restored": out.restored},
+        )
+    texts_out: list[str] = out.texts
+    return texts_out
+
+
+def _with_texts(note: SoapNote, texts: list[str]) -> SoapNote:
+    statements = [
+        s.model_copy(update={"text": t}) for s, t in zip(note.statements, texts, strict=True)
+    ]
+    return note.model_copy(update={"statements": statements})
+
+
+def _identified_draft(
+    request: Request, who: Principal, draft_id: str, encounter_id: str, payload: dict[str, Any]
+) -> dict[str, list[str]]:
+    transcript = list(payload["transcript"])
+    statements = [s["text"] for s in payload["draft"]["statements"]]
+    texts = _reidentify(request, who, encounter_id, transcript + statements, "draft", draft_id)
+    return {"transcript": texts[: len(transcript)], "statements": texts[len(transcript) :]}
 
 
 def _run(step: Callable[[], Any]) -> Any:
@@ -96,12 +135,15 @@ def dev_login(body: LoginRequest) -> dict[str, str]:
 
 
 @router.post("/ask")
-def ask(body: AskRequest, request: Request, who: Doctor) -> dict[str, Any]:
+def ask(
+    body: AskRequest, request: Request, who: Doctor, identified: bool = False
+) -> dict[str, Any]:
     deid = request.app.state.deid.deidentify(body.question, body.encounter_id)
+    thread = f"ask-{uuid.uuid4().hex}"
     out = _run(
         lambda: request.app.state.graph.invoke(
             {"mode": "ask", "encounter_id": body.encounter_id, "question": deid.text.text},
-            _config(f"ask-{uuid.uuid4().hex}"),
+            _config(thread),
         )
     )
     if out.get("result", {}).get("status") == "refused":
@@ -125,7 +167,7 @@ def ask(body: AskRequest, request: Request, who: Doctor) -> dict[str, Any]:
             "phi_replaced": deid.replaced,
         },
     )
-    return {
+    response = {
         "answer": answer,
         "evidence": evidence,
         "route": out["route"],
@@ -134,10 +176,17 @@ def ask(body: AskRequest, request: Request, who: Doctor) -> dict[str, Any]:
         "events": out.get("events", []),
         "ai_generated": True,
     }
+    if identified:
+        texts = [s["text"] for s in answer["sentences"]]
+        sentences = _reidentify(request, who, body.encounter_id, texts, "answer", thread)
+        response["identified"] = {"sentences": sentences}
+    return response
 
 
 @router.post("/scribe/drafts")
-def create_draft(body: DraftRequest, request: Request, who: Doctor) -> dict[str, Any]:
+def create_draft(
+    body: DraftRequest, request: Request, who: Doctor, identified: bool = False
+) -> dict[str, Any]:
     deid = request.app.state.deid
     turns = [
         f"{t.speaker.upper()}: {deid.deidentify(t.text, body.encounter_id).text.text}"
@@ -174,7 +223,12 @@ def create_draft(body: DraftRequest, request: Request, who: Doctor) -> dict[str,
             "removed": len(payload["removed"]),
         },
     )
-    return {"draft_id": draft_id, "transcript": turns, **payload}
+    response = {"draft_id": draft_id, "transcript": turns, **payload}
+    if identified:
+        response["identified"] = _identified_draft(
+            request, who, draft_id, body.encounter_id, response
+        )
+    return response
 
 
 @router.get("/drafts")
@@ -197,7 +251,9 @@ def list_drafts(request: Request, who: Doctor) -> list[dict[str, Any]]:
 
 
 @router.get("/drafts/{draft_id}")
-def get_draft(draft_id: str, request: Request, who: Doctor) -> dict[str, Any]:
+def get_draft(
+    draft_id: str, request: Request, who: Doctor, identified: bool = False
+) -> dict[str, Any]:
     if draft_id not in request.app.state.drafts:
         raise HTTPException(404, "no such draft")
     state = request.app.state.graph.get_state(_config(draft_id))
@@ -205,12 +261,16 @@ def get_draft(draft_id: str, request: Request, who: Doctor) -> dict[str, Any]:
     if not pending:
         return {"draft_id": draft_id, "status": "done", "result": state.values.get("result")}
     transcript = state.values.get("transcript", [])
-    return {
+    response = {
         "draft_id": draft_id,
         "status": "awaiting_review",
         "transcript": transcript,
         **pending[0],
     }
+    if identified:
+        encounter_id = state.values["encounter_id"]
+        response["identified"] = _identified_draft(request, who, draft_id, encounter_id, response)
+    return response
 
 
 @router.post("/drafts/{draft_id}/review")
@@ -232,23 +292,40 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
-    resume: dict[str, Any] = {"decision": decision.model_dump(mode="json")}
+    resume: dict[str, Any] = {}
     if body.decision != "reject":
         if not (body.birth_date and body.family_name):
             raise HTTPException(422, "approval needs the patient's birth date and family name")
-        note = body.edited or SoapNote.model_validate(state.values["note"])
-        resource = note_to_resource(note, meta["patient_id"])
+        encounter_id = state.values["encounter_id"]
+        if body.edited is not None and body.edited_identified:
+            # the doctor's words go to the record; the graph keeps them in surrogate form
+            record = body.edited
+            deid = request.app.state.deid
+            texts = [
+                deid.deidentify(s.text, encounter_id).text.text for s in body.edited.statements
+            ]
+            decision = decision.model_copy(update={"edited": _with_texts(body.edited, texts)})
+        else:
+            note = body.edited or SoapNote.model_validate(state.values["note"])
+            texts = [s.text for s in note.statements]
+            record = _with_texts(
+                note, _reidentify(request, who, encounter_id, texts, "record", draft_id)
+            )
+        # the approval covers exactly what is written: the note as the doctor read it (ADR-0015)
+        resource = note_to_resource(record, meta["patient_id"])
         token = approve(
             draft_id, resource, meta["patient_id"], who.user, Settings().approval_token_key
         )
         resume |= {
             "approval": token.model_dump(mode="json"),
+            "resource": resource,
             "identifiers": {
                 "patient_id": meta["patient_id"],
                 "birth_date": body.birth_date,
                 "family_name": body.family_name,
             },
         }
+    resume["decision"] = decision.model_dump(mode="json")
     out = _run(lambda: graph.invoke(Command(resume=resume), _config(draft_id)))
     result = out.get("result", {})
     _audit(

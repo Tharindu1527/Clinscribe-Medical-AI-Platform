@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     # Privacy and audit
     deid_url: str = "http://127.0.0.1:8001"
     deid_mapping_key: SecretStr = SecretStr("")
+    deid_reidentify_key: SecretStr = SecretStr("")  # only the API and the de-ID service (ADR-0015)
     deid_spacy_model: str = "en_core_web_md"
     deid_ner: str = "spacy"  # names/places: "spacy" or "tagger" (fine-tuned model, ADR-0014)
     deid_tagger_path: str = "data/finetune/deid_ner_tagger"  # merged model (finetune/merge.py)

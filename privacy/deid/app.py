@@ -1,20 +1,24 @@
 """De-identification service (SPEC section 8). Sits before the gateway, logs and trace export.
 
 POST /deidentify returns surrogate text and which entity types were replaced, never the originals.
-Re-identification is a library function only; its HTTP route arrives with authentication (Phase 3).
-Request and response bodies are never logged.
+POST /reidentify restores originals for the doctor's own screen (ADR-0015). Only the API may call
+it: it needs the X-Reidentify-Key header (DEID_REIDENTIFY_KEY, held by the API and this service
+only); the API checks the doctor's role and audits every call. Request and response bodies are
+never logged.
 """
 
+import hmac
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from config.db import app_conninfo
 from config.settings import Settings
 from llmops.telemetry.setup import configure_logging, configure_tracing, instrument
-from privacy.deid.engine import Deidentifier, analyzer_for
+from privacy.deid.engine import SURROGATE_RE, Deidentifier, analyzer_for
 from privacy.deid.store import PostgresStore
 
 SERVICE = "deid"
@@ -35,6 +39,16 @@ class DeidResponse(BaseModel):
     replacements: list[ReplacementOut]
 
 
+class ReidRequest(BaseModel):
+    encounter_id: str = Field(pattern=r"^[A-Za-z0-9._-]{1,64}$")
+    texts: list[str] = Field(max_length=1000)
+
+
+class ReidResponse(BaseModel):
+    texts: list[str]
+    restored: int  # surrogates replaced by their originals (unknown surrogates stay as they are)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
@@ -43,6 +57,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     store = PostgresStore(app_conninfo(settings), settings.deid_mapping_key)
     analyzer = analyzer_for(settings.deid_ner, settings.deid_spacy_model, settings.deid_tagger_path)
     app.state.deidentifier = Deidentifier(analyzer, store)
+    app.state.reidentify_key = settings.deid_reidentify_key.get_secret_value()
     yield
     provider.shutdown()
 
@@ -66,3 +81,17 @@ def deidentify(request: DeidRequest) -> DeidResponse:
             ReplacementOut(entity=r.entity, surrogate=r.surrogate) for r in result.replacements
         ],
     )
+
+
+@app.post("/reidentify")
+def reidentify(
+    request: ReidRequest, x_reidentify_key: Annotated[str, Header()] = ""
+) -> ReidResponse:
+    expected: str = app.state.reidentify_key
+    if not expected or not hmac.compare_digest(x_reidentify_key.encode(), expected.encode()):
+        raise HTTPException(403, "re-identification is only for the API")
+    deidentifier: Deidentifier = app.state.deidentifier
+    texts = [deidentifier.reidentify(text, request.encounter_id) for text in request.texts]
+    before = sum(len(SURROGATE_RE.findall(text)) for text in request.texts)
+    after = sum(len(SURROGATE_RE.findall(text)) for text in texts)
+    return ReidResponse(texts=texts, restored=before - after)

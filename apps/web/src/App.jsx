@@ -59,7 +59,8 @@ function Ask() {
     event.preventDefault();
     setBusy(true); setError(""); setOut(null);
     try {
-      setOut(await call("POST", "/v1/ask", { encounter_id: `ask-${Date.now()}`, question }));
+      setOut(await call("POST", "/v1/ask?identified=true",
+        { encounter_id: `ask-${Date.now()}`, question }));
     } catch (e) { setError(e.message); }
     setBusy(false);
   }
@@ -79,7 +80,8 @@ function Ask() {
             <p className="abstain">No answer with evidence. Review the sources directly.</p>
           ) : (
             out.answer.sentences.map((s, i) => (
-              <p key={i}>{s.text} <Citations ids={s.citations} evidence={out.evidence} /></p>
+              <p key={i}>{out.identified?.sentences[i] ?? s.text}{" "}
+                <Citations ids={s.citations} evidence={out.evidence} /></p>
             ))
           )}
           {out.violations.length > 0 && (
@@ -101,21 +103,33 @@ function Ask() {
   );
 }
 
+// The doctor reads and edits the originals (re-identified by the API, audited; ADR-0015);
+// "what the AI saw" shows the surrogate text the models worked on.
 function Draft({ draft, onDone }) {
-  const [statements, setStatements] = useState(draft.draft.statements);
+  const shown = draft.identified
+    ? draft.draft.statements.map((s, i) => ({ ...s, text: draft.identified.statements[i] }))
+    : draft.draft.statements;
+  const transcript = draft.identified?.transcript ?? draft.transcript;
+  const [statements, setStatements] = useState(shown);
+  const [modelView, setModelView] = useState(false);
   const [birthDate, setBirthDate] = useState("");
   const [family, setFamily] = useState("");
   const [reason, setReason] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [refused, setRefused] = useState(draft.refused ? `${draft.refused}.` : "");
-  const edited = JSON.stringify(statements) !== JSON.stringify(draft.draft.statements);
-  const unsupported = new Set(draft.unsupported.map((s) => s.text));
+  const edited = JSON.stringify(statements) !== JSON.stringify(shown);
+  const unsupportedText = new Set(draft.unsupported.map((s) => s.text));
+  const unsupported = new Set(
+    draft.draft.statements.flatMap((s, i) => (unsupportedText.has(s.text) ? [i] : [])));
 
   async function decide(decision) {
     setError("");
     const body = { decision, birth_date: birthDate || null, family_name: family || null };
-    if (decision === "edit") body.edited = { ...draft.draft, statements };
+    if (decision === "edit") {
+      body.edited = { ...draft.draft, statements };
+      body.edited_identified = !!draft.identified;
+    }
     if (decision === "reject") body.reason = reason || "rejected by the doctor";
     try {
       const out = await call("POST", `/v1/drafts/${draft.draft_id}/review`, body);
@@ -133,18 +147,26 @@ function Draft({ draft, onDone }) {
   return (
     <div className="card">
       <p className="label">AI-generated draft · {draft.draft.prompt_version} · {draft.draft.model}</p>
+      {draft.identified && (
+        <label className="toggle">
+          <input type="checkbox" checked={modelView} onChange={(e) => setModelView(e.target.checked)} />
+          Show what the AI saw (names, dates and places as surrogates)
+        </label>
+      )}
       {SECTIONS.map((section) => (
         <div key={section}>
           <h3>{section}</h3>
           {statements.map((s, i) => s.section === section && (
-            <div key={i} className={`statement ${unsupported.has(s.text) ? "unsupported" : ""}`}>
-              <input value={s.text} disabled={!!result}
+            <div key={i} className={`statement ${unsupported.has(i) ? "unsupported" : ""}`}>
+              <input value={modelView ? draft.draft.statements[i].text : s.text}
+                     disabled={!!result || modelView}
                      onChange={(e) => setStatements(statements.map((x, j) =>
                        j === i ? { ...x, text: e.target.value } : x))} />
-              <span className="turns" title={s.transcript_turns.map((t) => draft.transcript[t]).join("\n")}>
+              <span className="turns" title={s.transcript_turns.map((t) =>
+                (modelView ? draft.transcript : transcript)[t]).join("\n")}>
                 turns {s.transcript_turns.join(", ")}
               </span>
-              {unsupported.has(s.text) && <span className="tag">no guideline source</span>}
+              {unsupported.has(i) && <span className="tag">no guideline source</span>}
             </div>
           ))}
         </div>
@@ -224,14 +246,15 @@ function Scribe() {
       return { speaker, text: rest.join(":").trim() || line };
     });
     try {
-      setDraft(await call("POST", "/v1/scribe/drafts",
+      setDraft(await call("POST", "/v1/scribe/drafts?identified=true",
         { encounter_id: `enc-${Date.now()}`, patient_id: patientId, transcript: turns }));
     } catch (e) { setError(e.message); }
     setBusy(false);
   }
   async function open(id) {
     setError("");
-    try { setDraft(await call("GET", `/v1/drafts/${id}`)); } catch (e) { setError(e.message); }
+    try { setDraft(await call("GET", `/v1/drafts/${id}?identified=true`)); }
+    catch (e) { setError(e.message); }
   }
   return (
     <section>

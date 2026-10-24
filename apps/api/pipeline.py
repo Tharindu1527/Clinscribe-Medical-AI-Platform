@@ -1,7 +1,7 @@
 """Phase 1 pipeline: text -> de-ID -> gateway -> audit record (PROGRESS task 9).
 
-The answer stays in surrogate form; re-identification on the doctor's screen comes with
-authentication in Phase 3. Text is never logged or put on spans.
+The answer stays in surrogate form (a development endpoint; the doctor-facing routes in
+apps/api/clinical.py re-identify, ADR-0015). Text is never logged or put on spans.
 """
 
 from dataclasses import dataclass
