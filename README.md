@@ -35,6 +35,8 @@ not certified.
 
 Design rules: no PHI reaches a model, log or trace before de-identification; every model call goes
 through one gateway; no clinical write without a doctor's approval token for the exact content.
+Only the doctor's screen and the approved record see the originals, re-identified by the API and
+audited (ADR-0015).
 
 ## Results (all from `evals/reports/`, synthetic/public data, one laptop)
 

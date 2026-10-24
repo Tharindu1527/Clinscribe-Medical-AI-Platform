@@ -36,7 +36,7 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 | Hallucinated clinical fact | Medium / high | Cite-or-abstain; dose and diagnosis guardrails | Faithfulness ~0.94; red-team 63/63 |
 | Unauthorised access | Medium / high | Role-based access (doctor, admin, operator); signed tokens; audit of reads and writes | `tests/integration/test_clinical_api.py` |
 | Tampering with the audit trail | Low / high | Append-only, hash-chained audit table; triggers block UPDATE/DELETE/TRUNCATE | `just audit-verify` |
-| Re-identification of surrogates | Low / medium | Fernet-encrypted mapping; HMAC lookup; re-identification only as a library function (no route yet) | `privacy/deid` tests |
+| Re-identification of surrogates | Low / medium | Fernet-encrypted mapping; HMAC lookup; `/reidentify` callable only with a key held by the API and the de-ID service; the API serves originals to doctors only and audits each disclosure (`phi.reidentify`, counts only); models, logs and traces stay surrogate-only (ADR-0015) | `tests/unit/test_reidentify.py`, live flow test, leak test |
 
 ## 4. Gaps before any real use
 

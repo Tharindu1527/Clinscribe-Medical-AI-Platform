@@ -31,7 +31,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     provider = configure_tracing(SERVICE, settings.otel_exporter_otlp_endpoint)
     prompt = load_prompt("dev_complete")
-    deid = DeidClient(settings.deid_url)
+    deid = DeidClient(
+        settings.deid_url, reidentify_key=settings.deid_reidentify_key.get_secret_value()
+    )
     # 300 s: a long note on the free tier takes up to ~3 min (ACI-Bench p95 179 s: 503s + fallback)
     gateway = GatewayClient(settings.gateway_url, settings.litellm_app_key, timeout=300.0)
     audit = AuditLog(app_conninfo(settings), settings.audit_chain_key)
@@ -72,7 +74,7 @@ class CompleteRequest(BaseModel):
 
 
 class CompleteResponse(BaseModel):
-    text: str  # surrogate form; re-identification needs authentication (Phase 3)
+    text: str  # surrogate form (dev endpoint; the doctor's views re-identify, ADR-0015)
     model: str
     prompt_version: str
     trace_id: str

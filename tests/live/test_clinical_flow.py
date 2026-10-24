@@ -87,3 +87,37 @@ def test_scribe_draft_review_and_write(patient: dict[str, Any]) -> None:
     text = base64.b64decode(doc["content"][0]["attachment"]["data"]).decode()
     assert text.startswith("AI-generated draft")
     assert doc["subject"]["reference"] == f"Patient/{patient['id']}"
+
+
+def test_the_doctor_reads_and_the_record_holds_the_originals(patient: dict[str, Any]) -> None:
+    """ADR-0015: the model sees surrogates; the doctor's view and the approved record do not."""
+    name = "Dana Whitfield"  # synthetic
+    transcript = [{"speaker": "patient", "text": f"My name is {name}."}, *TRANSCRIPT[1:]]
+    body = {"encounter_id": "live-enc-reid", "patient_id": patient["id"], "transcript": transcript}
+    response = httpx.post(
+        f"{API}/v1/scribe/drafts?identified=true", json=body, headers=_headers(), timeout=300
+    )
+    assert response.status_code == 200, response.text
+    draft = response.json()
+    assert name not in draft["transcript"][0]  # what the model saw
+    assert name in draft["identified"]["transcript"][0]  # what the doctor reads
+    note = draft["draft"]
+    note["statements"][0]["text"] = f"{name} reports thirst and tiredness for three weeks."
+    review = {
+        "decision": "edit",
+        "edited": note,
+        "edited_identified": True,
+        "birth_date": patient["birthDate"],
+        "family_name": patient["name"][0]["family"],
+    }
+    response = httpx.post(
+        f"{API}/v1/drafts/{draft['draft_id']}/review", json=review, headers=_headers(), timeout=120
+    )
+    assert response.status_code == 200, response.text
+    result = response.json()["result"]
+    assert result["status"] == "written", result
+    assert name not in str(result["edit_pair"])  # future evaluation data stays de-identified
+    doc = httpx.get(
+        f"{Settings().fhir_base_url}/DocumentReference/{result['resource_id']}", timeout=30
+    ).json()
+    assert name in base64.b64decode(doc["content"][0]["attachment"]["data"]).decode()
