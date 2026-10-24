@@ -854,10 +854,38 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   (route key checks, client, API flow with a scripted model), live 3/3 (new: model sees a
   surrogate, doctor the name, record the doctor's words, edit pair none).
 
+- 2026-10-24: **Durable drafts** (ADR-0016, proposed). Drafts awaiting review lived in the API's
+  memory, so every restart (each `just up` rebuild) silently dropped them. Now LangGraph's Postgres
+  checkpointer (`langgraph-checkpoint-postgres` 3.1.2, the newest that fits the pinned
+  `langgraph-checkpoint` 4.2.0; `uv lock` added it and `psycopg-pool`, nothing else moved) plus a
+  `drafts` table (migration 003; `app` may insert/update, not delete). `just migrate` creates
+  LangGraph's tables as the owner and grants `app` DML on them. PHI kept out of the database: the
+  identifiers and the re-identified resource now reach the commit node as LangGraph run context
+  (`WriteContext`), never checkpointed (a probe first showed the context stays out of all three
+  checkpoint tables); the resume payload carries only the decision and the token. Ask uses a graph
+  without a checkpointer. When a draft ends, its checkpoints are deleted and `drafts` keeps the
+  outcome. Tests: unit 5 (lifecycle through a simulated restart; identifiers never checkpointed, with
+  a positive control; no write without identifiers), integration 2 on the real Postgres (another
+  process and pool resume the draft; the checkpoint rows hold the draft text but not the identifiers;
+  no rows left after the end), live 4/4 (new: a draft made before `docker compose restart api` is
+  listed and approved after it).
+- 2026-10-24: **Real defect found: FastAPI's own telemetry bypassed the app-level span redaction**
+  (postmortem 0004). A metrics-export 404 in the API log (nothing in ClinScribe exports metrics)
+  led to FastAPI 0.142's OpenTelemetry support, on by default: before the lifespan it installs a
+  global tracer provider with a plain OTLP exporter, so `configure_tracing`'s redacting provider
+  was refused (a warning at every start since Phase 1). In the API and de-ID service only the
+  collector's redaction layer was active for 19 days; it held (every leak test 0 leaks). FastAPI's
+  own spans were ~80% of exported spans (1,072 of 1,340 in a sample), likely a large part of the
+  Langfuse quota use. Fix: `FASTAPI_TELEMETRY` (tracing, metrics, logs, auto-configure off) in both
+  apps, and `configure_tracing` now fails closed if another provider is installed. Verified on the
+  rebuilt stack: the provider wraps the OTLP exporter in `RedactingSpanExporter`, no override
+  warnings or metric errors, no `fastapi`-scope spans after the rebuild. Tests in a fresh
+  interpreter with a control (FastAPI's defaults do install all three providers).
+
 ## Next
-- **You: review ADR-0015** (re-identification for the doctor's screen and the approved record) and
-  **ADR-0014** (de-ID tagger behind `DEID_NER=tagger`).
-- **You: open the PR for `reidentify-for-doctor`** (the built-in browser is signed out of GitHub).
+- **You: review ADR-0016** (durable drafts) and **postmortem 0004** (FastAPI telemetry bypassed the
+  app-level span redaction), then ADR-0015 and ADR-0014.
+- **You: open the PR for `durable-drafts`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
@@ -896,8 +924,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 
 ## Open questions
 
-- Pending drafts live in LangGraph's in-memory checkpointer, so an API restart loses drafts awaiting review.
-  A durable checkpointer (Postgres) is the fix when it matters; FHIR writes and the audit log are unaffected.
+- ~~Pending drafts live in LangGraph's in-memory checkpointer~~: resolved 2026-10-24 (ADR-0016), Postgres
+  checkpoints without PHI; lab results awaiting confirmation are still in memory.
 - ~~Drafts and answers are shown in surrogate form (PATIENT_1)~~: resolved 2026-10-24 (ADR-0015): doctors
   see the originals, the approved record holds them, models, logs and traces stay surrogate-only.
 
