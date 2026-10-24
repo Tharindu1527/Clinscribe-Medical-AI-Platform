@@ -57,7 +57,7 @@ audited (ADR-0015).
 | Speech recognition | PriMock57: WER 0.119 (nova-3) vs **0.112 (nova-3-medical)**; medical-term errors 18 → 12 of 200; keyterm boosting no gain | `voice/asr_wer.md` |
 | Turn taking | 12 questions with a 0.7–2.0 s pause inside the sentence: cut off 27/36 (VAD only), 10/36 (semantic model), **1/36 (semantic, transcript punctuation off; adopted, ADR-0012)**, at the cost of a ~3 s end of turn on 4 of 12 whole questions; barge-in stops the agent's audio in p50 616 / p95 629 ms; self-interruption from echo 0/8 replies with echo cancellation, 8/8 without | `voice/turn_taking.md` |
 | Scribe from audio | PriMock57, doctor + patient mixed to one live stream with diarization: **0.979** of words to the right speaker (role rule refined on this set; first rule 0.783), doctor found 6/6, WER 0.143; drafts 5/6 (the 108-turn visit exceeded the free-tier output budget) | `voice/scribe_diarization.md` |
-| Incidents | 3 drills with postmortems: provider outage (found and fixed a fallback gap: 2/4 → 4/4 answered), retrieval drift, latency spike | `docs/postmortems/` |
+| Incidents | 3 drills with postmortems: provider outage (found and fixed a fallback gap: 2/4 → 4/4 answered), retrieval drift, latency spike; plus one real defect: FastAPI's built-in telemetry had silently replaced the app-level span redaction (the collector's layer held: 0 leaks), now off and fail-closed | `docs/postmortems/` |
 
 Phase gates (`just gate N`) pass for phases 1, 3, 4 and 5; phase 2 passes every criterion except the
 human review of the golden-set sample (pending). The demo video (4 min 50 s, recorded live by

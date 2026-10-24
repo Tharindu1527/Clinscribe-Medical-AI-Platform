@@ -9,6 +9,7 @@ import sys
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
+from fastapi.telemetry import TelemetryConfig
 from opentelemetry import propagate, trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -20,6 +21,18 @@ from llmops.telemetry.redaction import RedactingSpanExporter, RedactionFilter
 
 LOGGERS = ("", "uvicorn", "uvicorn.access", "uvicorn.error", "clinscribe")
 
+# FastAPI's own OpenTelemetry, on by default: before the app's lifespan runs, it installs a global
+# tracer provider with a plain OTLP exporter when OTEL_EXPORTER_OTLP_ENDPOINT is set, so
+# configure_tracing's redacting provider is refused; it also exports metrics, and records validation
+# failures with their input values as OTLP log records. Every app turns it off: `instrument` makes
+# the one span per request, through the redacting exporter (postmortem 0004).
+FASTAPI_TELEMETRY: TelemetryConfig = {
+    "auto_configure": False,
+    "tracing": False,
+    "metrics": False,
+    "logs": False,
+}
+
 
 def configure_tracing(
     service_name: str, otlp_endpoint: str, exporter: SpanExporter | None = None
@@ -29,6 +42,10 @@ def configure_tracing(
     provider = TracerProvider(resource=Resource.create({"service.name": service_name}))
     provider.add_span_processor(BatchSpanProcessor(RedactingSpanExporter(inner)))
     trace.set_tracer_provider(provider)
+    # OpenTelemetry keeps the first global provider and only warns: fail closed instead, or spans
+    # would leave through someone else's exporter without redaction (see FASTAPI_TELEMETRY)
+    if trace.get_tracer_provider() is not provider:
+        raise RuntimeError("another tracer provider is installed; spans would skip redaction")
     return provider
 
 

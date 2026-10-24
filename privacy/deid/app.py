@@ -17,7 +17,12 @@ from pydantic import BaseModel, Field
 
 from config.db import app_conninfo
 from config.settings import Settings
-from llmops.telemetry.setup import configure_logging, configure_tracing, instrument
+from llmops.telemetry.setup import (
+    FASTAPI_TELEMETRY,
+    configure_logging,
+    configure_tracing,
+    instrument,
+)
 from privacy.deid.engine import SURROGATE_RE, Deidentifier, analyzer_for
 from privacy.deid.store import PostgresStore
 
@@ -62,7 +67,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     provider.shutdown()
 
 
-app = FastAPI(title="ClinScribe de-ID", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="ClinScribe de-ID", version="0.1.0", lifespan=lifespan, telemetry=FASTAPI_TELEMETRY
+)
 instrument(app, SERVICE)
 
 
