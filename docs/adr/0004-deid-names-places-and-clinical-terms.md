@@ -55,6 +55,8 @@ Results (`evals/reports/privacy/deid_v1_en_core_web_md.md`):
   phrasings and seed, frozen: never used for tuning) shows the honest picture: misses remain for
   places without a cue ("originally from X", "works in X", "moved here from X") and for a second name
   in a list ("with A and B"). Closing these is Phase 5 (fine-tuned NER) or a new held-out set per change.
+  Update 2026-10-24: the fine-tuned tagger (ADR-0014, opt-in with `DEID_NER=tagger`) finds the
+  cue-less places on every held-out set; these rules stay the default.
 - Known gap: a lexicon entry that is also an uncommon first name (e.g. the brand "Allegra") is not
   redacted when it appears alone with no cue. Cued mentions ("Mrs. Allegra Smith") are redacted.
 - Over-redaction is now gated (≤ 1%), so future recall work cannot silently damage clinical text.

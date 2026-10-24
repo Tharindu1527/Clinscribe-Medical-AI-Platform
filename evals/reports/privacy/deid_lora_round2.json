@@ -1,0 +1,181 @@
+{
+  "spacy": {
+    "seeded": {
+      "PERSON": [
+        120,
+        120
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v1": {
+      "PERSON": [
+        107,
+        110
+      ],
+      "LOCATION": [
+        51,
+        60
+      ]
+    },
+    "heldout_v2": {
+      "PERSON": [
+        109,
+        110
+      ],
+      "LOCATION": [
+        57,
+        70
+      ]
+    },
+    "heldout_v3": {
+      "PERSON": [
+        90,
+        90
+      ],
+      "LOCATION": [
+        42,
+        50
+      ]
+    },
+    "negatives_v1": [
+      0,
+      80
+    ],
+    "negatives_v1_altered": [],
+    "negatives_v2": [
+      3,
+      40
+    ],
+    "negatives_v2_altered": [
+      "Spirometry shows an FEV1 of 62 percent predicted.",
+      "Bay 2 is ready for the next patient from recovery.",
+      "Sleeps poorly because of reflux at night."
+    ],
+    "latency_ms": [
+      14.347700001962949,
+      19.66059999904246
+    ]
+  },
+  "lora": {
+    "seeded": {
+      "PERSON": [
+        120,
+        120
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v1": {
+      "PERSON": [
+        109,
+        110
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v2": {
+      "PERSON": [
+        110,
+        110
+      ],
+      "LOCATION": [
+        70,
+        70
+      ]
+    },
+    "heldout_v3": {
+      "PERSON": [
+        90,
+        90
+      ],
+      "LOCATION": [
+        50,
+        50
+      ]
+    },
+    "negatives_v1": [
+      0,
+      80
+    ],
+    "negatives_v1_altered": [],
+    "negatives_v2": [
+      1,
+      40
+    ],
+    "negatives_v2_altered": [
+      "Moved to Ward 7 after the operation."
+    ],
+    "latency_ms": [
+      48.714700002165046,
+      71.6591000018525
+    ]
+  },
+  "both": {
+    "seeded": {
+      "PERSON": [
+        120,
+        120
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v1": {
+      "PERSON": [
+        110,
+        110
+      ],
+      "LOCATION": [
+        60,
+        60
+      ]
+    },
+    "heldout_v2": {
+      "PERSON": [
+        110,
+        110
+      ],
+      "LOCATION": [
+        70,
+        70
+      ]
+    },
+    "heldout_v3": {
+      "PERSON": [
+        90,
+        90
+      ],
+      "LOCATION": [
+        50,
+        50
+      ]
+    },
+    "negatives_v1": [
+      0,
+      80
+    ],
+    "negatives_v1_altered": [],
+    "negatives_v2": [
+      4,
+      40
+    ],
+    "negatives_v2_altered": [
+      "Spirometry shows an FEV1 of 62 percent predicted.",
+      "Moved to Ward 7 after the operation.",
+      "Bay 2 is ready for the next patient from recovery.",
+      "Sleeps poorly because of reflux at night."
+    ],
+    "latency_ms": [
+      48.48340000171447,
+      67.69319999875734
+    ]
+  }
+}

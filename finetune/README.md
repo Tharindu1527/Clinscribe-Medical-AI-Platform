@@ -13,7 +13,19 @@ PHI-free clinical sentences** (spaCy 0 and 3): it tags capitalised sentence star
 "Insulin"), acronyms and ward names. Cause: 9 of the 12 round-1 templates start with a name and there
 were no PHI-free sentences. The de-ID service keeps spaCy.
 
-## Round 2 (to train)
+## Round 2 (2026-10-19): trained, adopted behind `DEID_NER=tagger` (ADR-0014)
+
+`evals/reports/privacy/deid_lora_round2.md`: on the sets frozen before round 2 was trained, names
+90/90 and places 50/50 (spaCy 90/90 and 42/50), and 1 of 40 PHI-free sentences altered (spaCy 3).
+To use it in the de-ID service:
+
+1. `uv run --with peft==0.21.2 python -m finetune.merge` merges the adapter into
+   `data/finetune/deid_ner_tagger/` (~250 MB; the service needs no peft).
+2. In `.env`: `DEID_NER=tagger`, `DEID_TARGET=rag`, `DEID_IMAGE=clinscribe-python-rag:dev`,
+   `DEID_MEM_LIMIT=3584m`; then `just up`.
+3. `just eval privacy` (writes `deid_v2_tagger.md`) and `just eval leak` check it.
+
+The steps that produced round 2:
 
 1. `uv run python -m finetune.make_dataset` writes `data/finetune/deid_ner_v2/{train,dev,test}.jsonl`:
    12 more templates with names away from the sentence start, and ~40% PHI-free clinical sentences.

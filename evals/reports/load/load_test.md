@@ -1,7 +1,7 @@
 # Load test: Ask endpoint (Phase 6)
 
-Current configuration: **de-ID with 3 workers** (table below). Before/after and the bottleneck
-analysis follow the table.
+Table below: **de-ID with 3 workers and spaCy names/places** (2026-10-14). Before/after, the
+bottleneck analysis and the cost of the fine-tuned de-ID tagger (2026-10-24) follow the table.
 
 3 questions per session, sent one after another; sessions run concurrently.
 The model is the gateway's canned `clinscribe-mock` alias (no provider call), so the
@@ -45,3 +45,22 @@ ONNX export), batch concurrent queries, run 2 guidelines-mcp replicas, and skip 
 when the caller already holds de-identified text from a trusted service (keeping it for external
 callers). The model provider is not in these numbers: real free-tier calls add 1-4 s per answer
 (`evals/reports/llmops/failover_latency.md`).
+
+## De-ID names/places: spaCy vs the fine-tuned tagger (2026-10-24, ADR-0014)
+
+Same day, warm stack, back to back: tagger, spaCy, tagger again (the repeat shows run-to-run
+spread). Only the de-ID service changed (`DEID_NER`, its image and memory limit); 0 errors in every
+run. Cells: p50 / p95 ms, throughput req/s.
+
+| sessions | spaCy | tagger, run A | tagger, run B |
+|---|---|---|---|
+| 10 | 1,673 / 2,428, 5.29 | 2,049 / 3,325, 4.14 | 1,968 / 2,896, 4.58 |
+| 50 | 8,001 / 10,482, 5.39 | 9,841 / 12,231, 4.53 | 9,218 / 12,619, 4.66 |
+| 100 | 14,844 / 25,322, 5.33 | 16,128 / 27,013, 4.89 | 16,124 / 27,326, 4.78 |
+
+The tagger costs about 14% throughput on average (8-22% per level and run; 5.3 → 4.1-4.9 req/s)
+and 0.3-1.8 s at p50 under load:
+it is a CPU model (~35 ms more per call in-process, two calls per question) competing with the
+guideline encoders for the same cores. De-ID memory after a run: 2.1-2.3 GiB with the tagger vs
+1.1 GiB with spaCy (3 workers each). The first tagger run straight after a cold start measured
+p95 8.6 s at 10 sessions (2.0 req/s); warm runs do not, so cold-start numbers are not used here.
