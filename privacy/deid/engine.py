@@ -65,6 +65,18 @@ def build_analyzer(
     return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["en"])
 
 
+def analyzer_for(ner: str, spacy_model: str, tagger_path: str = "") -> AnalyzerEngine:
+    """The service's analyzer for `DEID_NER`: "spacy" (default) or "tagger", the fine-tuned
+    name/place model instead of spaCy's NER (ADR-0014; spaCy still tokenises). Needs torch."""
+    if ner == "spacy":
+        return build_analyzer(spacy_model)
+    if ner == "tagger":
+        from privacy.deid.tagger import TaggerRecognizer  # torch only when chosen
+
+        return build_analyzer(spacy_model, spacy_ner=False, extra=[TaggerRecognizer(tagger_path)])
+    raise ValueError(f"DEID_NER must be spacy or tagger, not {ner!r}")
+
+
 def _not_phi(text: str, result: RecognizerResult) -> bool:
     """Drop name/place spans that are clinical terms (de-ID v1, see privacy/deid/lexicon.py).
 

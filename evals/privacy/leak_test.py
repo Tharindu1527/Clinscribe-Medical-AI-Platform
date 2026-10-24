@@ -251,7 +251,8 @@ def main() -> int:
         "Seed values that survived de-ID in the text sent to the gateway: "
         f"**{len(llm_exposed)} of {len(seeds)}** ({exposed}).",
         "Structured identifiers are covered by regex recognisers; names and places depend on",
-        "spaCy NER.",
+        f"the name/place recogniser (`DEID_NER={settings.deid_ner}` in `.env`; "
+        "ADR-0004, ADR-0014).",
     ]
     (REPORT_DIR / "leak_test.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))

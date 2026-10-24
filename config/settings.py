@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     deid_url: str = "http://127.0.0.1:8001"
     deid_mapping_key: SecretStr = SecretStr("")
     deid_spacy_model: str = "en_core_web_md"
+    deid_ner: str = "spacy"  # names/places: "spacy" or "tagger" (fine-tuned model, ADR-0014)
+    deid_tagger_path: str = "data/finetune/deid_ner_tagger"  # merged model (finetune/merge.py)
     audit_chain_key: SecretStr = SecretStr("")
     approval_token_key: SecretStr = SecretStr("")  # signs approvals of clinical writes
     auth_token_key: SecretStr = SecretStr("")  # signs API bearer tokens (user + role)
