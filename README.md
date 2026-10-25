@@ -97,6 +97,10 @@ just test; just gate 3   # tests; a phase gate
   run the spaCy rules; it costs ~35 ms per de-ID call.
 - Free-tier rate limits shaped the evaluations (60-question answer subset, 8 scribe dialogues).
 - Lab parsing is measured on one synthetic layout; scanned reports (true OCR) are not covered.
+- Evaluation tooling differs from SPEC §10–11 in one place: DeepEval is not used. The agent's tool
+  calls are fixed code paths (no model chooses a tool), so "tool-call accuracy" reduces to the
+  router's choice, measured in `agents/router.md`; generation is checked with our own judges, with
+  RAGAS as a cross-check (`rag/ragas_calibration.md`).
 
 ## A note on JEPA
 
