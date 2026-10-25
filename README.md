@@ -52,7 +52,7 @@ audited (ADR-0015).
 | Lab | 162/162 values mapped and flagged (fixed synthetic layout); wrong-patient control 20/20 | `lab/lab_parser.md` |
 | Reliability | turns succeed with the primary down (p50 779 / p95 1,080 ms) and with **every cloud provider down** (local Ollama) | `llmops/`, `just gate 5` |
 | Load | Ask endpoint, mocked model: p50 / p95 1.7 / 2.9 s at 10 sessions, 8.1 / 10.0 s at 50, 14.5 / 25.1 s at 100; 0 errors; ~5 req/s (de-ID was the bottleneck: 3 workers tripled throughput) | `load/load_test.md` |
-| Cost | one consultation (draft + 3 questions) at list price: $0.050 (Gemini 3.5 Flash) … $0.002 (Groq gpt-oss-20b); free tiers bill $0 | `llmops/cost_per_consultation.md` |
+| Cost | one consultation (draft + 3 questions) at list price: $0.050 (Gemini 3.5 Flash) … $0.002 (Groq gpt-oss-20b); free tiers bill $0. Gemini implicit prompt caching saved nothing here: 0 cached tokens in 274 calls, including a controlled repeat test | `llmops/cost_per_consultation.md`, `llmops/prompt_cache.md` |
 | Voice | time to first audio p50 / p95 **4.3 / 7.1 s** with Deepgram Aura-2 speech (2026-10-19, 29/30 answered; 3.5 / 19.7 s with Cartesia on 2026-10-14, whose first byte was ~600 ms faster) vs SPEC budget 1.5 s: **not met**, bottleneck is the non-streamed cited answer; Gemini Live speech-to-speech 3.5 / 6.1 s, no citations or guardrails | `voice/latency.md`, ADR-0011, ADR-0013 |
 | Speech recognition | PriMock57: WER 0.119 (nova-3) vs **0.112 (nova-3-medical)**; medical-term errors 18 → 12 of 200; keyterm boosting no gain | `voice/asr_wer.md` |
 | Turn taking | 12 questions with a 0.7–2.0 s pause inside the sentence: cut off 27/36 (VAD only), 10/36 (semantic model), **1/36 (semantic, transcript punctuation off; adopted, ADR-0012)**, at the cost of a ~3 s end of turn on 4 of 12 whole questions; barge-in stops the agent's audio in p50 616 / p95 629 ms; self-interruption from echo 0/8 replies with echo cancellation, 8/8 without | `voice/turn_taking.md` |
@@ -97,6 +97,10 @@ just test; just gate 3   # tests; a phase gate
   run the spaCy rules; it costs ~35 ms per de-ID call.
 - Free-tier rate limits shaped the evaluations (60-question answer subset, 8 scribe dialogues).
 - Lab parsing is measured on one synthetic layout; scanned reports (true OCR) are not covered.
+- Evaluation tooling differs from SPEC §10–11 in one place: DeepEval is not used. The agent's tool
+  calls are fixed code paths (no model chooses a tool), so "tool-call accuracy" reduces to the
+  router's choice, measured in `agents/router.md`; generation is checked with our own judges, with
+  RAGAS as a cross-check (`rag/ragas_calibration.md`).
 
 ## A note on JEPA
 

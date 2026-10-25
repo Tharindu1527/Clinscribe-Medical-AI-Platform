@@ -45,7 +45,8 @@ class Completion:
     latency_ms: float
     response_id: str | None = None  # LiteLLM spend logs record the call under this id
     call_id: str | None = None
-    cached: bool = False
+    cached: bool = False  # replayed from the local cache (not a provider cache)
+    cached_input_tokens: int = 0  # input tokens the provider served from its prompt cache
 
 
 class CacheMissError(LookupError):
@@ -130,6 +131,7 @@ class GatewayClient:
         temperature: float = 0.0,
         max_tokens: int = 512,
         response_format: dict[str, object] | None = None,
+        reasoning_effort: str | None = None,
     ) -> Completion:
         for message in messages:
             if not isinstance(message.content, DeidentifiedText):
@@ -145,6 +147,8 @@ class GatewayClient:
         }
         if response_format is not None:  # e.g. {"type": "json_object"}; absent keeps old cache keys
             payload["response_format"] = response_format
+        if reasoning_effort is not None:  # gpt-oss: low/medium/high; absent keeps old keys
+            payload["reasoning_effort"] = reasoning_effort
         key = ReplayCache.key(payload)
         # GenAI semantic conventions; message content is never put on the span
         with _tracer.start_as_current_span(f"chat {model}", kind=SpanKind.CLIENT) as span:
@@ -178,6 +182,9 @@ class GatewayClient:
                 latency_ms=round(latency_ms, 1),
                 response_id=body.get("id"),
                 call_id=response.headers.get("x-litellm-call-id"),
+                cached_input_tokens=int(
+                    (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
+                ),
             )
             span.set_attribute("gen_ai.response.model", completion.model)
             span.set_attribute("gen_ai.response.id", completion.response_id or "")
