@@ -72,6 +72,19 @@ def test_completion_parsed_from_gateway_response() -> None:
     assert calls[0].headers["Authorization"] == "Bearer sk-test"
 
 
+def test_provider_prompt_cache_hits_are_reported() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        usage = {"prompt_tokens": 2400, "completion_tokens": 5,
+                 "prompt_tokens_details": {"cached_tokens": 2048}}  # fmt: skip
+        body = {"id": "c", "model": "m", "choices": [{"message": {"content": "x"}}]}
+        return httpx.Response(200, json={**body, "usage": usage})
+
+    reply = _client(httpx.MockTransport(handler)).complete("clinscribe-default", HELLO)
+    assert reply.cached_input_tokens == 2048
+    no_details = _client(_ok_transport([])).complete("clinscribe-default", HELLO)
+    assert no_details.cached_input_tokens == 0
+
+
 def test_reasoning_effort_is_sent_only_when_asked() -> None:
     calls: list[httpx.Request] = []
     client = _client(_ok_transport(calls))

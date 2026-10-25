@@ -45,7 +45,8 @@ class Completion:
     latency_ms: float
     response_id: str | None = None  # LiteLLM spend logs record the call under this id
     call_id: str | None = None
-    cached: bool = False
+    cached: bool = False  # replayed from the local cache (not a provider cache)
+    cached_input_tokens: int = 0  # input tokens the provider served from its prompt cache
 
 
 class CacheMissError(LookupError):
@@ -181,6 +182,9 @@ class GatewayClient:
                 latency_ms=round(latency_ms, 1),
                 response_id=body.get("id"),
                 call_id=response.headers.get("x-litellm-call-id"),
+                cached_input_tokens=int(
+                    (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
+                ),
             )
             span.set_attribute("gen_ai.response.model", completion.model)
             span.set_attribute("gen_ai.response.id", completion.response_id or "")
