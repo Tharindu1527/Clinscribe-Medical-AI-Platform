@@ -891,8 +891,12 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   AUC 0.58–0.75; on the chosen pipeline, reaching 0.89–0.97 precision empties 19–29 of 49 answers,
   and the safe policy (keep each sentence's best citation) gains only 0.02–0.05 while dropping
   16–25% of the good citations, at 0.4–1.7 s CPU per answer. Not built; the gap is now stated in
-  the README (0.875 vs 0.95). Next candidate: a generator prompt that cites one passage per
-  sentence, measured with the answer evaluation (~1 day of free-tier budget).
+  the README (0.875 vs 0.95). Then a generator trial, `prompts/experiments/answer_cited_v2.yaml`
+  (one passage per sentence; `answer_eval --prompt ... --name ...` keeps its rows apart), with the
+  adoption rule written down first (ADR-0017: precision better, correctness non-inferior at −0.05,
+  correct abstentions not lower). Interim 47 of 60, then the judge's free-tier budget ran out:
+  citation precision 0.856 → 0.960 (+0.104 [+0.043, +0.167]), correctness 0.904 → 0.862 (−0.043
+  [−0.117, +0.021]), false abstentions 1 → 3 of 47. Resume with the same command.
 
 ## Next
 - **You: review ADR-0017** (citation support check not adopted), **ADR-0016** (durable drafts) and

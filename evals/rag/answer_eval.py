@@ -2,6 +2,8 @@
 
   uv run python -m evals.rag.answer_eval --system dense              generate + judge (resumable)
   uv run python -m evals.rag.answer_eval --compare dense hybrid_colbert_ctx
+  uv run python -m evals.rag.answer_eval --system hybrid_colbert_ctx --name hybrid_colbert_ctx_v2
+      --prompt prompts/experiments/answer_cited_v2.yaml            a prompt trial, own row file
 
 Questions: a seeded, stratified 60-question subset of the golden set (per area 10 answerable +
 2 unanswerable). Context: the top 5 chunks of the system's stored ranking (evals/reports/rag/runs),
@@ -181,8 +183,16 @@ def metrics(
     return out
 
 
-def run(system: str, items: Sequence[GoldenItem], client: PatientClient) -> Path:
-    spec = load_spec()
+def run(
+    system: str,
+    items: Sequence[GoldenItem],
+    client: PatientClient,
+    prompt: Path | None = None,
+    name: str | None = None,
+) -> Path:
+    """Answer and judge with one system's rankings; rows go to answers/<name>.jsonl (the system's
+    name unless a prompt trial names its own file)."""
+    spec = load_spec(prompt) if prompt else load_spec()
     judge_spec = yaml.safe_load(JUDGE_FILE.read_text(encoding="utf-8"))
     generator = AnswerGenerator(client, alias_for(spec.task), spec)
     judge_model = alias_for(judge_spec["task"])
@@ -194,7 +204,7 @@ def run(system: str, items: Sequence[GoldenItem], client: PatientClient) -> Path
         .splitlines()
     }
     OUT.mkdir(parents=True, exist_ok=True)
-    path = OUT / f"{system}.jsonl"
+    path = OUT / f"{name or system}.jsonl"
     done = {}
     if path.exists():
         for line in path.read_text(encoding="utf-8").splitlines():
@@ -345,7 +355,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--system", action="append", help="retrieval system(s) to answer with")
     parser.add_argument("--compare", nargs=2, metavar=("BASELINE", "CANDIDATE"))
     parser.add_argument("--limit", type=int, help="first N questions of the subset (smoke run)")
+    parser.add_argument(
+        "--prompt", type=Path, help="answer prompt to try instead of the production one"
+    )
+    parser.add_argument("--name", help="row file name for a prompt trial (default: the system)")
     args = parser.parse_args(argv)
+    if args.name and len(args.system or []) != 1:
+        parser.error("--name goes with exactly one --system")
     if args.compare:
         print(compare(*args.compare).read_text(encoding="utf-8"))
         return 0
@@ -364,8 +380,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         for system in args.system or ["dense"]:
-            path = run(system, items, PatientClient(gateway))
-            print(json.dumps({system: summary(load_rows(system))}, indent=2))
+            path = run(system, items, PatientClient(gateway), args.prompt, args.name)
+            name = args.name or system
+            print(json.dumps({name: summary(load_rows(name))}, indent=2))
             print(f"rows: {path}")
     except BudgetExhaustedError as exc:
         print(f"stopped: {exc}. Saved rows are kept; rerun the same command later to resume.")

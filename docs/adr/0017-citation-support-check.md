@@ -50,6 +50,14 @@ Both fail the project's rule that an added technique must beat the baseline in t
   rule such as "cite the one passage that states it"), measured with the existing answer
   evaluation. That needs about 60 generations and 60 judgments on the free tiers (~1 day of Groq
   budget), and a regression check on correctness and abstention.
+- Generator trial (2026-10-25, `prompts/experiments/answer_cited_v2.yaml`: "cite the source that
+  states it; if a claim needs two sources, write two sentences"), on the chosen pipeline's 60
+  questions (`--name hybrid_colbert_ctx_v2`). Adoption rule, written before the run finished: adopt
+  v2 only if citation precision is better (95% CI excludes 0), correctness is non-inferior (lower CI
+  bound ≥ −0.05, the Phase 2 gate's margin) and correct abstentions on unanswerable questions do not
+  drop. Interim, 47 of 60 (the judge's free-tier budget ran out): citation precision 0.856 → 0.960
+  (+0.104 [+0.043, +0.167]), correctness 0.904 → 0.862 (−0.043 [−0.117, +0.021]), false
+  abstentions 1 → 3 of 47.
 - Option 2 stays open if a real deployment needs a runtime check; it must use a different model
   family from the evaluation judge and would add a model call to every answer, and its latency to
   voice turns (already over budget).
