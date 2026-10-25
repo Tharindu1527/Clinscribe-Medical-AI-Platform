@@ -899,8 +899,24 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   10/10 → 9/10: **not adopted**. The abstention it missed was a wrong-drug answer: mazdutide (not in
   the corpus) answered from the Ozempic (semaglutide) label, every sentence faithful to its source.
 
+- 2026-10-25: **Question-subject grounding** (ADR-0018, proposed), after the v2 trial's wrong-drug
+  answer (mazdutide answered from the semaglutide label, every sentence faithful to its source).
+  Two deterministic checks in `retrieval/grounding.py`, served by a new guidelines-mcp tool
+  `check_grounding` (re-de-identifies the question; de-ID surrogates never count): (a) a question
+  word no source uses and that is not common English (spaCy vectors) nor a UK/US spelling of a
+  corpus word ends the question abstained in the router, before search and models, and the API,
+  UI and voice agent name the term; (b) a drug the question names (DDInter + RxNorm lexicon) that
+  no cited source names is a guardrail violation (one retry, then the safe reply). Measured offline
+  first (`evals/rag/drug_grounding.py`): (a) blocks 0 of 209 answerable golden questions and
+  catches 25 of 26 unanswerable (optimistic: those were built around absent drugs; the spelling
+  fold was added after seeing "nebulised"); (b) blocks none of 185 stored answers. Cost: p50 109 /
+  p95 214 ms per check call, two per answered question. Red-team 65/65 with 2 wrong-drug cases
+  (control 23/65: both fail with the checks off); live 5/5 (new: the mazdutide question abstains
+  in 0.7 s with no model call).
+
 ## Next
-- **You: review ADR-0017** (citation support check not adopted), **ADR-0016** (durable drafts) and
+- **You: review ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
+  adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
 - **You: open the PR for `citation-support`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
