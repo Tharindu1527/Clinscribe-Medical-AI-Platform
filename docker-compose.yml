@@ -152,6 +152,10 @@ services:
       APPROVAL_TOKEN_KEY: ${APPROVAL_TOKEN_KEY:?run just gen-keys}
       AUTH_TOKEN_KEY: ${AUTH_TOKEN_KEY:?run just gen-keys}
       DEID_REIDENTIFY_KEY: ${DEID_REIDENTIFY_KEY:?run just gen-keys}
+      # signs LiveKit room tokens for the browser's Voice tab (ADR-0019)
+      LIVEKIT_URL: ${LIVEKIT_URL:-ws://127.0.0.1:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?run just gen-keys}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?run just gen-keys}
       DEV_LOGIN: ${DEV_LOGIN:-false}
       CLINSCRIBE_MODEL_OVERRIDE: ${CLINSCRIBE_MODEL_OVERRIDE:-}  # load tests: clinscribe-mock
     ports:
@@ -312,6 +316,23 @@ services:
       timeout: 5s
       retries: 30
       start_period: 60s
+
+  # Browser voice over WebRTC (ADR-0019): `just up voice`, then `just voice dev` (the agent worker on
+  # the host) and the Voice tab of the review UI. Ports on 127.0.0.1 only; media on one UDP port.
+  livekit:
+    image: livekit/livekit-server:v1.13.9
+    profiles: [voice]
+    mem_limit: 256m
+    command: ["--config", "/etc/livekit.yaml", "--node-ip", "127.0.0.1"]
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?run just gen-keys}: ${LIVEKIT_API_SECRET:?run just gen-keys}"
+    volumes:
+      - ./infra/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "127.0.0.1:7880:7880"
+      - "127.0.0.1:7881:7881"
+      - "127.0.0.1:7882:7882/udp"
+    restart: unless-stopped
 
   # Vector-store comparison only (task 11, ADR-0007): Postgres + pgvector, separate from the core
   # Postgres so the comparison cannot touch app, LiteLLM or HAPI data.

@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { call, setToken } from "./api.js";
+import Citations from "./Citations.jsx";
+// loaded on first use: the LiveKit client is most of the bundle (ADR-0019)
+const Voice = lazy(() => import("./Voice.jsx"));
 
 const SECTIONS = ["subjective", "objective", "assessment", "plan"];
 const SAMPLE = `D: Good morning, what brings you in today?
@@ -35,19 +38,6 @@ function Login({ onLogin }) {
       {error && <p className="error">{error}</p>}
     </form>
   );
-}
-
-function Citations({ ids, evidence }) {
-  return ids.map((id) => {
-    const source = evidence.find((e) => e.chunk_id === id);
-    const n = evidence.indexOf(source) + 1;
-    return (
-      <a key={id} className="chip" href={source?.source_url} target="_blank" rel="noreferrer"
-         title={source ? `${source.title} — ${source.section}` : id}>
-        [{n || "?"}]
-      </a>
-    );
-  });
 }
 
 function Ask() {
@@ -303,7 +293,7 @@ export default function App() {
   const [who, setWho] = useState(null);
   const [tab, setTab] = useState("ask");
   if (!who) return <main><h1>ClinScribe</h1><Login onLogin={(w) => { setWho(w); setTab(w.role === "doctor" ? "ask" : "audit"); }} /></main>;
-  const tabs = who.role === "doctor" ? ["ask", "scribe"] : ["audit"];
+  const tabs = who.role === "doctor" ? ["ask", "voice", "scribe"] : ["audit"];
   return (
     <main>
       <header>
@@ -313,6 +303,7 @@ export default function App() {
       </header>
       <p className="banner">Synthetic data only. Drafts are AI-generated and need a doctor's approval before anything is saved.</p>
       {tab === "ask" && <Ask />}
+      {tab === "voice" && <Suspense fallback={<p className="label">Loading voice…</p>}><Voice /></Suspense>}
       {tab === "scribe" && <Scribe />}
       {tab === "audit" && <Audit />}
     </main>

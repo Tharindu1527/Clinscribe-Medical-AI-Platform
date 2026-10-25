@@ -29,6 +29,7 @@ from agents.schemas import ReviewDecision, SoapNote
 from apps.api.audit import AuditEntry
 from apps.api.auth import Principal, issue_token, require, users
 from apps.api.drafts import WAITING, Draft
+from apps.api.voice_token import room_token
 from config.db import app_conninfo
 from config.settings import Settings
 
@@ -360,6 +361,17 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
     if pending := out.get("__interrupt__"):  # wrong identifiers: the draft is still open
         response |= {"awaiting_review": True, "attempts_left": pending[0].value["attempts_left"]}
     return response
+
+
+@router.post("/voice/token")
+def voice_token(request: Request, who: Doctor) -> dict[str, str]:
+    """A LiveKit room for one browser voice session (ADR-0019). The voice agent worker joins every
+    new room; the doctor's audio goes to the self-hosted LiveKit server, then Deepgram."""
+    settings = Settings()
+    room = f"clinscribe-{who.user}-{uuid.uuid4().hex[:8]}"
+    token = room_token(settings.livekit_api_key, settings.livekit_api_secret, who.user, room)
+    _audit(request, who, "voice.session", resource_type="Room", resource_id=room)
+    return {"url": settings.livekit_url, "room": room, "token": token}
 
 
 @router.get("/audit")

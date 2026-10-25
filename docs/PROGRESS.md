@@ -934,11 +934,39 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   budget ran out after today's other runs; a background job resumes it every 25 minutes
   (results cached). Partial: D2N075 recall 0.88, critical 0.93, 2 of 25 statements unsupported.
 
+- 2026-10-26: **Browser voice over WebRTC** (ADR-0019, proposed; SPEC §4 "audio travels over
+  WebRTC through a LiveKit server", until now console mode only). Self-hosted LiveKit server
+  (`livekit/livekit-server:v1.13.9`, profile `voice`, ports on 127.0.0.1, media on one UDP port,
+  69 MiB); `POST /v1/voice/token` (doctors only, audited as `voice.session`, HS256 room token
+  written directly); the agent worker (`just voice dev|start`) joins each room and sends every cited
+  answer (sentences, citations, source titles and links) on the room's data channel; the review UI's
+  Voice tab (`livekit-client` 2.22.4, lazy-loaded) plays the agent, shows the live transcript and
+  the citations. **End to end without a browser** (`voice/webrtc_check.py`, `just voice-webrtc`,
+  `evals/reports/voice/webrtc.md`): a Python LiveKit client as the doctor, 10 recorded questions:
+  agent joined in 1.7 s, 9 spoken replies, 8 cited answers on the data channel, time to first audio
+  at the client p50 6.8 / p95 16.9 s (in-process measurement 4.3 / 7.1 s leaves out the end-of-turn
+  wait and the network). Two things it found in its own first runs: my listener died silently on a
+  memoryview cast (fixed, failures now printed), and one recorded question was split into two
+  turns when speech recognition dropped "ARBs" (counted as a split, kept out of the timing). In the
+  browser pane: token, connection, agent present, greeting transcript, live agent audio track; the
+  pane blocks microphones, so a spoken browser question was not tried. One machine only (127.0.0.1,
+  no TURN, no TLS); the worker uses the demo doctor's API token. Stack with voice 5.55 GiB.
+
+- 2026-10-26: **Vite 8.3.1 → 8.3.3** (review UI dev server). `npm audit` reported six advisories
+  for Vite `>=8.3.0 <=8.3.2`, the highest GHSA-587h-7wmj-h5pm (launch-editor, Windows), plus
+  cross-origin script execution through custom middleware and files outside `server.fs` served or
+  partly exposed. 8.3.3 is the lowest fixed release and 20 days old (8.3.5, which `npm audit fix
+  --force` proposed, was 5 days old); only Vite moved in the lock (rolldown 1.2.13 already met its
+  new range). `npm audit`: 0 vulnerabilities. Built, and the dev server (still on 127.0.0.1, `/v1`
+  proxy unchanged) served the Ask tab, an authenticated API call through the proxy and the Voice
+  tab's lazy chunk and LiveKit connection, with no console errors.
+
 ## Next
-- **You: review ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
+- **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
+  and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `citation-support`** (the built-in browser is signed out of GitHub).
+- **You: open the PR for `webrtc-voice`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
