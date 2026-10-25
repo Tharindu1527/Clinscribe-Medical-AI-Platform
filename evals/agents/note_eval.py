@@ -41,7 +41,7 @@ class NoTools:
     def search(self, request: Any) -> Any:
         raise AssertionError("the scribe path does not search")
 
-    interactions = patient_context = write = search
+    interactions = patient_context = write = grounding = search
 
 
 def turns(dialogue: str) -> list[tuple[str, str]]:

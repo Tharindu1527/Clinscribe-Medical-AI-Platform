@@ -16,9 +16,11 @@ from agents.fhir_docs import note_to_resource
 from agents.graph import Agents, WriteContext, route_question
 from agents.schemas import (
     IDENTITY_MISMATCH,
+    CheckGroundingInput,
     CheckInteractionsInput,
     Evidence,
     GetPatientContextInput,
+    GroundingReport,
     Interaction,
     InteractionReport,
     PatientSummary,
@@ -103,6 +105,15 @@ class FakeTools:
         self.searches: list[SearchGuidelinesInput] = []
         self.writes: list[WriteFhirInput] = []
         self.refusals: list[str] = []  # reasons for the next writes to be refused, in order
+        self.unseen: list[str] = []  # what check_grounding reports before answering ...
+        self.missing: list[str] = []  # ... and for an answer's citations
+        self.groundings: list[CheckGroundingInput] = []
+
+    def grounding(self, request: CheckGroundingInput) -> GroundingReport:
+        self.groundings.append(request)
+        if request.cited:
+            return GroundingReport(missing_drugs=self.missing)
+        return GroundingReport(unseen_terms=self.unseen)
 
     def search(self, request: SearchGuidelinesInput) -> list[Evidence]:
         self.searches.append(request)
@@ -473,3 +484,39 @@ def test_an_approval_without_identifiers_writes_nothing() -> None:
     done = graph.invoke(Command(resume=_resume(draft, APPROVE)), config)
     assert done["result"] == {"status": "write_refused", "reason": "no patient identifiers given"}
     assert tools.writes == []
+
+
+def test_a_term_the_corpus_never_uses_ends_the_question_before_search_and_models() -> None:
+    chat, tools = ScriptedChat(), FakeTools([WARFARIN])
+    tools.unseen = ["mazdutide"]
+    out = (
+        _agents(chat, tools)
+        .build()
+        .invoke({"mode": "ask", "encounter_id": "q9", "question": "Side effects of mazdutide?"})
+    )
+    assert out["answer"]["abstained"] is True
+    assert out["unseen"] == ["mazdutide"]
+    assert "not in the sources: mazdutide" in out["events"]
+    assert tools.searches == []  # no search
+    assert chat.calls == []  # and no model call
+
+
+def test_an_answer_whose_sources_do_not_name_the_drug_is_retried_then_safe() -> None:
+    reply = _cited(("Start at 2 to 5 mg daily.", ["S1"]))
+    chat, tools = ScriptedChat(answer=[reply, reply]), FakeTools([WARFARIN])
+    tools.missing = ["Apixaban"]
+    out = (
+        _agents(chat, tools)
+        .build()
+        .invoke(
+            {
+                "mode": "ask",
+                "encounter_id": "q10",
+                "question": "What is the starting dose of apixaban?",
+            }
+        )
+    )
+    assert out["answer"]["abstained"] is True
+    assert out["violations"] == ["drug_not_in_sources: the cited sources do not name Apixaban"]
+    assert [c for c, _ in chat.calls] == ["answer", "answer"]  # one retry, then the safe reply
+    assert tools.groundings[-1].cited == ["fda:w#s1#c0"]

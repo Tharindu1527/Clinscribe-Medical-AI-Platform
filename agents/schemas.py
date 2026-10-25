@@ -44,6 +44,18 @@ class SearchGuidelinesInput(Contract):
     filters: SourceFilter | None = None
 
 
+class CheckGroundingInput(Contract):
+    question: str = Field(min_length=3, max_length=2000)  # de-identified text only
+    cited: list[ChunkId] = Field(default=[], max_length=40)  # an answer's citations
+
+
+class GroundingReport(Contract):
+    """Is the question's subject in the sources (ADR-0018)?"""
+
+    unseen_terms: list[str] = []  # question words the corpus never uses, not English
+    missing_drugs: list[str] = []  # drugs the question names that no cited source names
+
+
 class Evidence(Contract):
     chunk_id: ChunkId
     text: str = Field(min_length=1)
