@@ -9,6 +9,7 @@ PowerShell; nothing below prints a secret.
 |---|---|
 | Core + FHIR (Phase 1–3 API, de-ID, gateway, fhir-mcp) | `just up` |
 | Add retrieval, drug graph and their MCP servers | `just up rag` |
+| Browser voice (WebRTC, ADR-0019) | `just up voice`, then `just voice dev` (agent worker, own terminal), then the Voice tab; check with `just voice-webrtc` |
 | Review UI (dev server, http://localhost:5173) | `npm --prefix apps/web run dev` |
 | Health, memory | `just ps`, `just stats` (budget ≤ 8 GB) |
 | Stop (data volumes kept) | `just down` |

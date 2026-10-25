@@ -53,7 +53,7 @@ audited (ADR-0015).
 | Reliability | turns succeed with the primary down (p50 779 / p95 1,080 ms) and with **every cloud provider down** (local Ollama) | `llmops/`, `just gate 5` |
 | Load | Ask endpoint, mocked model: p50 / p95 1.7 / 2.9 s at 10 sessions, 8.1 / 10.0 s at 50, 14.5 / 25.1 s at 100; 0 errors; ~5 req/s (de-ID was the bottleneck: 3 workers tripled throughput) | `load/load_test.md` |
 | Cost | one consultation (draft + 3 questions) at list price: $0.050 (Gemini 3.5 Flash) … $0.002 (Groq gpt-oss-20b); free tiers bill $0. Gemini implicit prompt caching saved nothing here: 0 cached tokens in 274 calls, including a controlled repeat test | `llmops/cost_per_consultation.md`, `llmops/prompt_cache.md` |
-| Voice | time to first audio p50 / p95 **4.3 / 7.1 s** with Deepgram Aura-2 speech (2026-10-19, 29/30 answered; 3.5 / 19.7 s with Cartesia on 2026-10-14, whose first byte was ~600 ms faster) vs SPEC budget 1.5 s: **not met**, bottleneck is the non-streamed cited answer; Gemini Live speech-to-speech 3.5 / 6.1 s, no citations or guardrails | `voice/latency.md`, ADR-0011, ADR-0013 |
+| Voice | time to first audio p50 / p95 **4.3 / 7.1 s** with Deepgram Aura-2 speech (2026-10-19, 29/30 answered; 3.5 / 19.7 s with Cartesia on 2026-10-14, whose first byte was ~600 ms faster) vs SPEC budget 1.5 s: **not met**, bottleneck is the non-streamed cited answer; Gemini Live speech-to-speech 3.5 / 6.1 s, no citations or guardrails. Over WebRTC through the self-hosted LiveKit server, measured at the client: 6.8 / 16.9 s (10 questions, ADR-0019) | `voice/latency.md`, `voice/webrtc.md`, ADR-0011, ADR-0013 |
 | Speech recognition | PriMock57: WER 0.119 (nova-3) vs **0.112 (nova-3-medical)**; medical-term errors 18 → 12 of 200; keyterm boosting no gain | `voice/asr_wer.md` |
 | Turn taking | 12 questions with a 0.7–2.0 s pause inside the sentence: cut off 27/36 (VAD only), 10/36 (semantic model), **1/36 (semantic, transcript punctuation off; adopted, ADR-0012)**, at the cost of a ~3 s end of turn on 4 of 12 whole questions; barge-in stops the agent's audio in p50 616 / p95 629 ms; self-interruption from echo 0/8 replies with echo cancellation, 8/8 without | `voice/turn_taking.md` |
 | Scribe from audio | PriMock57, doctor + patient mixed to one live stream with diarization: **0.979** of words to the right speaker (role rule refined on this set; first rule 0.783), doctor found 6/6, WER 0.143; drafts 5/6 (the 108-turn visit exceeded the free-tier output budget) | `voice/scribe_diarization.md` |
@@ -75,6 +75,7 @@ just up; just up rag     # stack (core + FHIR + retrieval)
 just fhir-load           # 50 Synthea patients
 just token dr-demo       # bearer token for a synthetic demo doctor
 just voice               # talk to ClinScribe (microphone + speakers; DEEPGRAM key)
+just up voice; just voice dev   # browser voice: LiveKit server + agent worker, then the Voice tab
 just scribe 1617         # Scribe a consultation from the microphone (Enter to finish) or --file x.wav
 npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
 just demo-video          # re-record the demo video (needs the UI dev server, DEV_LOGIN=true, ffmpeg)
@@ -87,8 +88,9 @@ just test; just gate 3   # tests; a phase gate
   reviewed evaluation set (the golden-set review is pending).
 - "Designed for compliance" is not "compliant": see `docs/compliance/` for the DPIA and the gaps
   (no erasure endpoint, free-tier processors without BAAs/DPAs, no TLS inside the stack).
-- Voice: the cascaded agent works (`just voice`, console mode) but misses the latency budget; no
-  browser/WebRTC client yet (needs a LiveKit server and a token endpoint).
+- Voice: the cascaded agent works in console mode and in the browser over WebRTC (`just up voice`,
+  `just voice dev`, the Voice tab) but misses the latency budget; the WebRTC set-up is for one
+  machine (127.0.0.1, no TURN, no TLS; ADR-0019).
 - Scribe from audio: measured on two close-talk microphones mixed, not one room microphone; the
   role rule was refined on the evaluation set; live diarization did not separate two synthetic
   TTS voices; visits of 100+ turns are near the free-tier output budget (one of six failed).
