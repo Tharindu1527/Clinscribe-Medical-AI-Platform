@@ -6,10 +6,12 @@ the voice agent worker to join and finish its greeting, then plays recorded ques
 latency evaluation's cached speech, 16 kHz) at real-time pace followed by silence. Per turn it
 records time to first audio as the client hears it (end of the question to the first audible
 frame of the agent's reply, so the WebRTC hops are included) and the cited answer the agent sends
-on the room's data channel.
+on the room's data channel. With an admin token (CLINSCRIBE_ADMIN_TOKEN) it also reads the
+audit log: every question must be recorded under the doctor in the room (ADR-0019).
 
   just up voice; just voice start      (the agent worker; another terminal)
-  just voice-webrtc [--n 10]           writes evals/reports/voice/webrtc.md
+  just voice-webrtc [dr-second] [--n 10]   as that synthetic doctor; writes
+                                           evals/reports/voice/webrtc.md
 Real calls: Deepgram (speech in and out) and the ClinScribe API (models) per question.
 """
 
@@ -71,8 +73,18 @@ async def play(source: rtc.AudioSource, pcm: bytes, seconds_of_silence: float = 
     return end_of_speech
 
 
+def audit_rows(admin: str, limit: int = 200) -> list[dict[str, Any]]:
+    headers = {"Authorization": f"Bearer {admin}"}
+    rows: list[dict[str, Any]] = httpx.get(
+        f"{API}/v1/audit?limit={limit}", headers=headers, timeout=30
+    ).json()
+    return rows
+
+
 async def run(n: int) -> dict[str, Any]:
     headers = {"Authorization": f"Bearer {os.environ['CLINSCRIBE_TOKEN']}"}
+    admin = os.environ.get("CLINSCRIBE_ADMIN_TOKEN", "")
+    first_seq = int(audit_rows(admin, 1)[0]["seq"]) if admin else 0
     grant = httpx.post(f"{API}/v1/voice/token", headers=headers, timeout=30).json()
     room, ear, answers = rtc.Room(), AgentEar(), []
     tasks: list[asyncio.Task[None]] = []
@@ -135,7 +147,21 @@ async def run(n: int) -> dict[str, Any]:
     await room.disconnect()
     for task in tasks:
         task.cancel()
-    return {"room": grant["room"], "agent_join_s": agent_s, "turns": turns}
+    audit: dict[str, int] | None = None  # None: no admin token, the audit log was not read
+    if admin:
+        audit = {}
+        for row in audit_rows(admin):
+            if int(row["seq"]) > first_seq and row["action"] in ("ask", "voice.delegate"):
+                key = f"{row['action']} by {row['actor']}"
+                audit[key] = audit.get(key, 0) + 1
+    doctor = grant["room"].removeprefix("clinscribe-").rsplit("-", 1)[0]
+    return {
+        "room": grant["room"],
+        "doctor": doctor,
+        "agent_join_s": agent_s,
+        "turns": turns,
+        "audit": audit,
+    }
 
 
 def _report_failure(task: asyncio.Task[None]) -> None:
@@ -162,7 +188,14 @@ def report(result: dict[str, Any]) -> str:
         "start`: Deepgram nova-3-medical, the ClinScribe API, Deepgram Aura-2). Time to first",
         "audio is measured at the client, so it includes the WebRTC hops in both directions.",
         "",
-        f"- room `{result['room']}`; agent joined after {result['agent_join_s']:.1f} s",
+        f"- room `{result['room']}` (doctor `{result['doctor']}`); agent joined after "
+        f"{result['agent_join_s']:.1f} s",
+        "- audit rows written during the run: "
+        + (
+            "not read (no admin token)"
+            if result["audit"] is None
+            else ", ".join(f"{k}: {v}" for k, v in sorted(result["audit"].items())) or "none"
+        ),
         f"- turns: {len(turns)}; answered with citations on the data channel: {len(answered)}"
         f" (sources per answer: {_mean([t['sources'] for t in answered])})",
         f"- questions the agent split into two or more turns (answered a fragment): {len(split)}",

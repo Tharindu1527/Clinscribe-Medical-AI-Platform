@@ -31,6 +31,7 @@ GENERATORS: dict[str, Callable[[], str]] = {
     "AUTH_TOKEN_KEY": lambda: secrets.token_hex(32),
     "LIVEKIT_API_KEY": lambda: "API" + secrets.token_hex(8),
     "LIVEKIT_API_SECRET": lambda: secrets.token_urlsafe(32),
+    "VOICE_AGENT_KEY": lambda: secrets.token_hex(32),
     "QDRANT_API_KEY": lambda: secrets.token_urlsafe(32),
     "NEO4J_PASSWORD": lambda: secrets.token_urlsafe(24),
     "PGVECTOR_PASSWORD": lambda: secrets.token_urlsafe(24),

@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     livekit_url: str = "ws://127.0.0.1:7880"
     livekit_api_key: SecretStr = SecretStr("")
     livekit_api_secret: SecretStr = SecretStr("")
+    voice_agent_key: SecretStr = SecretStr("")  # the voice worker acts for the doctor in its room
 
     # Observability
     langfuse_public_key: SecretStr = SecretStr("")

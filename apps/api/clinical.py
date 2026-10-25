@@ -11,14 +11,16 @@ survive a restart; the PHI a write needs is passed as run context, never checkpo
 draft's checkpoints are deleted when it ends (ADR-0016).
 """
 
+import hmac
 import logging
 import uuid
 from collections.abc import Callable
+from datetime import timedelta
 from typing import Annotated, Any, Literal
 
 import httpx
 import psycopg
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
@@ -372,6 +374,31 @@ def voice_token(request: Request, who: Doctor) -> dict[str, str]:
     token = room_token(settings.livekit_api_key, settings.livekit_api_secret, who.user, room)
     _audit(request, who, "voice.session", resource_type="Room", resource_id=room)
     return {"url": settings.livekit_url, "room": room, "token": token}
+
+
+class DelegateRequest(BaseModel):
+    room: str = Field(pattern=r"^clinscribe-[A-Za-z0-9._-]{1,64}-[0-9a-f]{8}$")
+    user: str = Field(pattern=ID)
+
+
+@router.post("/voice/delegate")
+def voice_delegate(
+    body: DelegateRequest, request: Request, x_voice_agent_key: Annotated[str, Header()] = ""
+) -> dict[str, str]:
+    """The voice agent acts for the doctor in its room (ADR-0019): a 30-minute token for that
+    doctor, so voice questions are audited as the doctor who asked them. Only the worker holds
+    VOICE_AGENT_KEY; LiveKit verified the participant against the room token this API issued,
+    whose room name carries the doctor's user name."""
+    settings = Settings()
+    expected = settings.voice_agent_key.get_secret_value()
+    if not expected or not hmac.compare_digest(x_voice_agent_key.encode(), expected.encode()):
+        raise HTTPException(403, "only the voice agent may ask")
+    if users().get(body.user) != "doctor" or not body.room.startswith(f"clinscribe-{body.user}-"):
+        raise HTTPException(403, "the room was not issued to this doctor")
+    who = Principal(user=body.user, role="doctor")
+    _audit(request, who, "voice.delegate", resource_type="Room", resource_id=body.room)
+    token = issue_token(body.user, settings.auth_token_key, ttl=timedelta(minutes=30))
+    return {"token": token}
 
 
 @router.get("/audit")

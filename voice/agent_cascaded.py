@@ -49,6 +49,8 @@ logger = logging.getLogger("clinscribe.voice")
 API = os.environ.get("CLINSCRIBE_API", "http://127.0.0.1:8000")
 # Deepgram Aura-2 (ADR-0013): Cartesia sonic-2 until its free-tier credit ran out on 2026-10-18
 VOICE = "aura-2-orpheus-en"
+GREETING = "ClinScribe is listening. Ask a clinical question."
+NO_IDENTITY = "Voice answers are unavailable: I could not confirm who is asking."
 ANSWER_TOPIC = "clinscribe.answer"  # the Voice tab lists each answer's citations from this
 # Keyterm boosting was measured and did not help (medical-term errors 18 -> 17 of 200);
 # nova-3-medical did (18 -> 12): evals/reports/voice/asr_wer.md. Kept for reference.
@@ -106,11 +108,14 @@ class AskApi(llm.LLM):
 
 
 class ClinScribeVoice(Agent):
-    def __init__(self) -> None:
+    def __init__(self, token: str | None = None) -> None:
         super().__init__(
             instructions="ClinScribe answers clinicians' questions from cited guidelines.",
         )
         self._http = httpx.AsyncClient(timeout=120)
+        # whose questions these are: in a room, the doctor's delegated token (empty if the API
+        # refused: then nothing is asked); in console mode and the tests, the local demo doctor
+        self._token = token if token is not None else os.environ.get("CLINSCRIBE_TOKEN", "")
         self.turns: list[dict[str, Any]] = []
 
     async def llm_node(
@@ -121,13 +126,16 @@ class ClinScribeVoice(Agent):
             if getattr(item, "role", None) == "user":
                 question = item.text_content or ""
                 break
+        if not self._token:
+            yield NO_IDENTITY
+            return
         started = time.perf_counter()
         body: dict[str, Any] = {}
         try:
             response = await self._http.post(
                 f"{API}/v1/ask",
                 json={"encounter_id": "voice-session", "question": question},
-                headers={"Authorization": f"Bearer {os.environ.get('CLINSCRIBE_TOKEN', '')}"},
+                headers={"Authorization": f"Bearer {self._token}"},
             )
             if response.status_code == 200:
                 body = response.json()
@@ -208,11 +216,34 @@ def build_session(
     )
 
 
+async def delegated_token(room: str, user: str) -> str:
+    """A short-lived API token for the doctor in this room (ADR-0019), so the audit log records the
+    doctor who asked. Empty if the API refuses: the agent then answers nothing rather than asking
+    as someone else."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as http:
+            response = await http.post(
+                f"{API}/v1/voice/delegate",
+                json={"room": room, "user": user},
+                headers={"X-Voice-Agent-Key": os.environ.get("VOICE_AGENT_KEY", "")},
+            )
+        if response.status_code == 200:
+            return str(response.json()["token"])
+        logger.warning("voice delegation refused: HTTP %s", response.status_code)
+    except httpx.HTTPError as error:
+        logger.warning("voice delegation failed: %s", type(error).__name__)
+    return ""
+
+
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
+    token = None  # console mode: the local demo doctor (CLINSCRIBE_TOKEN)
+    if not ctx.is_fake_job():  # a LiveKit room: act for the doctor who joined it
+        doctor = await ctx.wait_for_participant()
+        token = await delegated_token(ctx.room.name, doctor.identity)
     session = build_session(os.environ.get("VOICE_TURN", "semantic"))
-    await session.start(room=ctx.room, agent=ClinScribeVoice())
-    await session.say("ClinScribe is listening. Ask a clinical question.")
+    await session.start(room=ctx.room, agent=ClinScribeVoice(token))
+    await session.say(GREETING if token != "" else NO_IDENTITY)
 
 
 if __name__ == "__main__":

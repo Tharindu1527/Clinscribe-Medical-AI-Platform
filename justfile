@@ -158,8 +158,8 @@ demo-video *args:
 
 # Browser voice over WebRTC, checked end to end without a browser (ADR-0019): needs `just up voice`
 # and the agent worker (`just voice start`, another terminal); writes evals/reports/voice/webrtc.md
-voice-webrtc *args:
-    $env:CLINSCRIBE_TOKEN = (uv run python -m apps.api.auth dr-demo); $env:VIRTUAL_ENV = $null; uv run --project voice python voice/webrtc_check.py {{args}}
+voice-webrtc user="dr-demo" *args:
+    $env:CLINSCRIBE_TOKEN = (uv run python -m apps.api.auth {{user}}); $env:CLINSCRIBE_ADMIN_TOKEN = (uv run python -m apps.api.auth admin-demo); $env:VIRTUAL_ENV = $null; uv run --project voice python voice/webrtc_check.py {{args}}
 
 # Voice agent in console mode: local microphone and speakers (Phase 4; needs `just up rag`).
 # The first run downloads the turn-detector and VAD models (to HF_HOME on D:).
