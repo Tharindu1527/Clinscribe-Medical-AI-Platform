@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-24 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-26 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
 **Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
@@ -961,12 +961,29 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   proxy unchanged) served the Ask tab, an authenticated API call through the proxy and the Voice
   tab's lazy chunk and LiveKit connection, with no console errors.
 
+- 2026-10-26: **Voice questions are audited as the doctor in the room** (ADR-0019 update; SPEC §2
+  story 5, §8 audit). The worker used to ask `/v1/ask` with the demo doctor's token, so every
+  spoken question was recorded as `dr-demo` whoever was in the room. Now the worker holds a
+  service key (`VOICE_AGENT_KEY`, `just gen-keys`) and, when a doctor joins, gets a 30-minute API
+  token for that doctor from `POST /v1/voice/delegate`: only with the key (constant-time compare),
+  only for a doctor, only for a room the API issued to that doctor (`clinscribe-<user>-<8 hex>`),
+  audited as `voice.delegate`. LiveKit already checked the participant against the room token the
+  API signed. Fails closed: on a refusal the agent says it cannot confirm who is asking and sends
+  nothing to the API; console mode keeps the demo doctor. Considered and not chosen: the browser
+  passing its own token over the data channel (readable by every participant), an agent role
+  (the log would name the agent). **Live** (`just voice-webrtc dr-second`, which now reads the
+  audit log with an admin token): 10 questions, 10 cited answers, audit `ask by dr-second` ×10 and
+  `voice.delegate by dr-second` ×1, none as `dr-demo`; time to first audio p50 6.7 / p95 7.9 s.
+  A worker started with a wrong key: 403, 0 of 2 questions answered, no `ask` row. Unit tests 11
+  (`tests/unit/test_voice_delegate.py`); voice smoke test passes (console path). Audit design and
+  the runbook (start-up, key rotation) updated.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `webrtc-voice`** (the built-in browser is signed out of GitHub).
+- **You: open the PR for `voice-delegation`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.

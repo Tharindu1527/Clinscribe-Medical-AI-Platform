@@ -9,7 +9,7 @@ PowerShell; nothing below prints a secret.
 |---|---|
 | Core + FHIR (Phase 1–3 API, de-ID, gateway, fhir-mcp) | `just up` |
 | Add retrieval, drug graph and their MCP servers | `just up rag` |
-| Browser voice (WebRTC, ADR-0019) | `just up voice`, then `just voice dev` (agent worker, own terminal), then the Voice tab; check with `just voice-webrtc` |
+| Browser voice (WebRTC, ADR-0019) | `just up voice`, then `just voice dev` (agent worker, own terminal), then the Voice tab; check with `just voice-webrtc [dr-second]` (the report lists the audit rows, which must name that doctor). The worker reads `VOICE_AGENT_KEY` from `.env`; if it is missing or wrong, the agent says it cannot confirm who is asking and answers nothing |
 | Review UI (dev server, http://localhost:5173) | `npm --prefix apps/web run dev` |
 | Health, memory | `just ps`, `just stats` (budget ≤ 8 GB) |
 | Stop (data volumes kept) | `just down` |
@@ -18,8 +18,9 @@ PowerShell; nothing below prints a secret.
 ## Rotate a key
 
 1. Generated keys (`LITELLM_*`, DB passwords, `DEID_MAPPING_KEY`, `AUDIT_CHAIN_KEY`,
-   `APPROVAL_TOKEN_KEY`, `AUTH_TOKEN_KEY`, `QDRANT_API_KEY`, `NEO4J_PASSWORD`): clear the value in `.env`,
-   run `just gen-keys`, then `just up rag` (containers pick up the new value).
+   `APPROVAL_TOKEN_KEY`, `AUTH_TOKEN_KEY`, `VOICE_AGENT_KEY`, `QDRANT_API_KEY`, `NEO4J_PASSWORD`):
+   clear the value in `.env`, run `just gen-keys`, then `just up rag` (containers pick up the new
+   value).
 2. Special cases:
    - `AUTH_TOKEN_KEY` / `APPROVAL_TOKEN_KEY`: all issued tokens and pending approvals become invalid
      (intended). Users sign in again; pending drafts must be re-approved.
@@ -30,6 +31,9 @@ PowerShell; nothing below prints a secret.
      re-encryption job (not built).
    - `DEID_REIDENTIFY_KEY`: only the API and the de-ID service hold it; rotate like the plain keys
      and restart both (`just up`), nothing else is affected (ADR-0015).
+   - `VOICE_AGENT_KEY`: only the API and the voice worker hold it; rotate, `just up voice`, then
+     restart the worker (`just voice dev`); tokens already delegated expire within 30 minutes
+     (ADR-0019). Rotate at once if it may have leaked: it lets its holder ask as any doctor.
    - LiteLLM virtual keys: `just gateway-keys` re-registers them with their limits.
 3. Provider keys (Gemini, Groq, OpenRouter, Langfuse): paste the new value into `.env`, `just up`.
 
