@@ -163,3 +163,18 @@ def test_a_pending_draft_survives_an_api_restart(patient: dict[str, Any]) -> Non
     done = httpx.get(f"{API}/v1/drafts/{draft_id}", headers=_headers(), timeout=30).json()
     assert done["status"] == "done"
     assert done["result"]["status"] == "written"
+
+
+def test_a_question_about_a_drug_no_source_covers_abstains_without_a_model() -> None:
+    """ADR-0018: the corpus never names mazdutide, so no answer can be about it."""
+    body = {
+        "encounter_id": "live-ask-unseen",
+        "question": "Which side effects does mazdutide cause?",
+    }
+    response = httpx.post(f"{API}/v1/ask", json=body, headers=_headers(), timeout=120)
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["answer"]["abstained"] is True
+    assert out["unseen_terms"] == ["mazdutide"]
+    assert out["answer"]["model"] == "none"  # ended before search and generation
+    assert out["evidence"] == []

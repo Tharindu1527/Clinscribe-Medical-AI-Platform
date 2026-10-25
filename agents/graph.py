@@ -5,12 +5,13 @@
 
 - intake: text must already be de-identified; a second structured-PHI check refuses it otherwise.
 - router (ask mode): the agentic loop for drug-interaction, comparison and multi-part questions,
-  the fast path for simple lookups (ablation step 7 measures the choice).
+  the fast path for simple lookups (ablation step 7 measures the choice). A question naming a
+  term the corpus never uses ends here, abstained, before any search or model call (ADR-0018).
 - ask_fast: search_guidelines (k 5). ask_agentic (CRAG style): search deeper, grade the passages
   with a model, rewrite the query once if fewer than two are relevant, add DDInter facts for drug
   questions. Passages with prompt-injection text are dropped in both paths.
 - answer + guardrail_answer: cited answer; on a violation, one retry with the violations attached,
-  then the safe reply.
+  then the safe reply. A drug the question names must be named in a cited source (ADR-0018).
 - note_writer + guardrail_note: SOAP statements tied to transcript turns; one retry with the
   problems attached, then statements that still fail are removed and listed for the doctor.
 - hitl_review: LangGraph interrupt(); the doctor approves, edits or rejects. Resuming carries the
@@ -35,12 +36,13 @@ from langgraph.types import interrupt
 from pydantic import ValidationError
 
 from agents.fhir_docs import note_to_resource
-from agents.guardrails import Guardrails
+from agents.guardrails import Guardrails, Violation
 from agents.prompts import Prompt, load
 from agents.schemas import (
     IDENTITY_MISMATCH,
     AnswerSentence,
     AskAnswer,
+    CheckGroundingInput,
     CheckInteractionsInput,
     Evidence,
     NoteStatement,
@@ -154,6 +156,7 @@ class State(TypedDict, total=False):
     question: str  # de-identified
     transcript: list[str]  # de-identified turns, "DOCTOR: ..." / "PATIENT: ..."
     route: Literal["fast", "agentic"]
+    unseen: list[str]  # question words the corpus never uses (the answer abstains)
     query: str
     evidence: list[dict[str, Any]]
     dropped: list[str]
@@ -256,7 +259,24 @@ class Agents:
 
     def router(self, state: State) -> State:
         route = route_question(state["question"])
-        return {"route": route, "query": state["question"], "events": [*state["events"], route]}
+        events = [*state["events"], route]
+        check = self.tools.grounding(CheckGroundingInput(question=state["question"]))
+        if check.unseen_terms:  # the sources cannot be about it: abstain before search and models
+            answer = AskAnswer(
+                question_id=state["encounter_id"],
+                abstained=True,
+                path=route,
+                prompt_version="none",
+                model="none",
+            )
+            return {
+                "route": route,
+                "query": state["question"],
+                "unseen": check.unseen_terms,
+                "answer": answer.model_dump(),
+                "events": [*events, f"not in the sources: {', '.join(check.unseen_terms)}"],
+            }
+        return {"route": route, "query": state["question"], "events": events}
 
     def ask_fast(self, state: State) -> State:
         evidence = self._search(state["query"], 5, state)
@@ -347,6 +367,14 @@ class Agents:
         answer = AskAnswer.model_validate(state["answer"])
         sources = {e["chunk_id"]: e["text"] for e in state["evidence"]}
         problems = [str(v) for v in self.guard.check_answer(answer, sources)]
+        if not answer.abstained:  # the drugs the question names must be in what it cites
+            cited = list(dict.fromkeys(c for s in answer.sentences for c in s.citations))
+            missing = self.tools.grounding(
+                CheckGroundingInput(question=state["question"], cited=cited)
+            ).missing_drugs
+            if missing:
+                detail = f"the cited sources do not name {', '.join(missing)}"
+                problems.append(str(Violation("drug_not_in_sources", detail)))
         if not problems:
             return {"violations": [], "feedback": ""}
         if state["attempts"] < self.guard.max_attempts:
@@ -472,8 +500,10 @@ class Agents:
         graph.add_conditional_edges("intake", self.after_intake, ["router", "note_writer", END])
         graph.add_conditional_edges(
             "router",
-            lambda s: "ask_fast" if s["route"] == "fast" else "ask_agentic",
-            ["ask_fast", "ask_agentic"],
+            lambda s: (
+                END if s.get("unseen") else "ask_fast" if s["route"] == "fast" else "ask_agentic"
+            ),
+            ["ask_fast", "ask_agentic", END],
         )
         graph.add_edge("ask_fast", "answer")
         graph.add_edge("ask_agentic", "answer")

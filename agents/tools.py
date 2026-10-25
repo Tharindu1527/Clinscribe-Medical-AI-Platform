@@ -12,9 +12,11 @@ from opentelemetry import trace
 from pydantic import BaseModel, TypeAdapter
 
 from agents.schemas import (
+    CheckGroundingInput,
     CheckInteractionsInput,
     Evidence,
     GetPatientContextInput,
+    GroundingReport,
     InteractionReport,
     LabParseResult,
     ParseLabReportInput,
@@ -41,6 +43,7 @@ def server_reason(text: str, tool: str) -> str:
 
 class Tools(Protocol):
     def search(self, request: SearchGuidelinesInput) -> list[Evidence]: ...
+    def grounding(self, request: CheckGroundingInput) -> GroundingReport: ...
     def interactions(self, request: CheckInteractionsInput) -> InteractionReport: ...
     def patient_context(self, request: GetPatientContextInput) -> PatientSummary: ...
     def write(self, request: WriteFhirInput) -> WriteFhirResult: ...
@@ -67,6 +70,12 @@ class McpTools:
     def search(self, request: SearchGuidelinesInput) -> list[Evidence]:
         result: list[Evidence] = self._call(
             "guidelines", "search_guidelines", request, list[Evidence]
+        )
+        return result
+
+    def grounding(self, request: CheckGroundingInput) -> GroundingReport:
+        result: GroundingReport = self._call(
+            "guidelines", "check_grounding", request, GroundingReport
         )
         return result
 

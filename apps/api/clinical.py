@@ -178,6 +178,7 @@ def ask(
         "violations": out.get("violations", []),
         "dropped": out.get("dropped", []),
         "events": out.get("events", []),
+        "unseen_terms": out.get("unseen", []),  # words no source uses: the answer abstained
         "ai_generated": True,
     }
     if identified:

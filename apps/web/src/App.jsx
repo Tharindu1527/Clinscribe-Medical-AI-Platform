@@ -77,7 +77,11 @@ function Ask() {
         <div className="card">
           <p className="label">AI-generated · {out.route} path · cite-or-abstain</p>
           {out.answer.abstained ? (
-            <p className="abstain">No answer with evidence. Review the sources directly.</p>
+            <p className="abstain">
+              {out.unseen_terms?.length
+                ? `No source mentions ${out.unseen_terms.join(", ")}, so there is no answer with evidence.`
+                : "No answer with evidence. Review the sources directly."}
+            </p>
           ) : (
             out.answer.sentences.map((s, i) => (
               <p key={i}>{out.identified?.sentences[i] ?? s.text}{" "}

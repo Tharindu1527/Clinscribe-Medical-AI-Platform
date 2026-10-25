@@ -133,7 +133,9 @@ class ClinScribeVoice(Agent):
             }
         )
         if not sentences:
-            yield SAFE
+            # a word no source uses (a new drug, or a misheard one): say which (ADR-0018)
+            unseen = body.get("unseen_terms") or []
+            yield f"None of my sources mention {', '.join(unseen)}." if unseen else SAFE
             return
         for sentence in sentences:
             yield re.sub(r"\s*\[\d+\]", "", sentence["text"]) + " "
