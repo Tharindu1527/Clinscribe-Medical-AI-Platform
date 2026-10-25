@@ -72,6 +72,15 @@ def test_completion_parsed_from_gateway_response() -> None:
     assert calls[0].headers["Authorization"] == "Bearer sk-test"
 
 
+def test_reasoning_effort_is_sent_only_when_asked() -> None:
+    calls: list[httpx.Request] = []
+    client = _client(_ok_transport(calls))
+    client.complete("clinscribe-judge", HELLO)
+    client.complete("clinscribe-judge", HELLO, reasoning_effort="low")
+    assert "reasoning_effort" not in json.loads(calls[0].content)  # old cache keys unchanged
+    assert json.loads(calls[1].content)["reasoning_effort"] == "low"
+
+
 def test_replay_cache_hit_makes_zero_network_calls(tmp_path: Path) -> None:
     calls: list[httpx.Request] = []
     _client(_ok_transport(calls), ReplayCache(tmp_path, "record")).complete(
