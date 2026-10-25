@@ -60,9 +60,8 @@ Option 3 with c.
   traces: the leak test (gate b) still passes, and a live session with a synthetic name and town
   left 0 occurrences in 70 MB of container logs and the trace export. fhir-mcp's audit rows carry
   ids and hashes, not content.
-- Like the two identifiers already were, the identified resource sits in the graph's review payload
-  until the write. Today the checkpointer is in memory; a durable checkpointer (an open question)
-  must encrypt or drop the review payload.
+- Update (ADR-0016): the identified resource and the two identifiers now reach the write as run
+  context and are never checkpointed, so durable drafts store no PHI.
 - A doctor's edit is re-de-identified with the same recognisers, so PHI they miss in the new
   wording would stay in the in-memory edit pair. Before edit pairs are stored as evaluation data,
   scan them with the leak-test scanner.

@@ -1,14 +1,14 @@
 # PHI leak test (Phase 1 gate b)
 
-Run `08aeffe7`: 20 synthetic transcripts, 66 seeded fake PHI values (Faker seed 1234), sent through `POST /v1/dev/complete`.
+Run `ed1dfa8c`: 20 synthetic transcripts, 66 seeded fake PHI values (Faker seed 1234), sent through `POST /v1/dev/complete`.
 
 | Sink | Bytes scanned | Leaked values | Leaked types |
 |---|---|---|---|
-| collector file export | 239,812 | 0 | - |
-| docker compose logs | 32,497 | 0 | - |
+| collector file export | 103,310 | 0 | - |
+| docker compose logs | 33,405 | 0 | - |
 | Langfuse observations | 439 | 0 | - |
-| LiteLLM spend logs | 201,579 | 0 | - |
-| audit table | 13,757 | 0 | - |
+| LiteLLM spend logs | 200,869 | 0 | - |
+| audit table | 13,833 | 0 | - |
 | de-ID mapping table | 13,864 | 0 | - |
 
 Positive control (scanner finds planted seed values): **100%**

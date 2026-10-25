@@ -1,24 +1,33 @@
 """ClinScribe API. Phase 1: health and the pipeline smoke endpoint (de-ID -> LLM -> audit).
-Phase 3: auth, Ask, Scribe drafts with the doctor's review, audit log (apps/api/clinical.py)."""
+Phase 3: auth, Ask, Scribe drafts with the doctor's review, audit log (apps/api/clinical.py).
+Drafts awaiting review are checkpointed in Postgres, so they survive a restart (ADR-0016)."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 from pydantic import BaseModel, Field
 
 from agents.graph import Agents
 from agents.tools import McpTools
 from apps.api.audit import AuditLog
 from apps.api.clinical import router as clinical
+from apps.api.drafts import PostgresDrafts
 from apps.api.pipeline import Pipeline
 from config.db import app_conninfo
 from config.settings import Settings
 from llmops.gateway.client import GatewayClient, alias_for
 from llmops.prompts import load_prompt
-from llmops.telemetry.setup import configure_logging, configure_tracing, instrument
+from llmops.telemetry.setup import (
+    FASTAPI_TELEMETRY,
+    configure_logging,
+    configure_tracing,
+    instrument,
+)
 from privacy.deid.client import DeidClient
 
 SERVICE = "api"
@@ -38,11 +47,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     gateway = GatewayClient(settings.gateway_url, settings.litellm_app_key, timeout=300.0)
     audit = AuditLog(app_conninfo(settings), settings.audit_chain_key)
     tools = McpTools(settings.guidelines_mcp_url, settings.druggraph_mcp_url, settings.fhir_mcp_url)
+    # PostgresSaver needs autocommit and dict rows; sync routes run in a thread pool, hence a pool
+    pool = ConnectionPool(
+        app_conninfo(settings),
+        min_size=1,
+        max_size=4,
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+        open=True,
+    )
+    checkpointer = PostgresSaver(pool)  # type: ignore[arg-type]  # the pool yields dict-row conns
+    agents = Agents(gateway, tools)
     app.state.deid = deid
     app.state.audit = audit
-    app.state.graph = Agents(gateway, tools).build(InMemorySaver())
+    app.state.checkpointer = checkpointer
+    app.state.graph = agents.build(checkpointer)  # Scribe drafts: pause for the doctor, durable
+    app.state.ask_graph = agents.build()  # Ask: nothing to resume, so nothing is stored
     app.state.tools = tools
-    app.state.drafts = {}
+    app.state.drafts = PostgresDrafts(app_conninfo(settings))
     app.state.labs = {}
     app.state.pipeline = Pipeline(
         deid=deid,
@@ -52,12 +73,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         alias=alias_for(prompt.task),
     )
     yield
+    pool.close()
     deid.close()
     gateway.close()
     provider.shutdown()
 
 
-app = FastAPI(title="ClinScribe API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="ClinScribe API", version="0.1.0", lifespan=lifespan, telemetry=FASTAPI_TELEMETRY
+)
 instrument(app, SERVICE)
 app.include_router(clinical)
 app.add_middleware(  # the review UI's dev server (apps/web)

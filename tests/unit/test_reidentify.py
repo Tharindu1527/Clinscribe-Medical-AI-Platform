@@ -18,6 +18,7 @@ from agents.approval import verify
 from agents.graph import Agents
 from apps.api.auth import Principal, principal
 from apps.api.clinical import router
+from apps.api.drafts import MemoryDrafts
 from privacy.deid.app import app as deid_app
 from privacy.deid.client import DeidClient, DeidOutput, Reidentified
 from privacy.deid.engine import Deidentifier
@@ -148,10 +149,11 @@ def api(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, FakeTools, FakeAud
     app.dependency_overrides[principal] = lambda: Principal(user="dr-demo", role="doctor")
     app.state.deid = FakeDeid()
     app.state.audit = FakeAudit()
-    app.state.graph = Agents(
-        ScriptedChat(note=[NOTE] * 3), tools, alias=lambda task: f"alias-{task}"
-    ).build(InMemorySaver())
-    app.state.drafts = {}
+    agents = Agents(ScriptedChat(note=[NOTE] * 3), tools, alias=lambda task: f"alias-{task}")
+    app.state.checkpointer = InMemorySaver()
+    app.state.graph = agents.build(app.state.checkpointer)
+    app.state.ask_graph = agents.build()
+    app.state.drafts = MemoryDrafts()
     return TestClient(app), tools, app.state.audit
 
 

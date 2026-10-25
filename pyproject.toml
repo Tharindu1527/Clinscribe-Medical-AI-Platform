@@ -22,6 +22,7 @@ dependencies = [
     "qdrant-client>=1.19",    # vector store client (SPEC section 6); also an in-memory mode for unit tests
     "langgraph>=1.2.12",      # agent state graph with human-approval interrupts and replay (SPEC section 5)
     "mcp>=2.2.0",             # Model Context Protocol SDK for the three tool servers (SPEC section 5)
+    "langgraph-checkpoint-postgres==3.1.2",  # drafts awaiting review survive restarts (ADR-0016)
 ]
 
 [dependency-groups]

@@ -13,7 +13,7 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 | Data subjects | Patients (special-category health data, GDPR Art. 9), clinicians (user ids, actions) |
 | Data | Consultation transcripts, patient summaries (age band, sex, conditions, medications, allergies), lab values, approved notes; audit records |
 | Recipients | Clinicians; model providers receive **de-identified text only**; tracing (Langfuse Cloud, EU) receives **de-identified, redacted spans only** |
-| Storage | Postgres (audit log, encrypted re-identification mapping), HAPI FHIR (clinical record), files on the clinic host |
+| Storage | Postgres (audit log, encrypted re-identification mapping, drafts awaiting review as de-identified LangGraph checkpoints, deleted when the draft ends; ADR-0016), HAPI FHIR (clinical record), files on the clinic host |
 | In this build | Synthea patients, ACI-Bench dialogues and public guideline text; no real patient data anywhere |
 
 ## 2. Necessity and proportionality
@@ -41,7 +41,7 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 ## 4. Gaps before any real use
 
 - **Data subject rights:** no erasure or export endpoint yet (GDPR Art. 15–17); retention periods
-  are not enforced. The audit log is append-only by design, so erasure needs a documented legal basis
+  are not enforced (drafts nobody reviews stay until reviewed; ADR-0016). The audit log is append-only by design, so erasure needs a documented legal basis
   for keeping audit records and pseudonymised actors.
 - **Processors:** the free tiers used here (Gemini, Groq, OpenRouter, Langfuse) are not contracted
   for health data; real use needs contracted processors or local models (`baa_vendor_matrix.md`).
