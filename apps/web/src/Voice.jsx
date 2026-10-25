@@ -35,7 +35,7 @@ export default function Voice() {
       });
       r.on(RoomEvent.ParticipantConnected, (p) => { if (p.isAgent) setAgent(p.identity); });
       r.on(RoomEvent.ParticipantDisconnected, (p) => { if (p.isAgent) setAgent(""); });
-      r.on(RoomEvent.Disconnected, () => { setState("idle"); setAgent(""); });
+      r.on(RoomEvent.Disconnected, () => { setState("idle"); setAgent(""); setMic(""); });
       r.registerTextStreamHandler(ANSWER_TOPIC, async (reader) => {
         const answer = JSON.parse(await reader.readAll());
         setAnswers((all) => [answer, ...all]);
