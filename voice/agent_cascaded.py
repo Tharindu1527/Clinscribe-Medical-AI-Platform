@@ -14,10 +14,13 @@ guarded, cited one; citations are spoken as "sources are on screen" and listed b
   browser, WebRTC does. Measured in voice/turn_eval.py (evals/reports/voice/turn_taking.md).
 
   just voice              console mode: local microphone and speakers, no LiveKit server needed
-  uv run --project voice python voice/agent_cascaded.py dev    (worker for a LiveKit room)
+  just voice dev          worker for LiveKit rooms (`just up voice`): the review UI's Voice tab,
+                          audio over WebRTC; each cited answer is also sent to the room on the
+                          clinscribe.answer topic, so the sources really are on screen
 Needs `just up rag` (the API) and DEEPGRAM_API_KEY in .env (speech in and out).
 """
 
+import json
 import logging
 import os
 import re
@@ -27,7 +30,15 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, llm
+from livekit.agents import (
+    Agent,
+    AgentSession,
+    JobContext,
+    WorkerOptions,
+    cli,
+    get_job_context,
+    llm,
+)
 from livekit.agents.voice import ModelSettings
 from livekit.plugins import deepgram, silero
 from livekit.plugins.turn_detector.base import EOUModelBase
@@ -38,6 +49,7 @@ logger = logging.getLogger("clinscribe.voice")
 API = os.environ.get("CLINSCRIBE_API", "http://127.0.0.1:8000")
 # Deepgram Aura-2 (ADR-0013): Cartesia sonic-2 until its free-tier credit ran out on 2026-10-18
 VOICE = "aura-2-orpheus-en"
+ANSWER_TOPIC = "clinscribe.answer"  # the Voice tab lists each answer's citations from this
 # Keyterm boosting was measured and did not help (medical-term errors 18 -> 17 of 200);
 # nova-3-medical did (18 -> 12): evals/reports/voice/asr_wer.md. Kept for reference.
 KEYTERMS = [
@@ -125,6 +137,7 @@ class ClinScribeVoice(Agent):
             logger.warning("ClinScribe API unreachable: %s", type(error).__name__)
         answer = body.get("answer") or {}
         sentences = [] if answer.get("abstained", True) else answer.get("sentences", [])
+        await self._show(question, body)
         self.turns.append(
             {
                 "ask_ms": (time.perf_counter() - started) * 1000,
@@ -140,6 +153,29 @@ class ClinScribeVoice(Agent):
         for sentence in sentences:
             yield re.sub(r"\s*\[\d+\]", "", sentence["text"]) + " "
         yield "Sources are on screen."
+
+    async def _show(self, question: str, body: dict[str, Any]) -> None:
+        """The cited answer for the Voice tab, on the room's data channel: sentences with their
+        citations and each source's title and link (no source text). Console mode has no room."""
+        try:
+            room = get_job_context().room
+        except RuntimeError:
+            return
+        answer = body.get("answer") or {}
+        payload = {
+            "question": question,
+            "abstained": answer.get("abstained", True),
+            "sentences": answer.get("sentences", []),
+            "evidence": [
+                {k: e.get(k) for k in ("chunk_id", "title", "section", "source_url")}
+                for e in body.get("evidence", [])
+            ],
+            "unseen_terms": body.get("unseen_terms", []),
+        }
+        try:
+            await room.local_participant.send_text(json.dumps(payload), topic=ANSWER_TOPIC)
+        except Exception as error:  # the spoken answer matters more than the screen
+            logger.warning("could not send the answer to the room: %s", type(error).__name__)
 
 
 def build_session(
