@@ -894,9 +894,10 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   the README (0.875 vs 0.95). Then a generator trial, `prompts/experiments/answer_cited_v2.yaml`
   (one passage per sentence; `answer_eval --prompt ... --name ...` keeps its rows apart), with the
   adoption rule written down first (ADR-0017: precision better, correctness non-inferior at −0.05,
-  correct abstentions not lower). Interim 47 of 60, then the judge's free-tier budget ran out:
-  citation precision 0.856 → 0.960 (+0.104 [+0.043, +0.167]), correctness 0.904 → 0.862 (−0.043
-  [−0.117, +0.021]), false abstentions 1 → 3 of 47. Resume with the same command.
+  correct abstentions not lower). Result, 60 of 60: citation precision 0.865 → 0.963 (+0.098
+  [+0.041, +0.158]), correctness 0.910 → 0.870 (−0.040 [−0.110, +0.020]), correct abstentions
+  10/10 → 9/10: **not adopted**. The abstention it missed was a wrong-drug answer: mazdutide (not in
+  the corpus) answered from the Ozempic (semaglutide) label, every sentence faithful to its source.
 
 ## Next
 - **You: review ADR-0017** (citation support check not adopted), **ADR-0016** (durable drafts) and

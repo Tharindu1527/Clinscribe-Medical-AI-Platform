@@ -55,9 +55,13 @@ Both fail the project's rule that an added technique must beat the baseline in t
   questions (`--name hybrid_colbert_ctx_v2`). Adoption rule, written before the run finished: adopt
   v2 only if citation precision is better (95% CI excludes 0), correctness is non-inferior (lower CI
   bound ≥ −0.05, the Phase 2 gate's margin) and correct abstentions on unanswerable questions do not
-  drop. Interim, 47 of 60 (the judge's free-tier budget ran out): citation precision 0.856 → 0.960
-  (+0.104 [+0.043, +0.167]), correctness 0.904 → 0.862 (−0.043 [−0.117, +0.021]), false
-  abstentions 1 → 3 of 47.
+  drop. Result, 60 of 60 (`evals/reports/rag/answers_hybrid_colbert_ctx_v2_vs_hybrid_colbert_ctx.md`):
+  citation precision 0.865 → **0.963** (+0.098 [+0.041, +0.158]: better, above the target), but
+  correctness 0.910 → 0.870 (−0.040 [−0.110, +0.020]: non-inferiority not shown), false abstentions
+  2% → 6%, and correct abstentions 10/10 → 9/10. **Not adopted** (two of three criteria fail).
+  The one unanswerable question v2 answered asked about mazdutide, which the corpus does not cover;
+  v2 answered with three sentences from the Ozempic (semaglutide) label, each faithful to its
+  source, without naming either drug: a wrong-drug answer that no current check catches.
 - Option 2 stays open if a real deployment needs a runtime check; it must use a different model
   family from the evaluation judge and would add a model call to every answer, and its latency to
   voice turns (already over budget).
