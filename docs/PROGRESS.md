@@ -952,6 +952,15 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   pane blocks microphones, so a spoken browser question was not tried. One machine only (127.0.0.1,
   no TURN, no TLS); the worker uses the demo doctor's API token. Stack with voice 5.55 GiB.
 
+- 2026-10-26: **Vite 8.3.1 → 8.3.3** (review UI dev server). `npm audit` reported six advisories
+  for Vite `>=8.3.0 <=8.3.2`, the highest GHSA-587h-7wmj-h5pm (launch-editor, Windows), plus
+  cross-origin script execution through custom middleware and files outside `server.fs` served or
+  partly exposed. 8.3.3 is the lowest fixed release and 20 days old (8.3.5, which `npm audit fix
+  --force` proposed, was 5 days old); only Vite moved in the lock (rolldown 1.2.13 already met its
+  new range). `npm audit`: 0 vulnerabilities. Built, and the dev server (still on 127.0.0.1, `/v1`
+  proxy unchanged) served the Ask tab, an authenticated API call through the proxy and the Voice
+  tab's lazy chunk and LiveKit connection, with no console errors.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
