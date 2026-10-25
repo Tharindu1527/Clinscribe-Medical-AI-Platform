@@ -501,7 +501,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   `Received Proxy Server Request` (2 spans per call). LiteLLM's per-key callback disabling is Enterprise-only,
   but the request flag `"no-log": true` works in OSS: `GatewayClient(trace=False)` sends it (outside the cache
   key, so cached responses still replay) for the contextual-prefix batch job, the answer, graph-facts and RAGAS
-  evals; measured 0 spans per call, spend logs still recorded. Unit tests +2. `just lint` clean; `just test` 230
+  evals; measured 0 spans per call, spend logs still recorded (corrected 2026-10-25: a no-log call gets
+  no spend-log row at all). Unit tests +2. `just lint` clean; `just test` 230
   passed, 1 failed (Langfuse ingestion still suspended).
 - 2026-10-13: **Phase 2 task 11 (vector store).** `pgvector` service (`pgvector/pgvector:0.8.6-pg16`, own
   `vectorstore` profile, 768 MB limit, `PGVECTOR_PASSWORD` from `just gen-keys`), `retrieval/pgvector_store.py`
@@ -913,6 +914,25 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   p95 214 ms per check call, two per answered question. Red-team 65/65 with 2 wrong-drug cases
   (control 23/65: both fail with the checks off); live 5/5 (new: the mazdutide question abstains
   in 0.7 s with no model call).
+
+- 2026-10-25: **Gemini implicit prompt caching measured** (SPEC §7; it had never been): from the
+  gateway's spend log (`evals/llmops/prompt_cache.py`, `evals/reports/llmops/prompt_cache.md`),
+  0 cached tokens in all 262 successful Gemini calls so far (50 with prompts of 1,024+ tokens, the
+  size Gemini needs), and 0 of 12 in a controlled check: one identical 2,459-token prefix, 8 of
+  the calls repeats to a model already called within two minutes, all four Gemini models. So
+  implicit caching gives this free-tier set-up through LiteLLM no saving; the cause (free tier, or
+  how the system prompt reaches Gemini) is not separated. The gateway client now keeps the
+  provider's `cached_tokens` (`Completion.cached_input_tokens`). Found on the way: a no-log call
+  (`GatewayClient(trace=False)`, used by bulk evaluations) gets no spend-log row at all, which the
+  2026-10-13 entry had said otherwise; the cost report uses only app traffic, so it is unaffected.
+- 2026-10-25: **Note quality vs the reference note** (SPEC §11 "Notes", never measured; only schema
+  validity had been): `evals/agents/note_quality.py` with a rubric judge in two calls per draft
+  (coverage of the reference's important facts, critical ones separately; support of each
+  statement by the transcript turns it cites), controls (the reference as the draft; the draft
+  without assessment and plan). Built to fit Groq's free 8k tokens per minute for the judge
+  (prompt + max_tokens; `reasoning_effort: low`, now a gateway-client option). The judge's daily
+  budget ran out after today's other runs; a background job resumes it every 25 minutes
+  (results cached). Partial: D2N075 recall 0.88, critical 0.93, 2 of 25 statements unsupported.
 
 ## Next
 - **You: review ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
