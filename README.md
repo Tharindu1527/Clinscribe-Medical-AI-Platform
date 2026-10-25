@@ -44,7 +44,7 @@ audited (ADR-0015).
 |---|---|---|
 | Retrieval | recall@10 0.809 (dense) → **0.909** (hybrid + ColBERT + contextual), +0.100 [95% CI +0.053, +0.148]; MRR@10 0.562 → 0.680; p50 159 / p95 206 ms per query on CPU | `rag/ablation.md` |
 | Rejected by measurement | cross-encoder (no gain, ~3 s/query), late chunking (−0.048 recall@10), GraphRAG candidates (no gain) | `rag/ablation.md` |
-| Cited answers | correctness 0.760 → **0.910** (+0.150 [+0.050, +0.260]); faithfulness 0.937 vs 0.941 (non-inferior); false abstentions 18% → 2% | `rag/answers_*` |
+| Cited answers | correctness 0.760 → **0.910** (+0.150 [+0.050, +0.260]); faithfulness 0.937 vs 0.941 (non-inferior); false abstentions 18% → 2%; citation precision 0.926 → 0.875 vs SPEC target 0.95: **not met** (mostly "partial" links on sentences citing two sources); a local NLI runtime check was measured and rejected (ADR-0017) | `rag/answers_*`, `rag/citation_support.md` |
 | Drug facts | interaction pairs no passage mentions: answered 10/10 with DDInter facts vs 4/10 without | `rag/answers_graph_facts.md` |
 | Safety | red-team **63/63** (unsourced doses, diagnosis wording, injections, PHI, unapproved writes); negative control 23/63 | `redteam/redteam.md` |
 | Privacy | 0 seeded PHI values in 6 sinks (traces, logs, Langfuse, spend logs, audit, mapping); de-ID structured recall 1.000; names / places on unseen phrasings 0.973 / 0.850 with spaCy rules → **0.991 / 1.000 with the LoRA fine-tuned tagger** (held-out v1; 1.000 / 1.000 on a set frozen before training), PHI-free sentences altered 1/40 vs 3/40 (ADR-0014) | `privacy/` |

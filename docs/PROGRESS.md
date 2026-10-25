@@ -882,18 +882,28 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   warnings or metric errors, no `fastapi`-scope spans after the rebuild. Tests in a fresh
   interpreter with a control (FastAPI's defaults do install all three providers).
 
+- 2026-10-25: **Runtime citation support check: measured, not adopted** (ADR-0017, proposed). SPEC §6
+  asks for a check that each cited chunk supports its sentence (SPEC §1: citation precision ≥ 0.95);
+  only citation existence and dose sources were checked at runtime. Offline, with the Phase 2 judge's
+  362 rated links as labels (307 supports, 47 partial, 8 no; no LLM calls,
+  `evals/rag/citation_support.py`): three Apache-2.0 NLI cross-encoders, on whole chunks and on
+  their best 2-sentence window, two policies, threshold by 2-fold cross-validation over questions.
+  AUC 0.58–0.75; on the chosen pipeline, reaching 0.89–0.97 precision empties 19–29 of 49 answers,
+  and the safe policy (keep each sentence's best citation) gains only 0.02–0.05 while dropping
+  16–25% of the good citations, at 0.4–1.7 s CPU per answer. Not built; the gap is now stated in
+  the README (0.875 vs 0.95). Next candidate: a generator prompt that cites one passage per
+  sentence, measured with the answer evaluation (~1 day of free-tier budget).
+
 ## Next
-- **You: review ADR-0016** (durable drafts) and **postmortem 0004** (FastAPI telemetry bypassed the
-  app-level span redaction), then ADR-0015 and ADR-0014.
-- **You: open the PR for `durable-drafts`** (the built-in browser is signed out of GitHub).
+- **You: review ADR-0017** (citation support check not adopted), **ADR-0016** (durable drafts) and
+  **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
+- **You: open the PR for `citation-support`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
-- You (recommended): reboot when convenient; the C: page file grew to 15 GB during the prefix run and only
-  shrinks after a restart.
 - **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
 - **You: watch `.artifacts/demo/clinscribe_demo.mp4`, upload it (YouTube, unlisted) and send me the
-  link** for `docs/presentation/demo_video.md`; open the PR for `fix-voice-console`.
+  link** for `docs/presentation/demo_video.md`.
 - Optional: try `just scribe 1617` with two people at one microphone (the eval mixed two close-talk
   microphones; a room is harder).
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
@@ -947,9 +957,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   Fixing changes chunk ids and costs a 66-min re-embed on CPU; golden gold ids are recomputed from quotes
   (`just golden --expand`), so the fix can wait for the next planned re-embed (tasks 7–8).
 
-- Embedding speed: CPU gives 2.0 chunks/s (66 min for the corpus). Contextual retrieval (task 7) and late
-  chunking (task 8) re-embed the corpus. Options: the int8 ONNX export in the same model repo (CPU), or CUDA
-  torch on the RTX 3050 (~2.5 GB download). Decide before task 7 with a 500-chunk timing of each.
+- Embedding speed: CPU gives 2.0 chunks/s (66 min for the corpus). Resolved: the re-embeds for tasks 7
+  and 8 ran on CPU (81 and ~70 min); GPU torch was not needed.
 
 - Latency: Groq `gpt-oss-20b` answered ~3× faster than the Gemini pool (p95 1.1 s vs 3.8 s), mostly Gemini's
   reasoning time. The Phase 4 voice budget (TTFA p95 < 1.5 s) will need a faster model or a lower thinking
@@ -966,8 +975,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   **Update 2026-10-24:** the fine-tuned tagger (ADR-0014) finds every name and place on held-out v3
   (frozen before round 2 was trained; v2 also, but round 2's data was written after seeing it);
   spaCy rules stay the default. Real dictation is still the harder, untested case.
-- `/reidentify` HTTP route deferred to Phase 3 (needs authentication); re-identification exists as a library
-  function with a round-trip test.
+- `/reidentify` HTTP route: built 2026-10-24 (ADR-0015), callable only by the API, audited.
 
 - Gemini 3.x Flash and Groq gpt-oss reason before answering; reasoning tokens count against `max_tokens`
   (16 tokens returned empty text) and add latency. Decide the thinking level per task from the Phase 2/4
@@ -977,10 +985,9 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - HAPI uses 1.52 of its 2 GB limit with 50 patients. Watch it when adding data; raise the limit or the heap only
   with a measurement.
 
-- Core + fhir + rag + voice is ~10.2 GB, above the 10 GB WSL cap, so the Phase 4 demo won't fit as is.
-  Options: raise the cap to 12 GB, trim the HAPI heap to 1 GB, stop `rag` services that voice does not need,
-  drop unused Qdrant collections, or move dense vectors to pgvector in the core Postgres (ADR-0007 numbers).
-  Decide in Phase 4.
+- Core + fhir + rag + voice was estimated at ~10.2 GB, above the 10 GB WSL cap. Resolved in Phase 4: the
+  voice agent and the Scribe listener run on the host (LiveKit console mode), so the `voice` profile is
+  not started; core + fhir + rag measured 5.9 GiB with the de-ID tagger (2026-10-24).
 - The package name `agents/` clashes with the OpenAI Agents SDK import name (`agents`). The Phase 3
   framework comparison should run in its own isolated project under `evals/agents/`.
 - SPEC §3 and §6 still contain embedded-diagram placeholders (architecture, RAG pipeline). Text is enough
