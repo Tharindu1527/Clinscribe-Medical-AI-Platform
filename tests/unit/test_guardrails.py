@@ -76,6 +76,29 @@ def test_spoken_units_from_speech_recognition_match_abbreviations() -> None:
     assert G.doses("2 to 5 micrograms") == {("2", "mcg"), ("5", "mcg")}
 
 
+def test_doses_in_words_match_digits() -> None:
+    # ACI-Bench D2N085: "oxycodone five milligrams" was said, the note's "5 mg" was removed
+    assert G.doses("prescribe oxycodone five milligrams every six to eight hours") == {("5", "mg")}
+    assert G.doses("metformin five hundred milligrams") == {("500", "mg")}
+    assert G.doses("twenty-five mg") == G.doses("twenty five mg") == {("25", "mg")}
+    assert G.doses("two point five milligrams") == {("2.5", "mg")}
+    assert G.doses("one thousand two hundred and fifty units") == {("1250", "unit")}
+    assert G.doses("five to ten milligrams") == {("5", "mg"), ("10", "mg")}
+
+
+def test_number_words_that_are_not_doses_stay_words() -> None:
+    assert G.doses("take two 500 mg tablets") == G.doses("take 2 500 mg tablets") == {("500", "mg")}
+    assert G.doses("one of the tablets every six hours") == set()
+    assert G.doses("five two milligrams") == set()  # not one number: no dose is read into it
+
+
+def test_a_dose_in_words_still_needs_a_source() -> None:
+    unsourced = _answer(("Take ten milligrams once daily.", ["fda:w#s1#c0"]))
+    assert [v.rule for v in G.check_answer(unsourced, SOURCES)] == ["unsourced_dose"]
+    sourced = _answer(("Start at two to five milligrams once daily.", ["fda:w#s1#c0"]))
+    assert G.check_answer(sourced, SOURCES) == []
+
+
 def test_invented_citations_and_diagnosis_wording_are_caught() -> None:
     invented = _answer(("Monitor INR weekly.", ["fda:nope#s1#c0"]))
     assert [v.rule for v in G.check_answer(invented, SOURCES)] == ["unknown_citation"]
@@ -99,3 +122,12 @@ def test_note_doses_may_come_from_the_transcript() -> None:
     )
     rules = [v.rule for v in G.check_note(note, transcript, SOURCES)]
     assert rules == ["unsourced_dose", "unknown_turn"]
+
+
+def test_a_note_dose_said_in_words_is_sourced() -> None:
+    transcript = ["DOCTOR: I'm going to prescribe oxycodone five milligrams every six hours."]
+    plan = NoteStatement(
+        section="plan", text="Oxycodone 5 mg every 6 hours as needed.", transcript_turns=[0]
+    )
+    note = SoapNote(encounter_id="e", statements=[plan], prompt_version="p", model="m")
+    assert G.check_note(note, transcript, SOURCES) == []

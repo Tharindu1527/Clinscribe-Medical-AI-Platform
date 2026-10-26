@@ -1,6 +1,6 @@
 # Guardrail rules (SPEC section 5; Phase 3 task 7). Rules are data so they are versioned and
 # reviewed like prompts; agents/guardrails.py applies them. Regexes are case-insensitive.
-version: "1"
+version: "2"  # 2: doses in words ("five milligrams"); ranges need "-", "to" or "–"
 
 input:
   # Instructions hidden in retrieved passages or uploaded documents (prompt injection). A passage
@@ -20,8 +20,11 @@ output:
   # A dose: a number with a unit. A sentence that states one must cite a source that contains the
   # same number and unit (CLAUDE.md: every clinical claim cited; SPEC: any dose needs a source).
   # Spoken units ("500 milligrams", "9.1 millimoles") as speech recognition writes them (Scribe
-  # from audio) are matched too and normalised to the abbreviations in agents/guardrails.py.
-  dose_pattern: '(\d+(?:[.,]\d+)?)\s*(?:-|to|–)?\s*(?:\d+(?:[.,]\d+)?\s*)?(mg|mcg|µg|micrograms?|milligrams?|g|grams?|international units?|units?|iu|ml|millilit(?:re|er)s?|mmol|millimoles?|meq)\b'
+  # from audio) are matched too and normalised to the abbreviations in agents/guardrails.py,
+  # and so are numbers in words before a unit ("five milligrams", "two point five mg"; ACI-Bench
+  # transcripts and speech recognition without numerals). A range needs "-", "to" or "–": in
+  # "two 500 mg tablets" the 2 is a count, not a dose.
+  dose_pattern: '(\d+(?:[.,]\d+)?)\s*(?:(?:-|to|–)\s*\d+(?:[.,]\d+)?\s*)?(mg|mcg|µg|micrograms?|milligrams?|g|grams?|international units?|units?|iu|ml|millilit(?:re|er)s?|mmol|millimoles?|meq)\b'
   # Definitive diagnosis or individual treatment decisions: the system suggests, never decides.
   diagnosis_patterns:
     - '\b(the|your|this) (patient )?(definitely|certainly|clearly) (has|is suffering from)\b'
