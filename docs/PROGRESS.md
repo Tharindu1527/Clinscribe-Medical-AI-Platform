@@ -978,12 +978,40 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   (`tests/unit/test_voice_delegate.py`); voice smoke test passes (console path). Audit design and
   the runbook (start-up, key rotation) updated.
 
+- 2026-10-26: **Note quality vs the reference note: complete** (SPEC §11 "Notes"; started
+  2026-10-25). 8 ACI-Bench consultations, the current de-ID and note writer, rubric judge (Groq
+  gpt-oss-120b, two calls per draft, cached; 11 resumptions over the free tier's daily limit).
+  First full run: fact recall 0.83, critical-fact recall 0.87 (medications and doses, allergies,
+  abnormal results, the plan), statements supported by their cited turns 0.97 (4 of 167 not),
+  sections fit 1.00; controls behave (the reference as the draft 1.00 / 1.00; the draft without
+  assessment and plan 0.59 / 0.49). The report now lists each missed critical fact and each
+  unsupported statement, and that list found a guardrail defect (next entry): two plans had lost a
+  dose the doctor had said in words. After the fix: **fact recall 0.85, critical 0.92, 3 of 171
+  unsupported** (`evals/reports/agents/note_quality.md`). Remaining misses: D2N072's plan is vague
+  ("ordered discussed medications and procedures", the note writer's first and only attempt; the
+  splint and Motrin 600 mg are missing), D2N075 leaves out the reason for the visit. One judge, no
+  clinician check, no intervals over 8 consultations: indicative.
+- 2026-10-26: **Dose rule reads doses in words** (guardrails v2, ADR-0020, proposed). The dose rule
+  read only digits, so "oxycodone five milligrams" in the consultation did not source the note's
+  "5 mg": D2N085's draft lost the prescription, and in D2N077 ("fifty milligrams of ultram") the
+  flag forced a retry that dropped the brace from the plan. The other way round, "ten milligrams"
+  in an answer was invisible to the rule. Now number words become digits where a dose then reads
+  ("two point five mg", "five to ten milligrams"; "two 500 mg tablets" stays a count), on both the
+  sentence and its sources, and a range needs "-", "to" or "–". Checked with no model calls:
+  red-team 67/67 with two new word-dose cases; with v1 rules in the system exactly those two fail
+  (on note-07 v1 removed the correct "500 mg" statement and kept the invented increase); corpus:
+  2 dose pairs gained, 109 dropped in 55 chunks, all inspected ones table artefacts (row numbers,
+  days, trial arm sizes, weights) that could have "supported" an invented dose; 325 stored answer
+  sentences: no verdict change. D2N087's flag was correct (wrong turn cited); its retry dropped the
+  dose instead of fixing the citation (noted, not changed). Unit tests +4.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `voice-delegation`** (the built-in browser is signed out of GitHub).
+- **You: open the PR for `voice-delegation`, then the one for `dose-words`** (stacked on it;
+  merge in that order; the built-in browser is signed out of GitHub). Review ADR-0020.
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.

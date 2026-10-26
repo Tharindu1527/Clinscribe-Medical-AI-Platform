@@ -50,5 +50,15 @@ one number ("five two") are left alone. Both sides use it, the sentence and its 
   chunks. Every dropped pair seen was a table artefact (row numbers, days of treatment, trial arm
   sizes, body weights) that could have "supported" an invented dose such as 275 mg. Stored Phase 2
   answers (325 cited sentences): no verdict changes.
+- Note quality, 8 ACI-Bench consultations, same note writer and judge
+  (`evals/reports/agents/note_quality.md`): critical-fact recall 0.87 → 0.92, fact recall 0.83 →
+  0.85, unsupported statements 4 of 167 → 3 of 171. D2N085 0.82 → 1.00 critical (the
+  prescription stays); D2N077's first draft now passes (no retry). The judge lists the facts again
+  for every new draft (D2N077: 22 facts, then 25), so the means move with the judge as well; 8
+  consultations, no interval: read as direction, not size.
+- Not changed, seen on the way: in D2N087 the note writer cited the turn after the one that states
+  "doxycycline one hundred milligrams"; the rule flagged it correctly, and the retry dropped the
+  dose instead of citing the right turn. A feedback wording that asks for the citation first is a
+  possible next step.
 - Not covered: fractions in words ("half a milligram"), "a milligram", numbers split by PDF
   extraction ("2 . 5 mg"), and number words in other languages.
