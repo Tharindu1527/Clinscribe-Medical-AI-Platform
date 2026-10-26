@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     postgres_host: str = "127.0.0.1"  # not "localhost": Windows tries ::1 first and stalls
     postgres_port: int = 5432
     app_db_password: SecretStr = SecretStr("")
+    retention_db_password: SecretStr = SecretStr("")  # retention and erasure jobs (ADR-0022)
     litellm_db_password: SecretStr = SecretStr("")
     hapi_db_password: SecretStr = SecretStr("")
 

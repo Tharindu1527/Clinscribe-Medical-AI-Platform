@@ -72,11 +72,19 @@ class AuditLog:
         if not self._key:
             raise ValueError("AUDIT_CHAIN_KEY is empty (run just gen-keys)")
 
-    def append(self, entry: AuditEntry) -> int:
+    def append(self, entry: AuditEntry, conn: psycopg.Connection[Any] | None = None) -> int:
+        """Append one entry. With `conn`, inside that connection's transaction, so the entry
+        commits or rolls back with the change it records (retention and erasure, ADR-0022)."""
+        if conn is None:
+            with psycopg.connect(self._conninfo) as own:
+                return self._append(own, entry)
+        return self._append(conn, entry)
+
+    def _append(self, conn: psycopg.Connection[Any], entry: AuditEntry) -> int:
         values = {name: getattr(entry, name) for name in _FIELDS}
         values["details"] = entry.details
         ts = datetime.now(UTC)  # microseconds, the same precision Postgres stores
-        with psycopg.connect(self._conninfo) as conn, conn.transaction():
+        with conn.transaction():
             conn.execute("SELECT pg_advisory_xact_lock(%s)", (_LOCK_ID,))
             row = conn.execute("SELECT hash FROM audit_log ORDER BY seq DESC LIMIT 1").fetchone()
             prev = bytes(row[0]) if row else GENESIS
