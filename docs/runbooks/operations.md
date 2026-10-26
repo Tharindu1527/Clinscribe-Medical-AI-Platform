@@ -14,13 +14,15 @@ PowerShell; nothing below prints a secret.
 | Health, memory | `just ps`, `just stats` (budget ≤ 8 GB) |
 | Stop (data volumes kept) | `just down` |
 | Phase gates | `just gate 1` … `just gate 5` |
+| Retention limits (ADR-0022) | `just retention` (dry run), then `just retention --apply`; schedule it daily, e.g. Windows Task Scheduler running `just retention --apply` in the repo |
+| GDPR erasure request | `just erase <patient id> --request <ticket id> --by <admin user>` (dry run: shows the counts), then the same with `--apply`; the audit row `gdpr.erasure` is the record. Requests about the clinical record itself go to the EHR's controller |
 
 ## Rotate a key
 
 1. Generated keys (`LITELLM_*`, DB passwords, `DEID_MAPPING_KEY`, `AUDIT_CHAIN_KEY`,
    `APPROVAL_TOKEN_KEY`, `AUTH_TOKEN_KEY`, `VOICE_AGENT_KEY`, `QDRANT_API_KEY`, `NEO4J_PASSWORD`):
    clear the value in `.env`, run `just gen-keys`, then `just up rag` (containers pick up the new
-   value).
+   value). `RETENTION_DB_PASSWORD`: `just gen-keys`, then `just migrate` (resets the login).
 2. Special cases:
    - `AUTH_TOKEN_KEY` / `APPROVAL_TOKEN_KEY`: all issued tokens and pending approvals become invalid
      (intended). Users sign in again; pending drafts must be re-approved.

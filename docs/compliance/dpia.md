@@ -24,6 +24,15 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 - **Human decision:** the system drafts and suggests; nothing is written without a doctor's approval
   bound to the exact content (`agents/approval.py`).
 - **Transparency:** every draft and answer is labelled AI-generated; answers cite their sources.
+- **Storage limitation** (Art. 5(1)(e); ADR-0022): drafts nobody reviews end after 14 days; the
+  encrypted re-identification mapping, the only place originals are kept, is deleted 30 days
+  after an encounter last used it (`config/retention.yaml`, `just retention --apply`, daily).
+- **Erasure** (Art. 17; ADR-0022): `just erase <patient> --request <ticket> --by <admin>` ends the
+  patient's waiting drafts and deletes the mappings of their encounters; audited
+  (`gdpr.erasure`, counts only). Kept, with their basis: the audit log (accountability,
+  Art. 5(2); AI Act logging for high-risk systems, at least six months), the pseudonymous drafts
+  list it refers to, and the FHIR record (the EHR controller's retention; requests about the
+  record go there, Art. 17(3)(c) public health and (b) legal obligations may apply).
 
 ## 3. Risks and measures
 
@@ -40,9 +49,10 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 
 ## 4. Gaps before any real use
 
-- **Data subject rights:** no erasure or export endpoint yet (GDPR Art. 15–17); retention periods
-  are not enforced (drafts nobody reviews stay until reviewed; ADR-0016). The audit log is append-only by design, so erasure needs a documented legal basis
-  for keeping audit records and pseudonymised actors.
+- **Data subject rights:** erasure and retention exist as operator commands (ADR-0022), not as an
+  API endpoint, and only run when scheduled; there is no access/export command (Art. 15) yet. The
+  legal bases for keeping the audit log and the drafts list are this project's reading, not a
+  lawyer's.
 - **Processors:** the free tiers used here (Gemini, Groq, OpenRouter, Langfuse) are not contracted
   for health data; real use needs contracted processors or local models (`baa_vendor_matrix.md`).
 - **Speech:** raw audio reaches the speech vendor before de-ID (Phase 4); needs a BAA-covered vendor

@@ -1024,13 +1024,35 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   since the gate re-run (the lab integration test writes two Observations that became patient
   1617's latest panel, 2 values instead of 9); corrected.
 
+- 2026-10-26: **Retention limits and GDPR erasure** (ADR-0022, proposed; SPEC §8 "retention limits,
+  erasure endpoint", listed as gaps in the DPIA). `scripts/retention.py`: `just retention` (drafts
+  nobody reviewed in 14 days end as "expired" and their saved state goes; an encounter's encrypted
+  de-ID mapping, the only place originals are kept, goes 30 days after it last gained a value,
+  except while its draft waits; `config/retention.yaml`) and `just erase <patient> --request
+  <ticket> --by <admin>` (ends the patient's waiting drafts as "erased", deletes the mappings of
+  every encounter their drafts used). Dry run by default; an applied run writes one audit row
+  (`retention.run` / `gdpr.erasure`, counts only) in the same transaction as the deletions. A new
+  `retention` login (created by `just migrate`, password from `just gen-keys`) may delete mappings
+  and checkpoints, end drafts and append to the audit log; the API's `app` login still cannot
+  delete a mapping, which is why this is a command and not an API endpoint. Mappings go as whole
+  encounters, under the de-ID service's per-encounter lock, re-checked for idleness (surrogate
+  numbers count an encounter's rows, so a partial delete would reuse a number). Kept, with the
+  basis in the DPIA: audit log, drafts list, FHIR record. Found on the way: the voice agent sent
+  every question as encounter `voice-session`, one mapping shared by all voice sessions that never
+  went idle; now one encounter per session. Integration 8 (stale vs waiting vs ended drafts; an
+  encounter used again after the plan keeps its mapping; erasure leaves another patient untouched
+  and nothing re-identifiable; a failed audit write rolls the deletions back; free-text request,
+  non-admin and bad id refused; each login's limits); removing either safeguard fails a test.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `hl7-oru`** (the built-in browser is signed out of GitHub); review
-  ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2).
+- **You: open the PR for `gdpr-erasure`** (the built-in browser is signed out of GitHub); review
+  ADR-0022 (retention and erasure), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). After
+  merging: `just gen-keys` and `just migrate` (creates the retention login), and schedule
+  `just retention --apply` daily if the stack stays up.
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
