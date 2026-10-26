@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-24 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-26 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
 **Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
@@ -961,12 +961,57 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   proxy unchanged) served the Ask tab, an authenticated API call through the proxy and the Voice
   tab's lazy chunk and LiveKit connection, with no console errors.
 
+- 2026-10-26: **Voice questions are audited as the doctor in the room** (ADR-0019 update; SPEC §2
+  story 5, §8 audit). The worker used to ask `/v1/ask` with the demo doctor's token, so every
+  spoken question was recorded as `dr-demo` whoever was in the room. Now the worker holds a
+  service key (`VOICE_AGENT_KEY`, `just gen-keys`) and, when a doctor joins, gets a 30-minute API
+  token for that doctor from `POST /v1/voice/delegate`: only with the key (constant-time compare),
+  only for a doctor, only for a room the API issued to that doctor (`clinscribe-<user>-<8 hex>`),
+  audited as `voice.delegate`. LiveKit already checked the participant against the room token the
+  API signed. Fails closed: on a refusal the agent says it cannot confirm who is asking and sends
+  nothing to the API; console mode keeps the demo doctor. Considered and not chosen: the browser
+  passing its own token over the data channel (readable by every participant), an agent role
+  (the log would name the agent). **Live** (`just voice-webrtc dr-second`, which now reads the
+  audit log with an admin token): 10 questions, 10 cited answers, audit `ask by dr-second` ×10 and
+  `voice.delegate by dr-second` ×1, none as `dr-demo`; time to first audio p50 6.7 / p95 7.9 s.
+  A worker started with a wrong key: 403, 0 of 2 questions answered, no `ask` row. Unit tests 11
+  (`tests/unit/test_voice_delegate.py`); voice smoke test passes (console path). Audit design and
+  the runbook (start-up, key rotation) updated.
+
+- 2026-10-26: **Note quality vs the reference note: complete** (SPEC §11 "Notes"; started
+  2026-10-25). 8 ACI-Bench consultations, the current de-ID and note writer, rubric judge (Groq
+  gpt-oss-120b, two calls per draft, cached; 11 resumptions over the free tier's daily limit).
+  First full run: fact recall 0.83, critical-fact recall 0.87 (medications and doses, allergies,
+  abnormal results, the plan), statements supported by their cited turns 0.97 (4 of 167 not),
+  sections fit 1.00; controls behave (the reference as the draft 1.00 / 1.00; the draft without
+  assessment and plan 0.59 / 0.49). The report now lists each missed critical fact and each
+  unsupported statement, and that list found a guardrail defect (next entry): two plans had lost a
+  dose the doctor had said in words. After the fix: **fact recall 0.85, critical 0.92, 3 of 171
+  unsupported** (`evals/reports/agents/note_quality.md`). Remaining misses: D2N072's plan is vague
+  ("ordered discussed medications and procedures", the note writer's first and only attempt; the
+  splint and Motrin 600 mg are missing), D2N075 leaves out the reason for the visit. One judge, no
+  clinician check, no intervals over 8 consultations: indicative.
+- 2026-10-26: **Dose rule reads doses in words** (guardrails v2, ADR-0020, proposed). The dose rule
+  read only digits, so "oxycodone five milligrams" in the consultation did not source the note's
+  "5 mg": D2N085's draft lost the prescription, and in D2N077 ("fifty milligrams of ultram") the
+  flag forced a retry that dropped the brace from the plan. The other way round, "ten milligrams"
+  in an answer was invisible to the rule. Now number words become digits where a dose then reads
+  ("two point five mg", "five to ten milligrams"; "two 500 mg tablets" stays a count), on both the
+  sentence and its sources, and a range needs "-", "to" or "–". Checked with no model calls:
+  red-team 67/67 with two new word-dose cases; with v1 rules in the system exactly those two fail
+  (on note-07 v1 removed the correct "500 mg" statement and kept the invented increase); corpus:
+  2 dose pairs gained, 109 dropped in 55 chunks, all inspected ones table artefacts (row numbers,
+  days, trial arm sizes, weights) that could have "supported" an invented dose; 325 stored answer
+  sentences: no verdict change. D2N087's flag was correct (wrong turn cited); its retry dropped the
+  dose instead of fixing the citation (noted, not changed). Unit tests +4.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `webrtc-voice`** (the built-in browser is signed out of GitHub).
+- **You: open the PR for `voice-delegation`, then the one for `dose-words`** (stacked on it;
+  merge in that order; the built-in browser is signed out of GitHub). Review ADR-0020.
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.

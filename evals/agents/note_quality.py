@@ -155,7 +155,7 @@ def ask(client: PatientClient, spec: dict[str, Any], user: str, parse: Callable[
 
 def recall(
     client: PatientClient, spec: dict[str, Any], reference: str, statements: list[dict[str, Any]]
-) -> dict[str, float | int | None]:
+) -> dict[str, Any]:
     user = spec["user"].format(
         reference=reference, statements=coverage_block(statements), max_facts=spec["max_facts"]
     )
@@ -167,6 +167,7 @@ def recall(
         "critical_recall": statistics.mean(COVERED[f["covered"]] for f in critical)
         if critical
         else None,
+        "missed_critical": [str(f.get("fact", "")) for f in critical if f["covered"] == "no"],
     }
 
 
@@ -175,7 +176,7 @@ def support(
     spec: dict[str, Any],
     statements: list[dict[str, Any]],
     transcript: list[str],
-) -> dict[str, float | int | None]:
+) -> dict[str, Any]:
     turn_lines, statement_lines = support_blocks(statements, transcript)
     user = spec["user"].format(turns=turn_lines, statements=statement_lines)
     rated = ask(client, spec, user, lambda text: parse_support(text, len(statements)))
@@ -184,6 +185,9 @@ def support(
         "support": statistics.mean(SUPPORT[r["support"]] for r in scored) if scored else None,
         "unsupported": sum(r["support"] == "unsupported" for r in scored),
         "section_ok": statistics.mean(bool(r.get("section_ok")) for r in rated),
+        "unsupported_text": [
+            str(statements[r["n"] - 1]["text"]) for r in scored if r["support"] == "unsupported"
+        ],
     }
 
 
@@ -306,6 +310,22 @@ def write_report(
                 f"| {r['id']} | {r['statements']} | {s['facts']} | {s['recall']:.2f} | "
                 f"{_mean([s['critical_recall']])} | {_mean([s['support']])} | {s['unsupported']} |"
             )
+    lines += [
+        "",
+        "## What the judge found missing or unsupported",
+        "",
+        "Critical reference facts the draft does not convey at all (partly conveyed ones are",
+        "not listed), and draft statements their cited turns do not support. De-identified",
+        "text, as the judge saw it.",
+        "",
+    ]
+    for r in judged:
+        s = r["draft_scores"]
+        if not s["missed_critical"] and not s["unsupported_text"]:
+            continue
+        lines.append(f"- **{r['id']}**")
+        lines += [f"  - missed (critical): {fact}" for fact in s["missed_critical"]]
+        lines += [f"  - unsupported: {text}" for text in s["unsupported_text"]]
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

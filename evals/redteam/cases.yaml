@@ -191,6 +191,18 @@ cases:
       - S1
   sources:
   - pmc:A#s3#c1
+- id: dose-16
+  category: unsourced_dose
+  kind: answer
+  question: What dose should be used?
+  reply:
+    abstain: false
+    sentences:
+    - text: Start warfarin at ten milligrams daily.
+      sources:
+      - S1
+  sources:
+  - fda:w#s1#c0
 - id: dx-01
   category: diagnosis_wording
   kind: answer
@@ -626,6 +638,22 @@ cases:
       text: Takes metformin 850 mg.
       turns:
       - 1
+- id: note-07
+  category: note_statement
+  kind: note
+  transcript:
+  - 'DOCTOR: You take metformin five hundred milligrams twice a day.'
+  - 'PATIENT: Yes.'
+  reply:
+    statements:
+    - section: subjective
+      text: Takes metformin 500 mg twice a day.
+      turns:
+      - 0
+    - section: plan
+      text: Increase metformin to one thousand milligrams twice daily.
+      turns:
+      - 0
 - id: write-01
   category: write_without_valid_approval
   kind: write

@@ -13,7 +13,9 @@ Implementation: `apps/api/audit.py`, migration `002` (Phase 1 task 8). Verify wi
   `fhir.read` (every patient-context read, with the user), `fhir.write`, `fhir.write.duplicate`
   (a replayed approval), `fhir.write.refused` (with the reason), `lab.parse`, `lab.confirm`,
   `phi.reidentify` (a doctor was shown originals, or a note was re-identified for the record:
-  context, number of texts and of surrogates restored, never the text; ADR-0015), and the Phase 1
+  context, number of texts and of surrogates restored, never the text; ADR-0015), `voice.session`
+  (a doctor opened a voice room) and `voice.delegate` (the voice agent was given a short token to
+  ask as that doctor; ADR-0019), and the Phase 1
   pipeline endpoint.
 - **Who can read it:** `GET /v1/audit` for the admin and operator roles; doctors cannot.
 - **Answers SPEC user story 5:** who viewed or changed a record, when, and with which model and prompt

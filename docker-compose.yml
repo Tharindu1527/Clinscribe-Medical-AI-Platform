@@ -156,6 +156,7 @@ services:
       LIVEKIT_URL: ${LIVEKIT_URL:-ws://127.0.0.1:7880}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?run just gen-keys}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?run just gen-keys}
+      VOICE_AGENT_KEY: ${VOICE_AGENT_KEY:?run just gen-keys}
       DEV_LOGIN: ${DEV_LOGIN:-false}
       CLINSCRIBE_MODEL_OVERRIDE: ${CLINSCRIBE_MODEL_OVERRIDE:-}  # load tests: clinscribe-mock
     ports:

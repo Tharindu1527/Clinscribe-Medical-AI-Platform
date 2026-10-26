@@ -39,6 +39,47 @@ SPOKEN_UNITS = {
     "milliliter": "ml",
     "millimole": "mmol",
 }
+# Numbers in words, as transcripts write doses ("oxycodone five milligrams"); turned into digits
+# only where a dose then reads (see Guardrails.numerals)
+_SMALL = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+_SMALL += ["eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen"]
+_SMALL += ["eighteen", "nineteen"]
+SMALL = {w: n for n, w in enumerate(_SMALL)}
+_TENS = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+TENS = {w: 10 * n for n, w in enumerate(_TENS, 2)}
+_WORD = "|".join([*SMALL, *TENS, "hundred", "thousand"])
+NUMBER_WORDS = re.compile(rf"\b(?:{_WORD})(?:(?:[\s-]+(?:and|point))?[\s-]+(?:{_WORD}))*\b", re.I)
+
+
+def words_to_number(words: str) -> str | None:
+    """Words to digits: "five hundred" -> "500", "twenty-five" -> "25", "two point five" -> "2.5";
+    None when the words do not read as one number ("five two")."""
+    whole, _, fraction = words.lower().replace("-", " ").partition(" point ")
+    total, current, last = 0, 0, ""
+    for word in whole.split():
+        if word == "and":
+            continue
+        if word in SMALL:
+            if last == "small" or (last == "tens" and SMALL[word] >= 10):
+                return None
+            current, last = current + SMALL[word], "small"
+        elif word in TENS:
+            if last in ("small", "tens"):
+                return None
+            current, last = current + TENS[word], "tens"
+        elif word == "hundred":
+            if last == "scale" or current >= 100:
+                return None
+            current, last = (current or 1) * 100, "scale"
+        elif word == "thousand":
+            total, current, last = total + (current or 1) * 1000, 0, "scale"
+        else:
+            return None
+    digits = [SMALL.get(w) for w in fraction.split()]
+    if fraction and any(d is None or d > 9 for d in digits):
+        return None
+    number = str(total + current)
+    return f"{number}.{''.join(map(str, digits))}" if fraction else number
 
 
 @dataclass(frozen=True)
@@ -85,10 +126,24 @@ class Guardrails:
         return kept, dropped
 
     # ---------------------------------------------------------------- output
+    def numerals(self, text: str) -> str:
+        """Numbers in words that start a dose become digits ("five milligrams" -> "5 milligrams";
+        "five to ten mg" -> "5 to 10 mg"). Right to left, so a range's end is a digit before its
+        start is tried. Other number words stay: "two 500 mg tablets" is a count of tablets."""
+        for match in reversed(list(NUMBER_WORDS.finditer(text))):
+            number = words_to_number(match.group(0))
+            start, end = match.span()
+            if number is None or re.match(r"\s*\d", text[end:]):
+                continue
+            candidate = text[:start] + number + text[end:]
+            if self._dose.match(candidate, start):
+                text = candidate
+        return text
+
     def doses(self, text: str) -> set[tuple[str, str]]:
-        """(number, unit) pairs; units normalised so "5 milligrams"/"5 mg" style variants match."""
+        """(number, unit) pairs; units normalised so "5 milligrams"/"5 mg"/"five mg" match."""
         out = set()
-        text = re.sub(r"(?<=\d),(?=\d{3}\b)", "", text)  # 1,000 units -> 1000 units
+        text = self.numerals(re.sub(r"(?<=\d),(?=\d{3}\b)", "", text))  # 1,000 units -> 1000
         for match in self._dose.finditer(text):
             unit = match.group(2).lower().rstrip("s")
             unit = SPOKEN_UNITS.get(unit, unit)

@@ -5,20 +5,21 @@ self-hosted LiveKit server (`just up voice`), the production agent worker (`just
 start`: Deepgram nova-3-medical, the ClinScribe API, Deepgram Aura-2). Time to first
 audio is measured at the client, so it includes the WebRTC hops in both directions.
 
-- room `clinscribe-dr-demo-2b383d9d`; agent joined after 1.7 s
-- turns: 10; answered with citations on the data channel: 8 (sources per answer: 5.2)
+- room `clinscribe-dr-second-8bc6e097` (doctor `dr-second`); agent joined after 2.2 s
+- audit rows written during the run: ask by dr-second: 10, voice.delegate by dr-second: 1
+- turns: 10; answered with citations on the data channel: 10 (sources per answer: 5.2)
 - questions the agent split into two or more turns (answered a fragment): 0
-- time to first audio, unsplit questions: p50 6819 ms, p95 16900 ms (n 9)
+- time to first audio, unsplit questions: p50 6651 ms, p95 7923 ms (n 10)
 
 | # | question as transcribed (one per agent turn) | time to first audio ms | sentences | sources |
 |---|---|---|---|---|
-| 1 | can ace inhibitors or arbs be used to treat hypertension in a pregnant woman | 3641 | 2 | 5 |
-| 2 | which other drugs raise the chance of angioedema in some taking enalapril | 13720 | 3 | 4 |
-| 3 | in normal weight patients on incretin therapy by how much did atap a1c fall on average | 4459 | 1 | 8 |
-| 4 | what can community health workers do in hypertension care according to who | 7158 | 2 | 5 |
-| 5 | what blood pressure levels are classically seen in a hypertensive emergency | 7330 | 2 | 5 |
-| 6 | is there a reversal agent for dabigatran | 6819 | 2 | 5 |
-| 7 | lt2 inhibitors lower blood glucose | 16900 | 2 | 5 |
-| 8 |  | - | 0 | 0 |
-| 9 | semaglutide should anything be changed | 3769 | 4 | 5 |
-| 10 | paused | 3898 | 0 | 5 |
+| 1 | can inhibitors or arbs be used to treat hypertension in a pregnant woman | 5843 | 2 | 5 |
+| 2 | which other drugs raise the chance of angioedema in someone taking enalapril | 7450 | 3 | 5 |
+| 3 | in normal weight patients on incretin therapy by how much did atf a1c fall on average | 4190 | 2 | 8 |
+| 4 | what can community health workers do in hyper hypertension care according to who | 6651 | 3 | 5 |
+| 5 | what blood pressure levels are classically seen in a hypertensive emergency | 6600 | 2 | 5 |
+| 6 | is there a reversal agent for dabigatran | 7923 | 4 | 5 |
+| 7 | how do sglt2 inhibitors lower blood glucose | 7640 | 3 | 5 |
+| 8 | a patient on a sulfonylurea is starting semaglutide should anything be changed | 7852 | 2 | 4 |
+| 9 | how long before an operation should dapagliflozin be paused | 4330 | 1 | 5 |
+| 10 | what was the thromboembolism risk in device patients scoring two on c h ads2 who had no at | 7091 | 1 | 5 |

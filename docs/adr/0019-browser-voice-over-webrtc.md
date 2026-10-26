@@ -40,15 +40,44 @@ Option 2.
 
 - Shown end to end without a browser (`voice/webrtc_check.py`, `evals/reports/voice/webrtc.md`): a
   Python LiveKit client in the doctor's place got a token from the API, joined, heard the greeting,
-  played 10 recorded questions; the agent joined in 1.7 s, replied aloud to 9 and sent 8 cited
-  answers on the data channel; time to first audio at the client p50 6.8 / p95 16.9 s, slower than
+  played 10 recorded questions; in the first run the agent joined in 1.7 s, replied aloud to 9
+  and sent 8 cited answers on the data channel; time to first audio at the client p50 6.8 / p95 16.9 s, slower than
   the in-process measurement (4.3 / 7.1 s on 2026-10-19), which leaves out the wait for the end of
   the turn and the network. In the browser pane: connect, agent present, greeting transcript and a
   live agent audio track; the pane blocks microphones, so speech from a browser was not tried here.
 - No new processor: audio stays on the machine until the agent sends it to Deepgram, as before.
   LiveKit adds 69 MiB; the stack with the voice profile measured 5.55 GiB.
 - Only for one machine: ICE uses 127.0.0.1 and no TURN server is configured, so a browser on
-  another device cannot connect. A deployment needs a public IP or TURN, TLS (wss) and per-user
-  agent credentials: the worker calls the API with the demo doctor's token, not the token of the
-  doctor in the room.
+  another device cannot connect. A deployment needs a public IP or TURN and TLS (wss).
+- First version: the worker called the API with the demo doctor's token, so every voice question
+  was audited as `dr-demo`, whoever was in the room. Fixed the same day (below).
 - The voice answers stay in surrogate form (ADR-0015).
+
+## Update 2026-10-26: the agent asks as the doctor in its room
+
+SPEC §2 story 5 and §8 ("who did what, when") need the audit log to name the doctor who asked a
+spoken question. Options: (a) the browser sends the doctor's API token to the agent over the data
+channel (the token then passes through LiveKit and every room participant could read it);
+(b) the agent gets its own role that may call `/v1/ask` (the log would name the agent, not the
+doctor); (c) **delegation**: the worker holds a service key (`VOICE_AGENT_KEY`, from
+`just gen-keys`) and, when a participant joins, asks `POST /v1/voice/delegate` for a 30-minute API
+token for that participant. Chosen: (c).
+
+- The API gives a token only if the key matches (constant-time compare), the user is a doctor and
+  the room is one it issued to that doctor (`clinscribe-<user>-<8 hex>`, the name `/v1/voice/token`
+  creates). LiveKit has already checked the participant's identity against the room token the API
+  signed, so the identity cannot be chosen by the browser. Each delegation is audited
+  (`voice.delegate`, with the room).
+- Fails closed: a refused or failed delegation leaves the agent without a token; it says that it
+  could not confirm who is asking and sends nothing to the API. Console mode (`just voice`) keeps
+  the local demo doctor's token.
+- Measured (`just voice-webrtc dr-second`, `evals/reports/voice/webrtc.md`): 10 questions as the
+  second synthetic doctor, 10 cited answers, audit rows `ask by dr-second` ×10 and
+  `voice.delegate by dr-second` ×1, none as `dr-demo`; time to first audio at the client p50 6.7 /
+  p95 7.9 s. With a wrong service key the API refused (403), the agent answered 0 of 2 questions
+  and no `ask` row was written. Unit tests: wrong, missing and unset key; another doctor's room; a
+  non-doctor; a room name the API never issues.
+- Limits: the worker trusts the first participant who joins (the room is issued to one doctor and
+  LiveKit admits only holders of its token); a stolen service key could mint doctor tokens for
+  rooms named after any doctor, so the key is a secret like `AUTH_TOKEN_KEY` and lives only in
+  `.env`.
