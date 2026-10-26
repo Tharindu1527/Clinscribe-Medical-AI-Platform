@@ -1071,13 +1071,30 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   reached the model. Unit 8, integration 4 (`CLINSCRIBE_REQUIRE_OBS=1` to require the profile).
   Stack with every profile 6.08 GB.
 
+- 2026-10-27: **Arize Phoenix tried against Langfuse Cloud** (ADR-0024, proposed; SPEC §7 "Phoenix is
+  tried once and compared in an ADR"). `just phoenix on` layers `docker-compose.phoenix.yml` over
+  the stack: Phoenix `20.21.1` (127.0.0.1:6006, telemetry off) and a merged collector config that
+  sends the same redacted spans to the file, Langfuse and Phoenix; `just phoenix off` restores it.
+  **Measured** (`evals/llmops/tracing_compare.py`, `evals/reports/llmops/tracing_backends.md`; one
+  synthetic consultation, real models): Phoenix stored 71 of the 71 spans of the 5 traces the file
+  holds (70 of 70 in a second run), trees intact; Langfuse 0 (ingestion still suspended by the free
+  tier). Phoenix reads our
+  OpenTelemetry GenAI attributes into its own model and token fields with no instrumentation
+  change; its cost column is $0 (it does not know LiteLLM's names); 448–599 MiB, 1.42 GB image,
+  ~60 s first start and 29 s restart, no login by default. Decision: Langfuse stays configured,
+  Phoenix is the optional local backend. **Leak test** with Phoenix as a new sink: gate b PASS,
+  0 leaks in 8 sinks (69,230 bytes of Phoenix spans), 0 of 66 seed values reached the model.
+  Found and fixed on the way: clinical audit rows never
+  recorded the trace id (only the dev pipeline did), so an operator could not go from an audit row
+  to its trace (SPEC §2 stories 5 and 6); every row now carries its request's trace id. Unit +2.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `obs-dashboards`** (the built-in browser is signed out of GitHub); review
-  ADR-0023 (dashboards), ADR-0022 (retention and erasure), ADR-0021 (HL7 v2) and ADR-0020 (dose
+- **You: open the PR for `phoenix-trial`** (the built-in browser is signed out of GitHub); review
+  ADR-0024 (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention and erasure), ADR-0021 (HL7 v2) and ADR-0020 (dose
   rule v2). After merging: `just gen-keys`, `just up obs`, `just migrate`; Grafana on
   http://127.0.0.1:3000 (user `admin`, `GRAFANA_ADMIN_PASSWORD` in `.env`). Schedule
   `just retention --apply` daily if the stack stays up.

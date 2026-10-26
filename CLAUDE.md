@@ -38,7 +38,7 @@ local Ollama (host GPU, last fallback). Speech: Deepgram, AssemblyAI. TTS: Carte
 - `just doctor` — check prerequisites; `just gen-keys` — fill generated secrets in `.env`
 - `just up` / `just down` — start (core + fhir; `just up rag` adds a profile) or stop the stack;
   `just up voice` + `just voice dev` for browser voice (ADR-0019), `just voice-webrtc` to check it;
-  `just up obs` for the Grafana dashboards (ADR-0023);
+  `just up obs` for the Grafana dashboards (ADR-0023); `just phoenix on|off` local traces (ADR-0024);
   `just ps`, `just logs <svc>`, `just stats` (memory vs the 8 GB budget)
 - `just test` — unit and integration tests; `just test-unit`; `just test-live` (real provider calls)
 - `just lint` — ruff + mypy; `just fmt` to auto-fix

@@ -79,6 +79,7 @@ just voice               # talk to ClinScribe (microphone + speakers; DEEPGRAM k
 just up voice; just voice dev   # browser voice: LiveKit server + agent worker, then the Voice tab
 just scribe 1617         # Scribe a consultation from the microphone (Enter to finish) or --file x.wav
 just up obs; just migrate   # dashboards: Grafana on 127.0.0.1:3000 (admin / GRAFANA_ADMIN_PASSWORD)
+just phoenix on         # optional local trace UI (Arize Phoenix, 127.0.0.1:6006); `just phoenix off`
 npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
 just demo-video          # re-record the demo video (needs the UI dev server, DEV_LOGIN=true, ffmpeg)
 just test; just gate 3   # tests; a phase gate
