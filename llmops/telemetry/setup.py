@@ -15,7 +15,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
-from opentelemetry.trace import SpanKind
+from opentelemetry.trace import SpanKind, Status, StatusCode
 
 from llmops.telemetry.redaction import RedactingSpanExporter, RedactionFilter
 
@@ -61,19 +61,31 @@ def configure_logging(level: int = logging.INFO) -> None:
         logger.addFilter(RedactionFilter())  # records created on these loggers are scrubbed too
 
 
-def instrument(app: FastAPI, service_name: str) -> None:
-    """One SERVER span per request, continuing the caller's trace (W3C traceparent)."""
-    tracer = trace.get_tracer(service_name)
+UNTRACED = frozenset({"/health"})  # container health checks: most requests, no information
+
+
+def instrument(app: FastAPI, service_name: str, provider: TracerProvider | None = None) -> None:
+    """One SERVER span per request, continuing the caller's trace (W3C traceparent). The span is
+    named by the route template ("POST /v1/drafts/{draft_id}/review"), so per-stage metrics have
+    one series per route (ADR-0023); the actual path stays in `url.path`."""
+    tracer = trace.get_tracer(service_name, tracer_provider=provider)
 
     @app.middleware("http")
     async def _trace(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        if request.url.path in UNTRACED:
+            return await call_next(request)
         context = propagate.extract(dict(request.headers))
         name = f"{request.method} {request.url.path}"
         with tracer.start_as_current_span(name, context=context, kind=SpanKind.SERVER) as span:
             span.set_attribute("http.request.method", request.method)
             span.set_attribute("url.path", request.url.path)
             response = await call_next(request)
+            route = request.scope.get("route")  # set by routing, inside call_next
+            template = getattr(route, "path", None)
+            span.update_name(f"{request.method} {template or 'unmatched'}")
             span.set_attribute("http.response.status_code", response.status_code)
+            if response.status_code >= 500:  # an error for the error-rate panels (ADR-0023)
+                span.set_status(Status(StatusCode.ERROR))
             return response
