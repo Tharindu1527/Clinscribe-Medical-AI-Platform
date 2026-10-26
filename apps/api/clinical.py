@@ -22,6 +22,7 @@ import httpx
 import psycopg
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from langgraph.types import Command
+from opentelemetry import trace
 from pydantic import BaseModel, Field, model_validator
 
 from agents.approval import approve
@@ -72,8 +73,12 @@ class ReviewRequest(BaseModel):
 
 
 def _audit(request: Request, who: Principal, action: str, **fields: Any) -> int:
+    """Append an audit row; it carries the request's trace id, so an operator can go from the
+    row to the trace of that request (SPEC section 2, stories 5 and 6)."""
+    context = trace.get_current_span().get_span_context()
+    trace_id = format(context.trace_id, "032x") if context.is_valid else None
     seq: int = request.app.state.audit.append(
-        AuditEntry(actor=who.user, role=who.role, action=action, **fields)
+        AuditEntry(actor=who.user, role=who.role, action=action, trace_id=trace_id, **fields)
     )
     return seq
 
