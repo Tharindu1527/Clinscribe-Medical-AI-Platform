@@ -22,6 +22,8 @@ GENERATORS: dict[str, Callable[[], str]] = {
     "POSTGRES_PASSWORD": lambda: secrets.token_urlsafe(24),
     "APP_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
     "RETENTION_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
+    "GRAFANA_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
+    "GRAFANA_ADMIN_PASSWORD": lambda: secrets.token_urlsafe(18),
     "LITELLM_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
     "HAPI_DB_PASSWORD": lambda: secrets.token_urlsafe(24),
     # Fernet keys are 32 random bytes, urlsafe-base64 encoded

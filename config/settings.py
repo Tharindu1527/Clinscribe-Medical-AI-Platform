@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     app_db_password: SecretStr = SecretStr("")
     retention_db_password: SecretStr = SecretStr("")  # retention and erasure jobs (ADR-0022)
+    grafana_db_password: SecretStr = SecretStr("")  # Grafana's read-only spend-log login (ADR-0023)
+    grafana_admin_password: SecretStr = SecretStr("")  # Grafana's admin user, `just up obs`
     litellm_db_password: SecretStr = SecretStr("")
     hapi_db_password: SecretStr = SecretStr("")
 

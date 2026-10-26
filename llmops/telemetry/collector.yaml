@@ -1,7 +1,8 @@
 # OpenTelemetry collector: the last stop before traces leave the machine.
 # Second PHI defence (SPEC section 7): every span, including LiteLLM's, keeps only allow-listed
 # attribute keys and has structured-PHI patterns masked, then goes to Langfuse Cloud (EU,
-# ADR-0002) and to a local file that the PHI leak test scans (task 10).
+# ADR-0002) and to a local file that the PHI leak test scans (task 10). The same redacted spans
+# become per-stage metrics for Prometheus and Grafana (ADR-0023).
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
@@ -17,6 +18,19 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+
+connectors:
+  # Calls, errors and a latency histogram per service and span name, from the redacted spans only,
+  # so a metric label can only be an allow-listed attribute (ADR-0023)
+  spanmetrics:
+    histogram:
+      unit: ms
+      explicit:
+        buckets: [25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 3s, 5s, 8s, 13s, 21s, 34s, 60s, 120s, 300s]
+    dimensions:
+      - name: http.response.status_code
+      - name: gen_ai.request.model
+    metrics_flush_interval: 15s
 
 processors:
   memory_limiter:
@@ -53,6 +67,7 @@ processors:
       - clinscribe.prompt_version
       - clinscribe.encounter_id
       - clinscribe.redacted_attributes
+      - service.name
     # RE2 patterns for structured PHI in the values that remain
     blocked_values:
       - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
@@ -66,6 +81,12 @@ processors:
 exporters:
   file/traces:
     path: /artifacts/otel/traces.jsonl
+    rotation:  # traces-<time>.jsonl backups; the PHI leak test scans them all (ADR-0023)
+      max_megabytes: 100
+      max_days: 30
+      max_backups: 3
+  prometheus:  # scraped by Prometheus (Compose profile obs); inside the Docker network only
+    endpoint: 0.0.0.0:8889
   otlphttp/langfuse:
     endpoint: ${env:LANGFUSE_OTLP_ENDPOINT}
     auth:
@@ -77,4 +98,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, filter/litellm_internal, redaction, batch]
-      exporters: [file/traces, otlphttp/langfuse]
+      exporters: [file/traces, otlphttp/langfuse, spanmetrics]
+    metrics/spanmetrics:
+      receivers: [spanmetrics]
+      exporters: [prometheus]

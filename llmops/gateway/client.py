@@ -9,7 +9,9 @@ import hashlib
 import json
 import os
 import time
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
@@ -23,6 +25,25 @@ from pydantic import SecretStr
 from privacy.deid.types import DeidentifiedText
 
 _tracer = trace.get_tracer("clinscribe.gateway")
+_ENCOUNTER: ContextVar[str | None] = ContextVar("clinscribe_encounter", default=None)
+
+
+@contextmanager
+def for_encounter(encounter_id: str | None) -> Iterator[None]:
+    """Model calls made inside carry this encounter id (an id, never PHI) on their span and in the
+    gateway's spend log, next to the alias asked for: cost per consultation and failovers can then
+    be counted from the spend log (ADR-0023)."""
+    token = _ENCOUNTER.set(encounter_id)
+    try:
+        yield
+    finally:
+        _ENCOUNTER.reset(token)
+
+
+def current_encounter() -> str | None:
+    return _ENCOUNTER.get()
+
+
 Role = Literal["system", "user", "assistant"]
 CacheMode = Literal["off", "record", "replay"]
 MODELS_FILE = Path(__file__).resolve().parents[2] / "config" / "models.yaml"
@@ -156,6 +177,9 @@ class GatewayClient:
             span.set_attribute("gen_ai.request.model", model)
             span.set_attribute("gen_ai.request.max_tokens", max_tokens)
             span.set_attribute("gen_ai.request.temperature", temperature)
+            encounter = _ENCOUNTER.get()
+            if encounter:
+                span.set_attribute("clinscribe.encounter_id", encounter)
             if self._cache is not None:
                 hit = self._cache.get(key)
                 span.set_attribute("clinscribe.cache_hit", hit is not None)
@@ -167,7 +191,10 @@ class GatewayClient:
             headers: dict[str, str] = {}
             propagate.inject(headers)  # the gateway's spans join this trace
             started = time.perf_counter()
-            body_out = payload if self._trace else {**payload, "no-log": True}  # not in the key
+            tags = {"requested_alias": model, **({"encounter_id": encounter} if encounter else {})}
+            body_out = {**payload, "metadata": {"spend_logs_metadata": tags}}  # not in the key
+            if not self._trace:
+                body_out["no-log"] = True
             response = self._http.post("/v1/chat/completions", json=body_out, headers=headers)
             latency_ms = (time.perf_counter() - started) * 1000
             span.set_attribute("http.response.status_code", response.status_code)

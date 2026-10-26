@@ -5,7 +5,8 @@ Writes evals/reports/privacy/leak_test.md and .json; exits 1 unless 0 leaks and 
 control finds every seed value.
 
 Sinks scanned: collector file export, `docker compose logs` of every service, Langfuse (v2
-observations API), LiteLLM spend logs, the audit table and the de-ID mapping table.
+observations API), LiteLLM spend logs, the audit table and the de-ID mapping table, and, when the
+`obs` profile runs, every metric label value in Prometheus (ADR-0023).
 Also reported (not part of gate b): seed values that survived de-ID in the text the LLM saw.
 All PHI here is synthetic (Faker, seed 1234). The report names entity types, never values.
 """
@@ -30,7 +31,7 @@ from evals.privacy.corpus import NER, build
 
 API = "http://127.0.0.1:8000"
 ROOT = Path(__file__).resolve().parents[2]
-FILE_EXPORT = ROOT / ".artifacts" / "otel" / "traces.jsonl"
+FILE_EXPORT = ROOT / ".artifacts" / "otel"  # traces.jsonl and its rotated backups (ADR-0023)
 REPORT_DIR = ROOT / "evals" / "reports" / "privacy"
 N_TRANSCRIPTS = 20
 SEED = 1234
@@ -79,7 +80,11 @@ def collect_sinks(
 ) -> dict[str, str]:
     sinks: dict[str, str] = {}
 
-    lines = FILE_EXPORT.read_text(encoding="utf-8").splitlines() if FILE_EXPORT.exists() else []
+    lines = [
+        line
+        for path in sorted(FILE_EXPORT.glob("traces*.jsonl"))
+        for line in path.read_text(encoding="utf-8").splitlines()
+    ]
     sinks["collector file export"] = "\n".join(
         ln for ln in lines if any(t in ln for t in trace_ids)
     )
@@ -158,7 +163,24 @@ def collect_sinks(
         ).fetchall()
     sinks["audit table"] = "\n".join(r[0] for r in audit)
     sinks["de-ID mapping table"] = "\n".join(" ".join(map(str, r)) for r in mappings)
+    prometheus = prometheus_labels()
+    if prometheus is not None:  # the obs profile: span metrics are labelled from span data
+        sinks["Prometheus label values"] = prometheus
     return sinks
+
+
+def prometheus_labels(base: str = "http://127.0.0.1:9090") -> str | None:
+    """Every value of every label Prometheus holds; None when it is not running."""
+    try:
+        names = httpx.get(f"{base}/api/v1/labels", timeout=10).json()["data"]
+    except httpx.HTTPError:
+        return None
+    values = [
+        v
+        for name in names
+        for v in httpx.get(f"{base}/api/v1/label/{name}/values", timeout=30).json()["data"]
+    ]
+    return "\n".join(values)
 
 
 def main() -> int:

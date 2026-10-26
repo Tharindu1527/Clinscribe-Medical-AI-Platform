@@ -38,6 +38,7 @@ ALLOWED_KEYS = frozenset(
         "clinscribe.prompt_version",
         "clinscribe.encounter_id",
         "clinscribe.redacted_attributes",
+        "service.name",  # resource attribute: the collector redacts resources too
     }
 )
 

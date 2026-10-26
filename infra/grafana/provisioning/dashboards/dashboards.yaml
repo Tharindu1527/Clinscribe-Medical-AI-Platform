@@ -1,0 +1,11 @@
+# The ClinScribe dashboard is a file in the repo (infra/grafana/dashboards); edits in the UI are
+# not saved back, so the file stays the source.
+apiVersion: 1
+providers:
+  - name: clinscribe
+    folder: ClinScribe
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/dashboards

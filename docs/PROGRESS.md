@@ -78,7 +78,7 @@ Lowest C: free space during the whole run: 2.35 GB.
 | `just up` (core + fhir, Phase 1) | | **~5.0 GB** |
 | rag (Phase 2–3) | qdrant, neo4j (heap 768 MB + page cache 512 MB), guidelines-mcp (encoders, 0.62 GB measured) | ~3.5 GB |
 | voice (Phase 4) | livekit-server, voice-agent, web | ~1.7 GB |
-| obs (optional) | prometheus, grafana | ~0.4 GB |
+| obs (optional) | prometheus, grafana (ADR-0023) | 0.2 GB measured (62 + 137 MiB after use) |
 | tools (one-shot) | synthea generator | ~1.0 GB while running |
 | Ollama (Windows host, outside WSL cap) | ~3B Q4 model | ~2.5 GB VRAM + ~1 GB RAM |
 
@@ -1044,14 +1044,42 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   and nothing re-identifiable; a failed audit write rolls the deletions back; free-text request,
   non-admin and bad id refused; each login's limits); removing either safeguard fails a test.
 
+- 2026-10-26: **Grafana dashboards** (ADR-0023, proposed; SPEC §7 "p50/p95 latency per stage,
+  error rate, failover count, cost per consultation", never built). Compose profile `obs`
+  (`just up obs`, then `just migrate`): Prometheus `v3.13.4` (15 days) scrapes span metrics that
+  the collector's `spanmetrics` connector makes from the redacted spans; Grafana `12.4.12` (local,
+  no sign-up, no usage reporting) has one provisioned dashboard, "ClinScribe operations", and
+  reads the gateway's spend log through `grafana_reader` (SELECT on ten columns of one table, no
+  request or response content). The gateway client now tags every call with the alias asked for
+  and, inside `for_encounter`, the encounter (spend-log metadata, outside the replay-cache key; the
+  API sets it around every graph run): a failover is a call served by another alias than the one
+  asked for (answers ask for `clinscribe-fallback-groq` by design, so "served by a fallback alias"
+  would count every answer). Found and fixed on the way: health checks were most spans and went
+  to Langfuse (now untraced); API spans were named by raw path (now by route template; 5xx marked
+  as errors); the collector's redaction removed `service.name` from every span, Langfuse
+  included (now allow-listed in both layers); the trace file had grown to 45 MB with no rotation
+  (now 100 MB x 3 backups, 30 days; the leak test scans the backups). **Checked live** with one
+  synthetic consultation (draft + 3 questions) and one draft with the primary down: all 18 panel
+  queries run through Grafana's query API; the failover counted (asked `clinscribe-default`,
+  served by `clinscribe-fallback-groq`); cost per encounter at list price, Ask ~$0.0002, the
+  Gemini draft $0.0046. Two dashboard faults found by looking at it: the per-stage table used
+  `increase()`, which cannot count a series' first observations, so the 117 s draft vanished
+  from p95 (now cumulative counters, "since the collector started"; p95 114 s, bucket estimate);
+  daily cost fell outside short ranges (own 30-day window). Grafana 13.2.3 was tried first and
+  dropped: plugins loaded after start (panels failed on early loads) and 471 vs 137 MiB. **Leak
+  test** with a new sink, every Prometheus label value: gate b PASS, 0 leaks, 0 of 66 seed values
+  reached the model. Unit 8, integration 4 (`CLINSCRIBE_REQUIRE_OBS=1` to require the profile).
+  Stack with every profile 6.08 GB.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `gdpr-erasure`** (the built-in browser is signed out of GitHub); review
-  ADR-0022 (retention and erasure), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). After
-  merging: `just gen-keys` and `just migrate` (creates the retention login), and schedule
+- **You: open the PR for `obs-dashboards`** (the built-in browser is signed out of GitHub); review
+  ADR-0023 (dashboards), ADR-0022 (retention and erasure), ADR-0021 (HL7 v2) and ADR-0020 (dose
+  rule v2). After merging: `just gen-keys`, `just up obs`, `just migrate`; Grafana on
+  http://127.0.0.1:3000 (user `admin`, `GRAFANA_ADMIN_PASSWORD` in `.env`). Schedule
   `just retention --apply` daily if the stack stays up.
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;

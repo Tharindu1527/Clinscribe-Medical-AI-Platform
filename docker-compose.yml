@@ -335,6 +335,62 @@ services:
       - "127.0.0.1:7882:7882/udp"
     restart: unless-stopped
 
+  # Dashboards (ADR-0023; `just up obs`): Prometheus scrapes the collector's span metrics; Grafana
+  # shows them next to the gateway's spend log (failovers, cost per consultation), read through a
+  # login that can read only that table. Local only, no usage reporting, no sign-up.
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    profiles: [obs]
+    restart: unless-stopped
+    mem_limit: 256m
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  grafana:
+    # 12.4 bundles the Prometheus and PostgreSQL plugins; 13.2.3 loaded them after start (panels
+    # failed on early loads) and used 471 MiB against 137 MiB here after the same use (ADR-0023)
+    image: grafana/grafana:12.4.12
+    profiles: [obs]
+    restart: unless-stopped
+    mem_limit: 384m
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?run just gen-keys}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?run just gen-keys}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/clinscribe.json
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   # Vector-store comparison only (task 11, ADR-0007): Postgres + pgvector, separate from the core
   # Postgres so the comparison cannot touch app, LiteLLM or HAPI data.
   pgvector:
@@ -393,3 +449,5 @@ volumes:
   qdrant_data:
   neo4j_data:
   pgvector_data:
+  prometheus_data:
+  grafana_data:
