@@ -11,7 +11,7 @@ Implementation: `apps/api/audit.py`, migration `002` (Phase 1 task 8). Verify wi
   is commit order (tested with concurrent writers).
 - **Recorded actions:** `ask`, `draft.create`, `draft.approve` / `draft.edit` / `draft.reject`,
   `fhir.read` (every patient-context read, with the user), `fhir.write`, `fhir.write.duplicate`
-  (a replayed approval), `fhir.write.refused` (with the reason), `lab.parse`, `lab.confirm`,
+  (a replayed approval), `fhir.write.refused` (with the reason), `lab.parse` (with the format: pdf or hl7v2), `lab.confirm`,
   `phi.reidentify` (a doctor was shown originals, or a note was re-identified for the record:
   context, number of texts and of surrogates restored, never the text; ADR-0015), `voice.session`
   (a doctor opened a voice room) and `voice.delegate` (the voice agent was given a short token to
