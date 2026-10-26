@@ -17,6 +17,7 @@ PowerShell; nothing below prints a secret.
 | Stop (data volumes kept) | `just down` |
 | Phase gates | `just gate 1` … `just gate 5` |
 | Retention limits (ADR-0022) | `just retention` (dry run), then `just retention --apply`; schedule it daily, e.g. Windows Task Scheduler running `just retention --apply` in the repo |
+| GDPR access request | `just access-report <patient id> --request <ticket id> --by <admin user>` writes `.artifacts/subject-access/<ticket>-<patient>.json` (holds PHI: hand it over through a secure channel, then delete the file). A copy of the clinical record comes from the EHR |
 | GDPR erasure request | `just erase <patient id> --request <ticket id> --by <admin user>` (dry run: shows the counts), then the same with `--apply`; the audit row `gdpr.erasure` is the record. Requests about the clinical record itself go to the EHR's controller |
 
 ## Rotate a key

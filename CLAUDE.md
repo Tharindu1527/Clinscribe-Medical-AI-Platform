@@ -44,7 +44,7 @@ local Ollama (host GPU, last fallback). Speech: Deepgram, AssemblyAI. TTS: Carte
 - `just lint` — ruff + mypy; `just fmt` to auto-fix
 - `just eval` — evaluation suite; writes reports to `evals/reports/`
 - `just retention` / `just erase <patient> --request <ticket> --by <admin>` — retention limits
-  and GDPR erasure (dry run; add `--apply`; ADR-0022)
+  and GDPR erasure (dry run; add `--apply`; ADR-0022); `just access-report` the Art. 15 copy
 - `just load` — load tests; reports p50/p95
 
 ## How to work in this repo

@@ -14,6 +14,7 @@ Implementation: `apps/api/audit.py`, migration `002` (Phase 1 task 8). Verify wi
   (a replayed approval), `fhir.write.refused` (with the reason), `lab.parse` (with the format: pdf or hl7v2), `lab.confirm`,
   `retention.run` and `gdpr.erasure` (ADR-0022: counts of drafts ended and mappings deleted, the
   limits or the request's ticket id; written in the same transaction as the deletions),
+  `gdpr.access` (a copy of one patient's data was made: ticket id and counts only),
   `phi.reidentify` (a doctor was shown originals, or a note was re-identified for the record:
   context, number of texts and of surrogates restored, never the text; ADR-0015), `voice.session`
   (a doctor opened a voice room) and `voice.delegate` (the voice agent was given a short token to

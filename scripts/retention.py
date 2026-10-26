@@ -1,9 +1,14 @@
-"""Retention limits and GDPR erasure (GDPR Art. 5(1)(e) and 17; SPEC section 8; ADR-0022).
+"""Retention limits, GDPR access and erasure (GDPR Art. 5(1)(e), 15 and 17; SPEC section 8;
+ADR-0022).
 
   uv run python -m scripts.retention [--apply]
       what config/retention.yaml's limits remove; with --apply, remove it
   uv run python -m scripts.retention erase <patient id> --request <ref> --by <admin> [--apply]
       one patient's erasure request (the request reference is a ticket id, never a name)
+  uv run python -m scripts.retention access <patient id> --request <ref> --by <admin>
+      one patient's access request: a copy of what ClinScribe holds, with the originals from the
+      de-ID mapping, written to .artifacts/subject-access/ (git-ignored; it holds PHI), never
+      printed; audited as gdpr.access with counts only
 
 Without --apply nothing changes. An applied run writes one audit row with counts, in the same
 transaction as the deletions. Connects as the "retention" login (scripts/migrate.py): it may delete
@@ -20,6 +25,7 @@ patient; the idle limit removes their mappings), de-identified traces.
 """
 
 import argparse
+import json
 import re
 import sys
 from collections import Counter
@@ -30,15 +36,21 @@ from typing import Any
 
 import psycopg
 import yaml
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg.rows import dict_row
 
 from apps.api.audit import AuditEntry, AuditLog
 from apps.api.auth import users
 from apps.api.drafts import WAITING
 from config.db import retention_conninfo
 from config.settings import Settings
+from privacy.deid.engine import SURROGATE_RE
+from privacy.deid.store import PostgresStore
 from scripts.migrate import CHECKPOINT_TABLES
 
-CONFIG = Path(__file__).resolve().parents[1] / "config" / "retention.yaml"
+ROOT = Path(__file__).resolve().parents[1]
+CONFIG = ROOT / "config" / "retention.yaml"
+ACCESS_DIR = ROOT / ".artifacts" / "subject-access"  # git-ignored: the copies hold PHI
 PATIENT_ID = re.compile(r"^[A-Za-z0-9\-.]{1,64}$")
 REQUEST_REF = re.compile(r"^[A-Za-z0-9._-]{1,64}$")  # a ticket id: no free text, so no PHI
 
@@ -161,6 +173,135 @@ def apply(
     )
 
 
+ABOUT = {
+    "controller_note": "ClinScribe's own processing only. The clinical record (approved notes, lab "
+    "results) is the clinic's record in the EHR (FHIR); a copy of it comes from there.",
+    "purposes": [
+        "drafting clinical notes from consultations for a doctor's review (Scribe)",
+        "answering clinicians' questions with cited evidence (Ask)",
+        "reading lab reports into results a doctor confirms (Lab)",
+    ],
+    "recipients": [
+        "model providers behind the gateway (Gemini, Groq, OpenRouter) and a local model: "
+        "de-identified text only",
+        "speech recognition (Deepgram) in voice mode: consultation audio",
+        "tracing (Langfuse Cloud, EU): de-identified, redacted spans only",
+        "details: docs/compliance/baa_vendor_matrix.md",
+    ],
+    "rights": "erasure: an admin runs `just erase` (ADR-0022); the audit log is kept "
+    "(accountability)",
+}
+
+
+def subject_access(
+    conn: psycopg.Connection[Any],
+    store: PostgresStore,
+    saver: PostgresSaver,
+    patient_id: str,
+) -> dict[str, Any]:
+    """Everything ClinScribe holds about one patient: drafts (a waiting draft's transcript and note
+    re-identified), the de-ID mapping's originals, and the audit rows that name the patient, their
+    drafts or encounters (who read or changed what, when)."""
+    drafts = conn.execute(
+        "SELECT draft_id, encounter_id, created_by, created_at, status, ended_at, resource_id "
+        "FROM drafts WHERE patient_id = %s ORDER BY created_at",
+        (patient_id,),
+    ).fetchall()
+    encounters = sorted({str(d[1]) for d in drafts})
+    held = {e: store.entries(e) for e in encounters}
+    originals = {e: {sur: orig for _, sur, orig in rows} for e, rows in held.items()}
+
+    def restore(text: str, encounter: str) -> str:
+        return SURROGATE_RE.sub(lambda m: originals[encounter].get(m.group(0), m.group(0)), text)
+
+    items = []
+    for draft_id, encounter, by, created, status, ended, resource in drafts:
+        item: dict[str, Any] = {
+            "draft_id": draft_id,
+            "encounter_id": encounter,
+            "created_by": by,
+            "created_at": created,
+            "status": status,
+            "ended_at": ended,
+            "record": resource,
+        }
+        if status == WAITING:  # ended drafts keep no content (ADR-0016)
+            saved = saver.get_tuple({"configurable": {"thread_id": draft_id}})
+            values = saved.checkpoint["channel_values"] if saved else {}
+            note = values.get("note") or {}
+            item["awaiting_review"] = {
+                "transcript": [restore(turn, encounter) for turn in values.get("transcript", [])],
+                "statements": [
+                    {"section": s["section"], "text": restore(s["text"], encounter)}
+                    for s in note.get("statements", [])
+                ],
+            }
+        items.append(item)
+    ids = [str(d[0]) for d in drafts]
+    log = conn.execute(
+        "SELECT seq, ts, actor, role, action, resource_type, resource_id, encounter_id "
+        "FROM audit_log WHERE resource_id = %s OR resource_id = ANY(%s) "
+        "OR encounter_id = ANY(%s) OR details->>'draft_id' = ANY(%s) ORDER BY seq",
+        (patient_id, ids, encounters, ids),
+    ).fetchall()
+    columns = ("seq", "ts", "actor", "role", "action", "resource_type", "resource_id", "encounter")
+    return {
+        "patient_id": patient_id,
+        **ABOUT,
+        "retention": limits(),
+        "drafts": items,
+        "identifiers_held": [
+            {"encounter_id": e, "type": kind, "surrogate": sur, "original": orig}
+            for e, rows in held.items()
+            for kind, sur, orig in rows
+        ],
+        "access_log": [dict(zip(columns, row, strict=True)) for row in log],
+    }
+
+
+def _check_request(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    if not PATIENT_ID.match(args.patient_id):
+        parser.error("patient id: letters, digits, '-' and '.' only")
+    if not REQUEST_REF.match(args.request):
+        parser.error("--request: a ticket id (letters, digits, '.', '_', '-'), not text")
+    if users().get(args.by) != "admin":
+        parser.error(f"--by: {args.by!r} is not an admin in config/users.yaml")
+
+
+def access(args: argparse.Namespace, settings: Settings, audit: AuditLog) -> int:
+    store = PostgresStore(retention_conninfo(settings), settings.deid_mapping_key)
+    with (
+        psycopg.connect(retention_conninfo(settings)) as conn,
+        psycopg.connect(retention_conninfo(settings), autocommit=True, row_factory=dict_row) as raw,
+    ):
+        report = subject_access(conn, store, PostgresSaver(raw), args.patient_id)
+        counts = {
+            "drafts": len(report["drafts"]),
+            "identifiers": len(report["identifiers_held"]),
+            "audit_rows": len(report["access_log"]),
+        }
+        seq = audit.append(  # before the file exists: a failed write is recorded as an attempt
+            AuditEntry(
+                actor=args.by,
+                role="admin",
+                action="gdpr.access",
+                resource_type="Patient",
+                resource_id=args.patient_id,
+                details={"request": args.request, **counts},
+            ),
+            conn,
+        )
+        conn.commit()
+    report = {"request": args.request, "generated_by": args.by, **report}
+    report["generated_at"] = datetime.now(UTC)
+    ACCESS_DIR.mkdir(parents=True, exist_ok=True)
+    path = ACCESS_DIR / f"{args.request}-{args.patient_id}.json"
+    path.write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
+    print(f"gdpr.access: {counts}; audit row {seq}; written to {path} (holds PHI: hand it over")
+    print("securely, then delete it)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--apply", action="store_true", help="remove (default: dry run)")
@@ -170,17 +311,19 @@ def main(argv: list[str] | None = None) -> int:
     erase.add_argument("--request", required=True, help="request reference (ticket id)")
     erase.add_argument("--by", required=True, help="the admin handling the request")
     erase.add_argument("--apply", action="store_true", dest="apply_erase")
+    copy = sub.add_parser("access", help="one patient's access request (a copy of their data)")
+    copy.add_argument("patient_id")
+    copy.add_argument("--request", required=True, help="request reference (ticket id)")
+    copy.add_argument("--by", required=True, help="the admin handling the request")
     args = parser.parse_args(argv)
+    if args.command in ("erase", "access"):
+        _check_request(parser, args)
     settings = Settings()
     audit = AuditLog(retention_conninfo(settings), settings.audit_chain_key)
+    if args.command == "access":
+        return access(args, settings, audit)
     with psycopg.connect(retention_conninfo(settings)) as conn:
         if args.command == "erase":
-            if not PATIENT_ID.match(args.patient_id):
-                parser.error("patient id: letters, digits, '-' and '.' only")
-            if not REQUEST_REF.match(args.request):
-                parser.error("--request: a ticket id (letters, digits, '.', '_', '-'), not text")
-            if users().get(args.by) != "admin":
-                parser.error(f"--by: {args.by!r} is not an admin in config/users.yaml")
             plan = plan_erasure(conn, args.patient_id)
             action, run, ended_as, idle_before = "gdpr.erasure", args.apply_erase, "erased", None
 

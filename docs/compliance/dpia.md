@@ -49,10 +49,10 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 
 ## 4. Gaps before any real use
 
-- **Data subject rights:** erasure and retention exist as operator commands (ADR-0022), not as an
-  API endpoint, and only run when scheduled; there is no access/export command (Art. 15) yet. The
-  legal bases for keeping the audit log and the drafts list are this project's reading, not a
-  lawyer's.
+- **Data subject rights:** access (Art. 15), erasure and retention exist as operator commands
+  (ADR-0022), not as an API endpoint, and retention runs only when scheduled. Rectification of the
+  clinical record and portability are the EHR's. The legal bases for keeping the audit log and the
+  drafts list are this project's reading, not a lawyer's.
 - **Processors:** the free tiers used here (Gemini, Groq, OpenRouter, Langfuse) are not contracted
   for health data; real use needs contracted processors or local models (`baa_vendor_matrix.md`).
 - **Speech:** raw audio reaches the speech vendor before de-ID (Phase 4); needs a BAA-covered vendor
