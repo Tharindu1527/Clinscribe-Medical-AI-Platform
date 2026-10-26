@@ -1029,8 +1029,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `voice-delegation`, then the one for `dose-words`** (stacked on it;
-  merge in that order; the built-in browser is signed out of GitHub). Review ADR-0020.
+- **You: open the PR for `hl7-oru`** (the built-in browser is signed out of GitHub); review
+  ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
