@@ -25,7 +25,7 @@ Option 2. Every service has a `mem_limit`, a healthcheck and one profile:
 | fhir | hapi-fhir (JVM heap capped) | ~2.0 GB |
 | rag | qdrant, neo4j | ~3.5 GB including local encoders in api |
 | voice | livekit-server, voice-agent, web | ~1.7 GB |
-| obs | prometheus, grafana | ~0.4 GB |
+| obs | prometheus, grafana | ~0.4 GB (measured 0.2 GB, ADR-0023) |
 | tools | synthea (one-shot generator) | ~1.0 GB while running |
 
 `just up` starts core + fhir (~5.0 GB, target ≤ 8 GB). `just up rag` (etc.) adds profiles.

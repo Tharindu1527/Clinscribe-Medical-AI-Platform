@@ -12,6 +12,7 @@ PowerShell; nothing below prints a secret.
 | Browser voice (WebRTC, ADR-0019) | `just up voice`, then `just voice dev` (agent worker, own terminal), then the Voice tab; check with `just voice-webrtc [dr-second]` (the report lists the audit rows, which must name that doctor). The worker reads `VOICE_AGENT_KEY` from `.env`; if it is missing or wrong, the agent says it cannot confirm who is asking and answers nothing |
 | Review UI (dev server, http://localhost:5173) | `npm --prefix apps/web run dev` |
 | Health, memory | `just ps`, `just stats` (budget ≤ 8 GB) |
+| Dashboards (ADR-0023) | `just up obs`, then `just migrate` once (Grafana's read-only spend-log login); Grafana on http://127.0.0.1:3000, user `admin`, password `GRAFANA_ADMIN_PASSWORD` in `.env`; dashboard "ClinScribe operations". Prometheus on :9090 keeps 15 days |
 | Stop (data volumes kept) | `just down` |
 | Phase gates | `just gate 1` … `just gate 5` |
 | Retention limits (ADR-0022) | `just retention` (dry run), then `just retention --apply`; schedule it daily, e.g. Windows Task Scheduler running `just retention --apply` in the repo |

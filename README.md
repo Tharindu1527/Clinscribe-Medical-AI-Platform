@@ -31,6 +31,7 @@ not certified.
                     LiteLLM gateway: Gemini Flash -> Groq -> OpenRouter :free -> local Ollama
                                 │
         OpenTelemetry (redaction) -> local traces / Langfuse   ·   hash-chained audit log (Postgres)
+        span metrics -> Prometheus + gateway spend log -> Grafana (p50/p95 per stage, failovers, cost)
 ```
 
 Design rules: no PHI reaches a model, log or trace before de-identification; every model call goes
@@ -77,6 +78,7 @@ just token dr-demo       # bearer token for a synthetic demo doctor
 just voice               # talk to ClinScribe (microphone + speakers; DEEPGRAM key)
 just up voice; just voice dev   # browser voice: LiveKit server + agent worker, then the Voice tab
 just scribe 1617         # Scribe a consultation from the microphone (Enter to finish) or --file x.wav
+just up obs; just migrate   # dashboards: Grafana on 127.0.0.1:3000 (admin / GRAFANA_ADMIN_PASSWORD)
 npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
 just demo-video          # re-record the demo video (needs the UI dev server, DEV_LOGIN=true, ffmpeg)
 just test; just gate 3   # tests; a phase gate
