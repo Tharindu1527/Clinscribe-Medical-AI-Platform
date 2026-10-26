@@ -76,3 +76,22 @@ Option 2 (`scripts/retention.py`, `just retention`, `just erase`).
   gateway's spend logs (no prompt text).
 - The SPEC says "erasure endpoint"; this is a command. The reason is the API's least privilege
   over the mapping, which stays as it was.
+
+## Update 2026-10-27: access requests (GDPR Art. 15)
+
+The DPIA still listed "no access/export command". `just access-report <patient> --request <ticket>
+--by <admin>` (`scripts/retention.py access`, the same login and request checks as erasure)
+writes a copy of what ClinScribe holds about one patient to `.artifacts/subject-access/`
+(git-ignored): the drafts list; a waiting draft's transcript and note with the originals put back
+from the mapping; the mapping's identifiers (type, surrogate, original); the audit rows that name
+the patient, their drafts or encounters (who read or changed what, when); and the purposes,
+recipients and retention limits. The copy holds PHI, so it is written to a file and never
+printed; the operator hands it over securely and deletes it. Each request appends `gdpr.access`
+with counts and the ticket id only, before the file is written, so a failed write still shows
+as an attempt. The clinical record itself is the EHR's: the copy says so and points there.
+
+Tested on the real Postgres (`tests/integration/test_retention.py`): a draft made by the graph
+whose saved transcript and note held a surrogate comes back with the original; the copy holds the
+patient's two encounters' originals and their audit row, and nothing of another patient's; the
+audit row holds counts, not data; the chain verifies.
+

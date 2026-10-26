@@ -1099,6 +1099,17 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   planted value was caught). The GitGuardian incidents still need marking as false positives in
   its dashboard (yours).
 
+- 2026-10-27: **GDPR access requests** (Art. 15; ADR-0022 update; the DPIA's last data-subject-
+  rights gap). `just access-report <patient> --request <ticket> --by <admin>` writes what
+  ClinScribe holds about one patient to `.artifacts/subject-access/` (git-ignored, holds PHI, never
+  printed): the drafts list, a waiting draft's transcript and note re-identified from the mapping,
+  the mapping's originals, the audit rows naming the patient, their drafts or encounters, and the
+  purposes, recipients and retention limits; the clinical record is pointed to the EHR. Audited as
+  `gdpr.access` (ticket id and counts only), before the file is written. Same login and request
+  checks as erasure. Integration +1 on the real Postgres (a graph-made draft's surrogate comes back
+  as the original; another patient's data absent; the audit row holds counts, not data; repeatable
+  across runs, since the audit log keeps every earlier row), unit +1.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
