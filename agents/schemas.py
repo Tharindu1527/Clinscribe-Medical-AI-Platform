@@ -242,10 +242,19 @@ class ReviewDecision(Contract):
 
 # --- parse_lab_report (fhir-mcp; Phase 5)
 class ParseLabReportInput(Contract):
-    pdf_base64: str = Field(min_length=10, max_length=7_000_000)  # ~5 MB PDF
+    """One report: a PDF, or an HL7 v2 ORU^R01 message (ADR-0021)."""
+
+    pdf_base64: str | None = Field(default=None, min_length=10, max_length=7_000_000)  # ~5 MB
+    hl7_message: str | None = Field(default=None, min_length=10, max_length=200_000)
     patient_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9\-.]+$")
     requested_by: str = Field(min_length=1)
     role: Role
+
+    @model_validator(mode="after")
+    def _one_report(self) -> "ParseLabReportInput":
+        if (self.pdf_base64 is None) == (self.hl7_message is None):
+            raise ValueError("give exactly one of pdf_base64 and hl7_message")
+        return self
 
 
 class LabParseResult(Contract):
@@ -255,5 +264,5 @@ class LabParseResult(Contract):
     abnormal: list[str]  # "Potassium 5.6 mmol/L (H)"
     not_mapped: list[str]  # rows read but not mapped (unknown test or unexpected unit)
     unreadable_rows: list[str]
-    identity: dict[str, bool]  # name / birth_date on the report match the record
+    identity: dict[str, bool]  # name / birth_date (/ mrn for HL7) match the record
     collected: str | None

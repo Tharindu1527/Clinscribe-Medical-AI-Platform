@@ -9,8 +9,8 @@ not certified.
 - **Scribe:** a consultation (live audio with the speakers told apart, or a transcript) becomes a
   SOAP draft; the doctor approves, edits or rejects,
   and only then is a FHIR `DocumentReference` written.
-- **Lab:** a lab-report PDF becomes FHIR `Observation`s with abnormal values flagged; the doctor
-  confirms before anything is saved.
+- **Lab:** a lab-report PDF or an HL7 v2 ORU^R01 message becomes FHIR `Observation`s with
+  abnormal values flagged; the doctor confirms before anything is saved.
 
 ## Architecture
 
@@ -49,7 +49,7 @@ audited (ADR-0015).
 | Safety | red-team **67/67** (unsourced doses, also written in words, diagnosis wording, injections, PHI, unapproved writes, wrong-drug answers); negative control 23/67. Questions about a drug no source names abstain before any model call (0 of 209 answerable golden questions blocked, ADR-0018) | `redteam/redteam.md`, `rag/drug_grounding.md` |
 | Privacy | 0 seeded PHI values in 6 sinks (traces, logs, Langfuse, spend logs, audit, mapping); de-ID structured recall 1.000; names / places on unseen phrasings 0.973 / 0.850 with spaCy rules → **0.991 / 1.000 with the LoRA fine-tuned tagger** (held-out v1; 1.000 / 1.000 on a set frozen before training), PHI-free sentences altered 1/40 vs 3/40 (ADR-0014) | `privacy/` |
 | Scribe | ACI-Bench, 8 consultations vs the clinician's reference note (rubric judge, indicative): fact recall 0.85, **critical facts 0.92** (medications, doses, results, plan; controls: the reference 1.00, the draft without assessment and plan 0.50), statements supported by their cited turns 0.97 (3 of 171 not); all 8 drafted this time (6 of 8 on 2026-10-14: long consultations are near the free-tier output budget) | `agents/note_quality.md`, `agents/note_writer.md` |
-| Lab | 162/162 values mapped and flagged (fixed synthetic layout); wrong-patient control 20/20 | `lab/lab_parser.md` |
+| Lab | PDF: 155/155 values mapped and flagged (fixed synthetic layout); HL7 v2 ORU^R01: 155/155 (LOINC, value, UCUM unit, flag), identity checked by name, birth date and MRN; wrong-patient control 20/20 for both (ADR-0021) | `lab/lab_parser.md`, `lab/hl7_oru.md` |
 | Reliability | turns succeed with the primary down (p50 779 / p95 1,080 ms) and with **every cloud provider down** (local Ollama) | `llmops/`, `just gate 5` |
 | Load | Ask endpoint, mocked model: p50 / p95 1.7 / 2.9 s at 10 sessions, 8.1 / 10.0 s at 50, 14.5 / 25.1 s at 100; 0 errors; ~5 req/s (de-ID was the bottleneck: 3 workers tripled throughput) | `load/load_test.md` |
 | Cost | one consultation (draft + 3 questions) at list price: $0.050 (Gemini 3.5 Flash) … $0.002 (Groq gpt-oss-20b); free tiers bill $0. Gemini implicit prompt caching saved nothing here: 0 cached tokens in 274 calls, including a controlled repeat test | `llmops/cost_per_consultation.md`, `llmops/prompt_cache.md` |
@@ -99,6 +99,8 @@ just test; just gate 3   # tests; a phase gate
   run the spaCy rules; it costs ~35 ms per de-ID call.
 - Free-tier rate limits shaped the evaluations (60-question answer subset, 8 scribe dialogues).
 - Lab parsing is measured on one synthetic layout; scanned reports (true OCR) are not covered.
+  HL7 v2 messages come from one synthetic sender written by this project: no MLLP listener,
+  no ACKs, no local codes or Z-segments.
 - Evaluation tooling differs from SPEC §10–11 in one place: DeepEval is not used. The agent's tool
   calls are fixed code paths (no model chooses a tool), so "tool-call accuracy" reduces to the
   router's choice, measured in `agents/router.md`; generation is checked with our own judges, with

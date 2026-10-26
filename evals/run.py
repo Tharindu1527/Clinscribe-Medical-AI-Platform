@@ -6,6 +6,7 @@ Reports are written to evals/reports/.
 import sys
 from collections.abc import Callable
 
+from evals.lab import hl7_eval, lab_eval
 from evals.llmops import failover_latency
 from evals.privacy import deid_eval, leak_test
 from evals.rag import retrieval_eval
@@ -20,6 +21,8 @@ SUITES: dict[str, list[Callable[[], int]]] = {
     "rag": [lambda: retrieval_eval.main([])],
     # Phase 3 gate: adversarial model, real graph/guardrails/fhir-mcp code, no LLM calls
     "redteam": [lambda: redteam.main([])],
+    # Lab mode, PDF and HL7 v2 ORU^R01; needs `just up` + `just fhir-load`; no LLM calls
+    "lab": [lambda: lab_eval.main([]), lambda: hl7_eval.main([])],
 }
 
 

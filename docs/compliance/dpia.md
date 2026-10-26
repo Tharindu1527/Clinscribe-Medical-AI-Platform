@@ -9,7 +9,7 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 
 | Item | Description |
 |---|---|
-| Purpose | Draft clinical notes from consultations, answer clinicians' questions with cited evidence, read lab reports into structured results; a doctor approves every clinical write |
+| Purpose | Draft clinical notes from consultations, answer clinicians' questions with cited evidence, read lab reports (PDF or HL7 v2 ORU^R01) into structured results; a doctor approves every clinical write |
 | Data subjects | Patients (special-category health data, GDPR Art. 9), clinicians (user ids, actions) |
 | Data | Consultation transcripts, patient summaries (age band, sex, conditions, medications, allergies), lab values, approved notes; audit records |
 | Recipients | Clinicians; model providers receive **de-identified text only**; tracing (Langfuse Cloud, EU) receives **de-identified, redacted spans only** |
@@ -31,7 +31,7 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 |---|---|---|---|
 | PHI disclosed to a model provider | High / high | De-ID before the gateway; second structured-PHI check in the graph; the gateway is the only path to models | `evals/reports/privacy/leak_test.md` (0 leaks); red-team PHI cases 8/8 |
 | PHI in logs or traces | Medium / high | Redacting span exporter and log filter; collector redaction processor; bulk traffic not traced | Leak test over 6 sinks: 0 leaks |
-| Wrong patient's record changed | Medium / high | Two identifiers checked against the record before any write; lab reports whose name or birth date do not match are refused | Red-team write cases 9/9; `tests/integration/test_lab_api.py` |
+| Wrong patient's record changed | Medium / high | Two identifiers checked against the record before any write; lab reports whose name or birth date (and, for HL7 messages, MRN) do not match are refused | Red-team write cases 9/9; `tests/integration/test_lab_api.py` |
 | Unreviewed AI output in the record | Medium / high | HITL interrupt; approval token for the exact resource with a 10-minute expiry; fhir-mcp re-verifies | `just gate 3` |
 | Hallucinated clinical fact | Medium / high | Cite-or-abstain; dose and diagnosis guardrails | Faithfulness ~0.94; red-team 63/63 |
 | Unauthorised access | Medium / high | Role-based access (doctor, admin, operator); signed tokens; audit of reads and writes | `tests/integration/test_clinical_api.py` |

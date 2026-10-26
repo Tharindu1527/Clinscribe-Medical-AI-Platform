@@ -156,7 +156,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | Item | Status |
 |---|---|
 | All-cloud-down failover to local Ollama (`just chaos cloud-down`) | ✅ live: turn served by `clinscribe-fallback-local` |
-| Lab mode: PDF → preliminary Observations, flags, confirm → final (`/v1/lab/*`, `parse_lab_report`) | ✅ 162/162 values, wrong-patient 20/20 |
+| Lab mode: PDF → preliminary Observations, flags, confirm → final (`/v1/lab/*`, `parse_lab_report`) | ✅ 162/162 values at first, 155/155 since (see 2026-10-26), wrong-patient 20/20; HL7 v2 ORU^R01 added 2026-10-26 (ADR-0021) |
 | LoRA fine-tune of the de-ID tagger (`finetune/`) | ✅ trained on Colab (you); round 1 rejected, round 2 adopted behind `DEID_NER=tagger` (ADR-0014) |
 | Load test p50/p95 at 10 / 50 / 100 sessions (`evals/load`) | ✅ with before/after of the de-ID fix |
 | Three injected incidents + postmortems (`evals/incidents`, `docs/postmortems`) | ✅ outage (found and fixed a fallback gap), drift, latency |
@@ -1005,13 +1005,32 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   sentences: no verdict change. D2N087's flag was correct (wrong turn cited); its retry dropped the
   dose instead of fixing the citation (noted, not changed). Unit tests +4.
 
+- 2026-10-26: **HL7 v2 ORU^R01 → FHIR Observations** (ADR-0021, proposed; SPEC §8 "one ORU^R01
+  lab message is converted into FHIR Observations", §13 "FHIR R4, HL7", never built). A small
+  reader for MSH, PID, OBR and OBX (`agents/lab/hl7.py`, no dependency: separators and escapes from
+  MSH, carriage-return / newline / MLLP framing) produces Lab mode's `LabReport`, so the message
+  goes through the same review as a PDF: preliminary Observations, identity check, the doctor's
+  confirmation, one approved write per value. Only numeric, LOINC-coded, known tests in the
+  expected unit with status F or C are mapped; anything else is listed for the doctor with the
+  reason. The identity check gains the MRN (PID-3) for messages. `parse_lab_report` and
+  `POST /v1/lab/parse` take `pdf_base64` or `hl7_message`; the audit row records the format.
+  **Measured** (`just eval lab`, `evals/reports/lab/hl7_oru.md`): 20 Synthea patients, 155/155
+  results with the right LOINC code, value, unit and flag (16 abnormal), identity 20/20,
+  wrong-patient control 20/20 (each caught by the MRN alone), newline and MLLP framing read the
+  same 20/20. Integration 3 new (message → confirm → final Observations in HAPI; another
+  patient's message refused 409; both or neither report 422); unit 14. Limits: one synthetic
+  sender written by this project; no MLLP listener, ACKs, local codes or Z-segments. Found on the
+  way: README and the Phase 5 table said 162/162 for the PDF evaluation; its report says 155/155
+  since the gate re-run (the lab integration test writes two Observations that became patient
+  1617's latest panel, 2 values instead of 9); corrected.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `voice-delegation`, then the one for `dose-words`** (stacked on it;
-  merge in that order; the built-in browser is signed out of GitHub). Review ADR-0020.
+- **You: open the PR for `hl7-oru`** (the built-in browser is signed out of GitHub); review
+  ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2).
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.

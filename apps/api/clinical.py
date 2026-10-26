@@ -22,7 +22,7 @@ import httpx
 import psycopg
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from langgraph.types import Command
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from agents.approval import approve
 from agents.fhir_docs import note_to_resource
@@ -430,8 +430,17 @@ def audit_log(
 
 
 class LabParseRequest(BaseModel):
+    """A lab-report PDF, or an HL7 v2 ORU^R01 message (ADR-0021)."""
+
     patient_id: str = Field(pattern=ID)
-    pdf_base64: str = Field(min_length=10, max_length=7_000_000)
+    pdf_base64: str | None = Field(default=None, min_length=10, max_length=7_000_000)
+    hl7_message: str | None = Field(default=None, min_length=10, max_length=200_000)
+
+    @model_validator(mode="after")
+    def _one_report(self) -> "LabParseRequest":
+        if (self.pdf_base64 is None) == (self.hl7_message is None):
+            raise ValueError("give exactly one of pdf_base64 and hl7_message")
+        return self
 
 
 class LabConfirmRequest(BaseModel):
@@ -442,7 +451,8 @@ class LabConfirmRequest(BaseModel):
 
 @router.post("/lab/parse")
 def lab_parse(body: LabParseRequest, request: Request, who: Doctor) -> dict[str, Any]:
-    """Lab-report PDF -> preliminary Observations with flags, pending the doctor's confirmation."""
+    """Lab-report PDF or HL7 v2 ORU^R01 message -> preliminary Observations with flags, pending
+    the doctor's confirmation."""
     from agents.schemas import ParseLabReportInput
     from agents.tools import ToolError
 
@@ -450,6 +460,7 @@ def lab_parse(body: LabParseRequest, request: Request, who: Doctor) -> dict[str,
         parsed = request.app.state.tools.parse_lab(
             ParseLabReportInput(
                 pdf_base64=body.pdf_base64,
+                hl7_message=body.hl7_message,
                 patient_id=body.patient_id,
                 requested_by=who.user,
                 role=who.role,
