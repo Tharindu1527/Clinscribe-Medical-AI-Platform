@@ -1,0 +1,26 @@
+# Grafana data sources (ADR-0023), provisioned read-only. Passwords come from the environment
+# (.env through docker-compose.yml), never from this file.
+apiVersion: 1
+datasources:
+  - name: Span metrics
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+  # LiteLLM's spend log, through grafana_reader: SELECT on ten columns of one table, no request or
+  # response content (scripts/migrate.py SPEND_COLUMNS)
+  - name: Gateway spend log
+    uid: spendlog
+    type: grafana-postgresql-datasource
+    url: postgres:5432
+    user: grafana_reader
+    jsonData:
+      database: litellm
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+    secureJsonData:
+      password: $GRAFANA_DB_PASSWORD
+    editable: false

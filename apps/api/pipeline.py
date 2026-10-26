@@ -10,7 +10,7 @@ from typing import Protocol
 from opentelemetry import trace
 
 from apps.api.audit import AuditEntry
-from llmops.gateway.client import ChatMessage, Completion
+from llmops.gateway.client import ChatMessage, Completion, for_encounter
 from llmops.prompts import Prompt
 from privacy.deid.client import DeidOutput
 from privacy.deid.types import DeidentifiedText
@@ -63,12 +63,13 @@ class Pipeline:
 
         deid = self._deid.deidentify(text, encounter_id)
         user: DeidentifiedText = deid.text
-        completion = self._gateway.complete(
-            self._alias,
-            [ChatMessage("system", self._prompt.system), ChatMessage("user", user)],
-            temperature=self._prompt.temperature,
-            max_tokens=self._prompt.max_tokens,
-        )
+        with for_encounter(encounter_id):
+            completion = self._gateway.complete(
+                self._alias,
+                [ChatMessage("system", self._prompt.system), ChatMessage("user", user)],
+                temperature=self._prompt.temperature,
+                max_tokens=self._prompt.max_tokens,
+            )
         seq = self._audit.append(
             AuditEntry(
                 actor=actor,

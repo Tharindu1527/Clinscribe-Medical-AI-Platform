@@ -1,0 +1,693 @@
+{
+  "uid": "clinscribe-ops",
+  "title": "ClinScribe operations",
+  "description": "Per-stage latency and errors from the redacted spans; failovers and cost from the gateway's spend log (ADR-0023). Synthetic data only.",
+  "tags": [
+    "clinscribe"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "version": 1,
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Latency per stage (p50 / p95, from the redacted spans)",
+      "collapsed": false,
+      "panels": [],
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "table",
+      "title": "Every stage since the collector started: p50, p95, calls, errors",
+      "description": "One row per service and span: API routes (by template), model calls (chat <alias>), guideline search and other tools (mcp <tool>), de-identification (deid), the gateway's own request span (litellm). Latency in ms. Read from the collector's cumulative counters, which restart with the stack: increase() over the dashboard range cannot count a series' first observations, so on a quiet stack it dropped whole requests (a 117 s draft vanished from p95 in the first check).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, service_name, span_name) (traces_span_metrics_duration_milliseconds_bucket))",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, service_name, span_name) (traces_span_metrics_duration_milliseconds_bucket))",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (service_name, span_name) (traces_span_metrics_calls_total)",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (service_name, span_name) (traces_span_metrics_calls_total{status_code=\"STATUS_CODE_ERROR\"})",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "service_name": "service",
+              "span_name": "stage",
+              "Value #A": "p50 (ms)",
+              "Value #B": "p95 (ms)",
+              "Value #C": "calls",
+              "Value #D": "errors"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "p95 (ms)",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "API routes, p95 latency",
+      "description": "Server spans of the API, named by route template.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, span_name) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+          "legendFormat": "{{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Model calls through the gateway, p50 and p95 by alias asked for",
+      "description": "The API's client spans around each gateway call (cache hits included).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, gen_ai_request_model) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"api\", span_name=~\"chat .*\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{gen_ai_request_model}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, gen_ai_request_model) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"api\", span_name=~\"chat .*\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{gen_ai_request_model}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 12,
+        "y": 11,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Guideline search, tools and de-identification, p50 and p95",
+      "description": "mcp <tool>: the API's calls to the MCP servers; POST /deidentify: the de-ID service.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, span_name) (rate(traces_span_metrics_duration_milliseconds_bucket{span_name=~\"mcp .*|POST /deidentify\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{span_name}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, span_name) (rate(traces_span_metrics_duration_milliseconds_bucket{span_name=~\"mcp .*|POST /deidentify\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "title": "Errors and traffic",
+      "collapsed": false,
+      "panels": [],
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Error share by stage",
+      "description": "Spans with an error status (5xx responses, failed gateway calls, exceptions) over all spans of the stage.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (service_name, span_name) (rate(traces_span_metrics_calls_total{status_code=\"STATUS_CODE_ERROR\"}[$__rate_interval])) / sum by (service_name, span_name) (rate(traces_span_metrics_calls_total[$__rate_interval]))",
+          "legendFormat": "{{service_name}} {{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests per second by API route",
+      "description": "Health checks are not traced.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (span_name) (rate(traces_span_metrics_calls_total{service_name=\"api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
+          "legendFormat": "{{span_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "title": "Gateway: failovers and cost (spend log)",
+      "collapsed": false,
+      "panels": [],
+      "id": 9,
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Failovers in range",
+      "description": "Successful calls served by a different alias than the one the app asked for (the gateway fell back). Counts calls tagged by the gateway client (from 2026-10-26).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "spendlog"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "spendlog"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT count(*) AS failovers FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") AND metadata::jsonb->'spend_logs_metadata'->>'requested_alias' IS NOT NULL AND status = 'success' AND model_group <> metadata::jsonb->'spend_logs_metadata'->>'requested_alias'"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "id": 10,
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 6,
+        "h": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Consultation estimate (USD, list price)",
+      "description": "Mean cost of a Scribe draft encounter plus three Ask questions, the definition of evals/llmops/cost_per_consultation.md. LiteLLM's list prices: the free tiers used here bill $0.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "spendlog"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "spendlog"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "WITH per AS (SELECT metadata::jsonb->'spend_logs_metadata'->>'encounter_id' AS encounter, sum(spend) AS cost FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") AND metadata::jsonb->'spend_logs_metadata'->>'encounter_id' IS NOT NULL GROUP BY 1) SELECT (SELECT avg(cost) FROM per WHERE encounter LIKE 'enc-%' OR encounter LIKE 'scribe-%') + 3 * (SELECT avg(cost) FROM per WHERE encounter LIKE 'ask-%') AS \"consultation\""
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "id": 11,
+      "gridPos": {
+        "x": 6,
+        "y": 37,
+        "w": 6,
+        "h": 6
+      }
+    },
+    {
+      "type": "table",
+      "title": "Cost per encounter, by kind (list price)",
+      "description": "Encounters as the app names them: enc-/scribe- a Scribe draft, ask- an Ask question from the review UI, voice- a voice session. LiteLLM's list prices: the free tiers used here bill $0.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "spendlog"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "spendlog"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "WITH per AS (SELECT metadata::jsonb->'spend_logs_metadata'->>'encounter_id' AS encounter, sum(spend) AS cost, sum(total_tokens) AS tokens, count(*) AS calls FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") AND metadata::jsonb->'spend_logs_metadata'->>'encounter_id' IS NOT NULL GROUP BY 1) SELECT CASE WHEN encounter LIKE 'enc-%' OR encounter LIKE 'scribe-%' THEN 'Scribe draft' WHEN encounter LIKE 'ask-%' THEN 'Ask question' WHEN encounter LIKE 'voice-%' THEN 'Voice session' ELSE 'other' END AS kind, count(*) AS encounters, round(avg(calls), 1) AS \"model calls each\", avg(cost) AS \"mean cost\", percentile_cont(0.95) WITHIN GROUP (ORDER BY cost) AS \"p95 cost\", round(avg(tokens)) AS \"mean tokens\" FROM per GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "mean cost"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 5
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95 cost"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 5
+              }
+            ]
+          }
+        ]
+      },
+      "id": 12,
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 6
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Failovers per hour",
+      "description": "As in the stat: served by another alias than the one asked for.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "spendlog"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "spendlog"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(\"startTime\", '1h'), count(*) AS failovers FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") AND metadata::jsonb->'spend_logs_metadata'->>'requested_alias' IS NOT NULL AND status = 'success' AND model_group <> metadata::jsonb->'spend_logs_metadata'->>'requested_alias' GROUP BY 1 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "id": 13,
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "table",
+      "title": "Calls: alias asked for vs alias that served",
+      "description": "One row per call. After a fallback the call appears under the alias that answered; the attempt the gateway recovered from leaves no row of its own. Failed: the call returned an error to the app (e.g. a rate limit with no fallback left).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "spendlog"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "spendlog"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "table",
+          "rawSql": "SELECT metadata::jsonb->'spend_logs_metadata'->>'requested_alias' AS \"asked for\", model_group AS \"served by\", model AS deployment, count(*) FILTER (WHERE status = 'success') AS succeeded, count(*) FILTER (WHERE status <> 'success') AS failed, round(avg(request_duration_ms)) AS \"mean ms\" FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") AND metadata::jsonb->'spend_logs_metadata'->>'requested_alias' IS NOT NULL GROUP BY 1, 2, 3 ORDER BY 4 DESC"
+        }
+      ],
+      "id": 14,
+      "gridPos": {
+        "x": 12,
+        "y": 43,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Estimated cost per day by deployment (list price, last 30 days)",
+      "description": "Its own 30-day window, so a day's total is not cut by a short dashboard range. LiteLLM's list prices: the free tiers used here bill $0.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "spendlog"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "spendlog"
+          },
+          "editorMode": "code",
+          "rawQuery": true,
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(\"startTime\", '1d'), model AS metric, sum(spend) AS value FROM \"LiteLLM_SpendLogs\" WHERE $__timeFilter(\"startTime\") GROUP BY 1, 2 ORDER BY 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        }
+      },
+      "timeFrom": "30d",
+      "id": 15,
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 24,
+        "h": 8
+      }
+    }
+  ]
+}

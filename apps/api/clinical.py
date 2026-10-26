@@ -34,6 +34,7 @@ from apps.api.drafts import WAITING, Draft
 from apps.api.voice_token import room_token
 from config.db import app_conninfo
 from config.settings import Settings
+from llmops.gateway.client import for_encounter
 
 router = APIRouter(prefix="/v1")
 log = logging.getLogger(__name__)
@@ -116,10 +117,12 @@ def _identified_draft(
     return {"transcript": texts[: len(transcript)], "statements": texts[len(transcript) :]}
 
 
-def _run(step: Callable[[], Any]) -> Any:
-    """Run a graph step; model-gateway failures become 504/502 with a message, not a bare 500."""
+def _run(step: Callable[[], Any], encounter_id: str) -> Any:
+    """Run a graph step; its model calls are tagged with the encounter (cost per consultation,
+    ADR-0023); model-gateway failures become 504/502 with a message, not a bare 500."""
     try:
-        return step()
+        with for_encounter(encounter_id):
+            return step()
     except httpx.TimeoutException:
         log.warning("model gateway timeout")
         raise HTTPException(504, "the model gateway timed out; please try again") from None
@@ -151,7 +154,8 @@ def ask(
         lambda: request.app.state.ask_graph.invoke(
             {"mode": "ask", "encounter_id": body.encounter_id, "question": deid.text.text},
             _config(thread),
-        )
+        ),
+        body.encounter_id,
     )
     if out.get("result", {}).get("status") == "refused":
         raise HTTPException(422, out["result"]["reason"])
@@ -210,7 +214,8 @@ def create_draft(
                 "transcript": turns,
             },
             _config(draft_id),
-        )
+        ),
+        body.encounter_id,
     )
     if "__interrupt__" not in out:
         raise HTTPException(422, (out.get("result") or {}).get("reason", "no draft produced"))
@@ -342,7 +347,10 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
             resource=resource,
         )
     resume["decision"] = decision.model_dump(mode="json")
-    out = _run(lambda: graph.invoke(Command(resume=resume), _config(draft_id), context=context))
+    out = _run(
+        lambda: graph.invoke(Command(resume=resume), _config(draft_id), context=context),
+        meta.encounter_id,
+    )
     result = out.get("result", {})
     if not out.get("__interrupt__"):  # the draft ended: keep the outcome, drop its state
         request.app.state.drafts.finish(draft_id, result.get("status"), result.get("resource_id"))
