@@ -1,0 +1,214 @@
+"""Retention limits and GDPR erasure on the real Postgres (ADR-0022): what goes, what stays, the
+audit row in the same transaction, and the logins' limits. Synthetic values and ids only; rows are
+dated 2000 so the limits reach nothing else. Needs `just up` and `just migrate`."""
+
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import psycopg
+import pytest
+from langgraph.checkpoint.base import empty_checkpoint
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg.rows import dict_row
+
+from apps.api.audit import AuditEntry, AuditLog
+from apps.api.drafts import Draft, PostgresDrafts
+from config.db import app_conninfo, owner_conninfo, retention_conninfo
+from config.settings import Settings
+from privacy.deid.store import PostgresStore
+from scripts import retention
+from scripts.migrate import CHECKPOINT_TABLES
+
+pytestmark = pytest.mark.integration
+OLD = datetime(2000, 1, 1, tzinfo=UTC)
+NOW = datetime(2000, 3, 1, tzinfo=UTC)  # 60 days later: past both limits for rows dated OLD
+DAYS = retention.limits()
+PREFIX = "ret-it-"
+
+
+def _cleanup() -> None:
+    with psycopg.connect(owner_conninfo(Settings())) as conn:
+        for table in CHECKPOINT_TABLES:
+            conn.execute(f"DELETE FROM {table} WHERE thread_id LIKE %s", (PREFIX + "%",))  # noqa: S608
+        conn.execute("DELETE FROM drafts WHERE draft_id LIKE %s", (PREFIX + "%",))
+        conn.execute("DELETE FROM deid_mappings WHERE encounter_id LIKE %s", (PREFIX + "%",))
+
+
+@pytest.fixture
+def db(stack: list[dict[str, str]]) -> Iterator[None]:
+    _cleanup()
+    yield
+    _cleanup()
+
+
+def _seed(
+    name: str, patient: str, *, waiting: bool = True, old_draft: bool = False, old_map: bool = False
+) -> tuple[str, str]:
+    """A draft with a checkpoint and a one-value de-ID mapping; returns (draft id, encounter)."""
+    settings = Settings()
+    draft_id, encounter = f"{PREFIX}draft-{name}", f"{PREFIX}enc-{name}"
+    PostgresStore(app_conninfo(settings), settings.deid_mapping_key).surrogate_for(
+        encounter, "PERSON", "Synthetic Person"
+    )
+    drafts = PostgresDrafts(app_conninfo(settings))
+    drafts.add(Draft(draft_id, patient, encounter, "dr-demo"))
+    if not waiting:
+        drafts.finish(draft_id, "approved", "DocumentReference/x")
+    with psycopg.connect(app_conninfo(settings), autocommit=True, row_factory=dict_row) as conn:
+        config = {"configurable": {"thread_id": draft_id, "checkpoint_ns": ""}}
+        PostgresSaver(conn).put(config, empty_checkpoint(), {}, {})  # type: ignore[arg-type]
+    with psycopg.connect(owner_conninfo(settings)) as conn:
+        if old_draft:
+            conn.execute("UPDATE drafts SET created_at = %s WHERE draft_id = %s", (OLD, draft_id))
+        if old_map:
+            conn.execute(
+                "UPDATE deid_mappings SET created_at = %s WHERE encounter_id = %s", (OLD, encounter)
+            )
+    return draft_id, encounter
+
+
+def _state(draft_id: str, encounter: str) -> tuple[str | None, int, int]:
+    """(draft status, checkpoint rows, mapping rows), read as the owner."""
+    with psycopg.connect(owner_conninfo(Settings())) as conn:
+        status = conn.execute(
+            "SELECT status FROM drafts WHERE draft_id = %s", (draft_id,)
+        ).fetchone()
+        checkpoints = conn.execute(
+            "SELECT count(*) FROM checkpoints WHERE thread_id = %s", (draft_id,)
+        ).fetchone()
+        mappings = conn.execute(
+            "SELECT count(*) FROM deid_mappings WHERE encounter_id = %s", (encounter,)
+        ).fetchone()
+    assert checkpoints is not None
+    assert mappings is not None
+    return (str(status[0]) if status else None), int(checkpoints[0]), int(mappings[0])
+
+
+def _apply(plan: retention.Plan, ended_as: str, entry: AuditEntry, idle: datetime | None) -> int:
+    settings = Settings()
+    audit = AuditLog(retention_conninfo(settings), settings.audit_chain_key)
+    with psycopg.connect(retention_conninfo(settings)) as conn, conn.transaction():
+        done = retention.apply(conn, plan, ended_as, idle)
+        return audit.append(AuditEntry(**{**entry.__dict__, "details": done.summary()}), conn)
+
+
+def _audit_row(seq: int) -> dict[str, Any]:
+    with psycopg.connect(owner_conninfo(Settings()), row_factory=dict_row) as conn:
+        row = conn.execute("SELECT * FROM audit_log WHERE seq = %s", (seq,)).fetchone()
+    assert row is not None
+    return dict(row)
+
+
+def test_retention_ends_stale_drafts_and_removes_idle_mappings(db: None) -> None:
+    stale = _seed("stale", "p-a", old_draft=True, old_map=True)
+    waiting = _seed("waiting", "p-a", old_map=True)  # mapping idle, but its draft still waits
+    ended = _seed("ended", "p-a", waiting=False, old_draft=True, old_map=True)
+    fresh = _seed("fresh", "p-a")
+    with psycopg.connect(retention_conninfo(Settings())) as conn:
+        plan = retention.plan_retention(conn, NOW, DAYS)
+    assert plan.drafts == [stale[0]]
+    assert plan.encounters == sorted([stale[1], ended[1]])
+    idle = NOW - timedelta(days=DAYS["deid_mapping_idle_days"])
+    entry = AuditEntry(actor="retention-job", role="operator", action="retention.run")
+    seq = _apply(plan, "expired", entry, idle)
+    assert _state(*stale) == ("expired", 0, 0)
+    assert _state(*waiting) == ("awaiting_review", 1, 1)
+    assert _state(*ended) == ("approved", 1, 0)  # an ended draft's row and state are not ours
+    assert _state(*fresh) == ("awaiting_review", 1, 1)
+    row = _audit_row(seq)
+    assert (row["action"], row["details"]["drafts_ended"], row["details"]["mappings_deleted"]) == (
+        "retention.run",
+        1,
+        2,
+    )
+
+
+def test_a_mapping_that_gains_a_value_after_the_plan_is_kept(db: None) -> None:
+    draft = _seed("revived", "p-b", waiting=False, old_map=True)
+    with psycopg.connect(retention_conninfo(Settings())) as conn:
+        plan = retention.plan_retention(conn, NOW, DAYS)
+    assert draft[1] in plan.encounters
+    settings = Settings()  # the encounter is used again before the plan is applied
+    PostgresStore(app_conninfo(settings), settings.deid_mapping_key).surrogate_for(
+        draft[1], "PERSON", "Another Synthetic Person"
+    )
+    idle = NOW - timedelta(days=DAYS["deid_mapping_idle_days"])
+    entry = AuditEntry(actor="retention-job", role="operator", action="retention.run")
+    _apply(plan, "expired", entry, idle)
+    assert _state(*draft)[2] == 2
+
+
+def test_erasure_removes_one_patients_mappings_and_waiting_drafts(db: None) -> None:
+    settings = Settings()
+    waiting = _seed("p1-waiting", "ret-p1")
+    ended = _seed("p1-ended", "ret-p1", waiting=False)
+    other = _seed("p2", "ret-p2")
+    store = PostgresStore(app_conninfo(settings), settings.deid_mapping_key)
+    assert store.original_for(waiting[1], "PERSON_1") == "Synthetic Person"
+    assert retention.main(["erase", "ret-p1", "--request", "DSR-1", "--by", "admin-demo"]) == 0
+    assert _state(*waiting) == ("awaiting_review", 1, 1)  # a dry run changes nothing
+    assert (
+        retention.main(["erase", "ret-p1", "--request", "DSR-1", "--by", "admin-demo", "--apply"])
+        == 0
+    )
+    assert _state(*waiting) == ("erased", 0, 0)
+    assert _state(*ended) == ("approved", 1, 0)
+    assert _state(*other) == ("awaiting_review", 1, 1)
+    assert store.original_for(waiting[1], "PERSON_1") is None  # nothing left to re-identify
+    assert store.surrogate_for(waiting[1], "PERSON", "New Synthetic") == "PERSON_1"
+    with psycopg.connect(owner_conninfo(settings), row_factory=dict_row) as conn:
+        row = conn.execute(
+            "SELECT * FROM audit_log WHERE action = 'gdpr.erasure' ORDER BY seq DESC LIMIT 1"
+        ).fetchone()
+    assert row is not None
+    assert (row["actor"], row["resource_id"]) == ("admin-demo", "ret-p1")
+    assert row["details"] == {
+        "request": "DSR-1",
+        "drafts_ended": 1,
+        "encounters": 2,
+        "mappings_deleted": 2,
+        "by_type": {"PERSON": 2},
+    }
+    assert AuditLog(owner_conninfo(settings), settings.audit_chain_key).verify().ok
+
+
+def test_no_deletion_without_its_audit_row(db: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    draft = _seed("atomic", "ret-p3")
+
+    def broken(*_: Any) -> int:
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(AuditLog, "append", broken)
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        retention.main(["erase", "ret-p3", "--request", "DSR-2", "--by", "admin-demo", "--apply"])
+    assert _state(*draft) == ("awaiting_review", 1, 1)
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["erase", "ret-p1", "--request", "Jane Doe asked", "--by", "admin-demo"],  # free text
+        ["erase", "ret-p1", "--request", "DSR-3", "--by", "dr-demo"],  # not an admin
+        ["erase", "ret p1", "--request", "DSR-3", "--by", "admin-demo"],
+    ],
+)
+def test_erasure_requests_are_checked(args: list[str], db: None) -> None:
+    with pytest.raises(SystemExit):
+        retention.main(args)
+
+
+def test_each_login_can_do_only_its_part(db: None) -> None:
+    settings = Settings()
+    _seed("rights", "ret-p4")
+    with psycopg.connect(retention_conninfo(settings)) as conn:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):  # append-only: no grant
+            conn.execute("DELETE FROM audit_log WHERE seq = (SELECT max(seq) FROM audit_log)")
+        conn.rollback()
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            conn.execute("UPDATE deid_mappings SET surrogate = 'X' WHERE encounter_id LIKE 'ret-%'")
+    with (
+        psycopg.connect(app_conninfo(settings)) as conn,
+        pytest.raises(psycopg.errors.InsufficientPrivilege),
+    ):
+        conn.execute("DELETE FROM deid_mappings WHERE encounter_id LIKE 'ret-it-%'")

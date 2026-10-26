@@ -1,0 +1,14 @@
+# Retention limits (GDPR Art. 5(1)(e), storage limitation; SPEC section 8; ADR-0022), enforced by
+# `just retention` (dry run) and `just retention --apply`. Days count from the creation of a draft
+# and from the last value added to an encounter's de-ID mapping.
+version: "1"
+# A draft nobody reviewed is ended as "expired" and its saved state (de-identified transcript and
+# note) deleted; the doctor drafts again if it is still wanted.
+drafts_awaiting_review_days: 14
+# The de-ID mapping is the only place ClinScribe keeps original PHI (encrypted). It is needed while
+# a draft waits (the doctor reads originals; the approved record is re-identified) and not after:
+# the record in FHIR holds the originals. Deleted as whole encounters, never partly.
+deid_mapping_idle_days: 30
+# Kept on purpose (ADR-0022): the audit log (append-only, at least the AI Act's six months; no
+# deletion is implemented), the drafts list (pseudonymous outcome rows), the FHIR record (its
+# retention is the EHR controller's).

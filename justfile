@@ -125,6 +125,15 @@ eval suite="all":
 audit-verify:
     uv run python -m scripts.audit_verify
 
+# Retention limits (config/retention.yaml; ADR-0022): a dry run; `just retention --apply` removes
+retention *args:
+    uv run python -m scripts.retention {{args}}
+
+# GDPR erasure for one patient: `just erase 1617 --request DSR-12 --by admin-demo` (dry run), then
+# add --apply. The request reference is a ticket id, never a name.
+erase patient *args:
+    uv run python -m scripts.retention erase {{patient}} {{args}}
+
 # Apply pending SQL migrations to the clinscribe database (idempotent)
 migrate:
     uv run python -m scripts.migrate

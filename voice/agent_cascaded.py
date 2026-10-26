@@ -25,6 +25,7 @@ import logging
 import os
 import re
 import time
+import uuid
 from collections.abc import AsyncIterable
 from pathlib import Path
 from typing import Any
@@ -116,6 +117,9 @@ class ClinScribeVoice(Agent):
         # whose questions these are: in a room, the doctor's delegated token (empty if the API
         # refused: then nothing is asked); in console mode and the tests, the local demo doctor
         self._token = token if token is not None else os.environ.get("CLINSCRIBE_TOKEN", "")
+        # one encounter per session: its de-ID mapping is this session's alone and expires with
+        # it (config/retention.yaml), instead of one mapping shared by every voice session
+        self._encounter = f"voice-{uuid.uuid4().hex[:12]}"
         self.turns: list[dict[str, Any]] = []
 
     async def llm_node(
@@ -134,7 +138,7 @@ class ClinScribeVoice(Agent):
         try:
             response = await self._http.post(
                 f"{API}/v1/ask",
-                json={"encounter_id": "voice-session", "question": question},
+                json={"encounter_id": self._encounter, "question": question},
                 headers={"Authorization": f"Bearer {self._token}"},
             )
             if response.status_code == 200:

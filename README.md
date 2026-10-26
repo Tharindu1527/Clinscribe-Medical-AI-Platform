@@ -87,7 +87,8 @@ just test; just gate 3   # tests; a phase gate
 - Synthetic and public data only; real clinical performance needs a proper study and a clinician-
   reviewed evaluation set (the golden-set review is pending).
 - "Designed for compliance" is not "compliant": see `docs/compliance/` for the DPIA and the gaps
-  (no erasure endpoint, free-tier processors without BAAs/DPAs, no TLS inside the stack).
+  (erasure and retention are operator commands, not an API endpoint; free-tier processors
+  without BAAs/DPAs; no TLS inside the stack).
 - Voice: the cascaded agent works in console mode and in the browser over WebRTC (`just up voice`,
   `just voice dev`, the Voice tab) but misses the latency budget; the WebRTC set-up is for one
   machine (127.0.0.1, no TURN, no TLS; ADR-0019).
