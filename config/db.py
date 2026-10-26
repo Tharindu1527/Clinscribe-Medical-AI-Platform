@@ -1,5 +1,7 @@
 """Postgres connection strings (one place): the clinscribe database's logins and Grafana's."""
 
+from psycopg.conninfo import make_conninfo
+
 from config.settings import Settings
 
 APP_DB_USER = "app"  # least-privilege login created by infra/postgres/init-databases.sh
@@ -7,11 +9,16 @@ RETENTION_DB_USER = "retention"  # retention and erasure jobs, created by script
 GRAFANA_DB_USER = "grafana_reader"  # dashboards (ADR-0023), created by scripts/migrate.py
 
 
-def _conninfo(settings: Settings, user: str, password: str, dbname: str = "clinscribe") -> str:
-    # connect_timeout: fail fast instead of hanging (see the localhost/::1 note in PROGRESS)
-    return (
-        f"host={settings.postgres_host} port={settings.postgres_port} dbname={dbname} "
-        f"user={user} password={password} connect_timeout=10"
+def _conninfo(settings: Settings, user: str, secret: str, dbname: str = "clinscribe") -> str:
+    # make_conninfo quotes every value, so a password with a space or a quote still works (an
+    # f-string did not); connect_timeout: fail fast (see the localhost/::1 note in PROGRESS)
+    return make_conninfo(
+        host=settings.postgres_host,
+        port=settings.postgres_port,
+        dbname=dbname,
+        user=user,
+        password=secret,
+        connect_timeout=10,
     )
 
 

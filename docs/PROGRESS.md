@@ -1088,6 +1088,17 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   recorded the trace id (only the dev pipeline did), so an operator could not go from an audit row
   to its trace (SPEC §2 stories 5 and 6); every row now carries its request's trace id. Unit +2.
 
+- 2026-10-27: **GitGuardian's four "Generic Password" findings on PR #36 checked: false positives.**
+  None of the 30 secret-named values in `.env` appears in any commit on any branch. The flagged
+  lines were a connection-string template (`config/db.py`), two `${...:?run just gen-keys}`
+  substitutions (`docker-compose.yml`) and a `LOGIN PASSWORD {}` SQL template filled with a
+  quoted literal (`scripts/migrate.py`). Two changes from it: connection strings are now built
+  with psycopg's `make_conninfo`, which quotes values (the f-string broke on a password with a
+  space: "missing '=' after 'words'"); and `tests/unit/test_secrets.py` fails if any secret value
+  from `.env` is in a tracked file (keys and files reported, never values; negative control: a
+  planted value was caught). The GitGuardian incidents still need marking as false positives in
+  its dashboard (yours).
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
