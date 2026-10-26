@@ -139,6 +139,12 @@ retention *args:
 erase patient *args:
     uv run python -m scripts.retention erase {{patient}} {{args}}
 
+# GDPR access request: a copy of what ClinScribe holds about one patient, e.g.
+# `just access-report 1617 --request DSR-13 --by admin-demo`; written to
+# .artifacts/subject-access/ (git-ignored, holds PHI), never printed (ADR-0022)
+access-report patient *args:
+    uv run python -m scripts.retention access {{patient}} {{args}}
+
 # Apply pending SQL migrations to the clinscribe database (idempotent)
 migrate:
     uv run python -m scripts.migrate

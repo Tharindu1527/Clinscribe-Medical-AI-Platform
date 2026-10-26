@@ -63,6 +63,13 @@ class InMemoryStore:
         token = self._ciphertext.get((encounter_id, surrogate))
         return self._keys.fernet.decrypt(token).decode() if token else None
 
+    def entries(self, encounter_id: str) -> list[tuple[str, str, str]]:
+        return sorted(
+            (sur.rsplit("_", 1)[0], sur, self._keys.fernet.decrypt(token).decode())
+            for (enc, sur), token in self._ciphertext.items()
+            if enc == encounter_id
+        )
+
 
 class PostgresStore:
     """Mapping in the `deid_mappings` table (infra/postgres/migrations/001_deid_mappings.sql)."""
@@ -107,3 +114,14 @@ class PostgresStore:
                 (encounter_id, surrogate),
             ).fetchone()
         return self._keys.fernet.decrypt(bytes(row[0])).decode() if row else None
+
+    def entries(self, encounter_id: str) -> list[tuple[str, str, str]]:
+        """(entity type, surrogate, original) for one encounter: a data subject's copy of what the
+        mapping holds (GDPR Art. 15, ADR-0022). Decrypted here; never logged."""
+        with psycopg.connect(self._conninfo) as conn:
+            rows = conn.execute(
+                "SELECT entity_type, surrogate, ciphertext FROM deid_mappings "
+                "WHERE encounter_id = %s ORDER BY entity_type, surrogate",
+                (encounter_id,),
+            ).fetchall()
+        return [(str(e), str(s), self._keys.fernet.decrypt(bytes(c)).decode()) for e, s, c in rows]

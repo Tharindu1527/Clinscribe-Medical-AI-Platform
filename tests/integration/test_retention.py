@@ -2,6 +2,8 @@
 audit row in the same transaction, and the logins' limits. Synthetic values and ids only; rows are
 dated 2000 so the limits reach nothing else. Needs `just up` and `just migrate`."""
 
+import json
+import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -212,3 +214,76 @@ def test_each_login_can_do_only_its_part(db: None) -> None:
         pytest.raises(psycopg.errors.InsufficientPrivilege),
     ):
         conn.execute("DELETE FROM deid_mappings WHERE encounter_id LIKE 'ret-it-%'")
+
+
+def _waiting_draft_with_content(name: str, patient: str) -> tuple[str, str]:
+    """A draft made by the real graph (scripted model) whose saved state mentions a surrogate."""
+    from agents.graph import Agents
+    from tests.unit.test_agent_graph import FakeTools, ScriptedChat
+
+    settings = Settings()
+    draft_id, encounter = f"{PREFIX}draft-{name}", f"{PREFIX}enc-{name}"
+    surrogate = PostgresStore(app_conninfo(settings), settings.deid_mapping_key).surrogate_for(
+        encounter, "PERSON", "Ada Synthetic"
+    )
+    transcript = ["DOCTOR: What brings you in?", f"PATIENT: I am {surrogate}, thirsty for weeks."]
+    reply = {
+        "statements": [{"section": "subjective", "text": f"{surrogate} is thirsty.", "turns": [1]}]
+    }
+    start = {
+        "mode": "scribe",
+        "encounter_id": encounter,
+        "patient_id": patient,
+        "transcript": transcript,
+    }
+    with psycopg.connect(app_conninfo(settings), autocommit=True, row_factory=dict_row) as conn:
+        agents = Agents(ScriptedChat(note=[reply]), FakeTools([]), alias=lambda t: f"alias-{t}")
+        graph = agents.build(PostgresSaver(conn))
+        out = graph.invoke(start, {"configurable": {"thread_id": draft_id}})
+    assert out.get("__interrupt__"), out
+    PostgresDrafts(app_conninfo(settings)).add(Draft(draft_id, patient, encounter, "dr-demo"))
+    return draft_id, encounter
+
+
+def test_an_access_request_copies_one_patients_data_and_nothing_else(db: None) -> None:
+    settings = Settings()
+    patient = f"ret-p5-{uuid.uuid4().hex[:8]}"  # the audit log keeps every earlier run's rows
+    waiting = _waiting_draft_with_content("p5-waiting", patient)
+    ended = _seed("p5-ended", patient, waiting=False)  # its mapping holds "Synthetic Person"
+    other = _seed("p6", "ret-p6")
+    PostgresStore(app_conninfo(settings), settings.deid_mapping_key).surrogate_for(
+        other[1], "PERSON", "Cy Unrelated"
+    )
+    AuditLog(app_conninfo(settings), settings.audit_chain_key).append(
+        AuditEntry(actor="dr-demo", role="doctor", action="fhir.read", resource_id=patient)
+    )
+    path = retention.ACCESS_DIR / f"DSR-A1-{patient}.json"
+    try:
+        assert retention.main(["access", patient, "--request", "DSR-A1", "--by", "admin-demo"]) == 0
+        text = path.read_text(encoding="utf-8")
+        report = json.loads(text)
+        assert sorted(d["draft_id"] for d in report["drafts"]) == sorted([waiting[0], ended[0]])
+        [held] = [d for d in report["drafts"] if d["draft_id"] == waiting[0]]
+        assert (
+            held["awaiting_review"]["transcript"][1]
+            == "PATIENT: I am Ada Synthetic, thirsty for weeks."
+        )
+        assert held["awaiting_review"]["statements"] == [
+            {"section": "subjective", "text": "Ada Synthetic is thirsty."}
+        ]
+        originals = {i["original"] for i in report["identifiers_held"]}
+        assert originals == {"Ada Synthetic", "Synthetic Person"}
+        assert "fhir.read" in {row["action"] for row in report["access_log"]}
+        assert "Cy Unrelated" not in text  # another patient's identifiers
+        assert other[0] not in text  # and drafts
+    finally:
+        path.unlink(missing_ok=True)
+    with psycopg.connect(owner_conninfo(settings), row_factory=dict_row) as conn:
+        row = conn.execute(
+            "SELECT * FROM audit_log WHERE action = 'gdpr.access' ORDER BY seq DESC LIMIT 1"
+        ).fetchone()
+    assert row is not None
+    assert (row["actor"], row["resource_id"]) == ("admin-demo", patient)
+    assert row["details"] == {"request": "DSR-A1", "drafts": 2, "identifiers": 2, "audit_rows": 1}
+    assert "Ada Synthetic" not in json.dumps(row, default=str)  # the log holds counts, not data
+    assert AuditLog(owner_conninfo(settings), settings.audit_chain_key).verify().ok

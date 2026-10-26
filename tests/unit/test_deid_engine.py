@@ -84,3 +84,15 @@ def test_store_keeps_no_plaintext() -> None:
     surrogate = store.surrogate_for("enc-1", "PHONE", "617-555-0142")
     assert all(b"617" not in token for token in store._ciphertext.values())
     assert store.original_for("enc-1", surrogate) == "617-555-0142"
+
+
+def test_a_mapping_lists_its_originals_for_one_encounter_only() -> None:
+    # the data subject's copy (GDPR Art. 15, ADR-0022): type, surrogate and the original value
+    store = InMemoryStore(SecretStr(Fernet.generate_key().decode()))
+    store.surrogate_for("enc-a", "PERSON", "Ada Synthetic")
+    store.surrogate_for("enc-a", "AGE_OVER_89", "93")
+    store.surrogate_for("enc-b", "PERSON", "Cy Unrelated")
+    assert store.entries("enc-a") == [
+        ("AGE_OVER_89", "AGE_OVER_89_1", "93"),
+        ("PERSON", "PERSON_1", "Ada Synthetic"),
+    ]
