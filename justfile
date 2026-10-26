@@ -54,6 +54,11 @@ fhir-load:
 gateway-keys:
     uv run python -m scripts.gateway_keys
 
+# Arize Phoenix trial (ADR-0024): `just phoenix on` starts Phoenix (127.0.0.1:6006) and sends it the
+# collector's redacted spans too; `just phoenix off` stops it and restores the collector's config
+phoenix state:
+    if ("{{state}}" -eq "on") { docker compose -f docker-compose.yml -f docker-compose.phoenix.yml --profile core --profile phoenix up -d --wait phoenix otel-collector } elseif ("{{state}}" -eq "off") { docker compose -f docker-compose.yml -f docker-compose.phoenix.yml --profile phoenix stop phoenix; docker compose --profile core up -d --wait otel-collector } else { Write-Error "use: just phoenix on|off"; exit 2 }
+
 # Inject or clear a fault, e.g. `just chaos primary-down on`
 chaos fault state:
     uv run python -m scripts.chaos {{fault}} {{state}}

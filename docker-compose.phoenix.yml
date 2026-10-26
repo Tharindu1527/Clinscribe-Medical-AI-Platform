@@ -1,0 +1,26 @@
+# Arize Phoenix trial (ADR-0024): `just phoenix on` layers this file over docker-compose.yml,
+# `just phoenix off` removes it. Phoenix keeps its traces in SQLite in a volume, listens on
+# 127.0.0.1 only, and its usage telemetry is off.
+services:
+  phoenix:
+    image: arizephoenix/phoenix:20.21.1
+    profiles: [phoenix]
+    restart: unless-stopped
+    mem_limit: 768m
+    environment:
+      PHOENIX_WORKING_DIR: /data
+      PHOENIX_TELEMETRY_ENABLED: "false"
+    volumes:
+      - phoenix_data:/data
+    ports:
+      - "127.0.0.1:6006:6006"
+
+  otel-collector:
+    command: ["--config=/etc/otelcol/config.yaml", "--config=/etc/otelcol/phoenix.yaml"]
+    volumes:
+      - ./llmops/telemetry/collector.yaml:/etc/otelcol/config.yaml:ro
+      - ./llmops/telemetry/collector.phoenix.yaml:/etc/otelcol/phoenix.yaml:ro
+      - ./.artifacts/otel:/artifacts/otel
+
+volumes:
+  phoenix_data:

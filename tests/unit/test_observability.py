@@ -211,3 +211,38 @@ def test_spend_log_queries_read_only_the_granted_columns() -> None:
         assert not (words & NOT_GRANTED), (words & NOT_GRANTED, query)
         assert "metadata" not in words or "spend_logs_metadata" in query  # only that key of it
     assert len(SPEND_COLUMNS) == 10
+
+
+def test_audit_rows_carry_the_trace_id_of_their_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    from apps.api.clinical import router
+    from tests.unit.test_reidentify import FakeAudit
+
+    monkeypatch.setenv("VOICE_AGENT_KEY", "v" * 64)
+    monkeypatch.setenv("AUTH_TOKEN_KEY", "k" * 64)
+    memory = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(memory))
+    app = FastAPI()
+    app.include_router(router)
+    app.state.audit = FakeAudit()
+    instrument(app, "api", provider)
+    TestClient(app).post(
+        "/v1/voice/delegate",
+        json={"room": "clinscribe-dr-second-0a1b2c3d", "user": "dr-second"},
+        headers={"X-Voice-Agent-Key": "v" * 64},
+    )
+    [span] = memory.get_finished_spans()
+    [entry] = app.state.audit.actions("voice.delegate")
+    assert entry.trace_id == format(span.context.trace_id, "032x")
+
+
+def test_the_phoenix_trial_keeps_every_base_exporter() -> None:
+    # the collector merges --config files but replaces lists: the override repeats the exporters
+    trial = yaml.safe_load(
+        (ROOT / "llmops/telemetry/collector.phoenix.yaml").read_text(encoding="utf-8")
+    )
+    base = COLLECTOR["service"]["pipelines"]["traces"]["exporters"]
+    merged = trial["service"]["pipelines"]["traces"]["exporters"]
+    assert merged == [*base, "otlphttp/phoenix"]
+    assert set(trial["service"]["pipelines"]) == {"traces"}  # nothing else is overridden
+    assert trial["exporters"]["otlphttp/phoenix"]["endpoint"] == "http://phoenix:6006"

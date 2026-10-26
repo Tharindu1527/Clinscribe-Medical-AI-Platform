@@ -1,5 +1,5 @@
 {
-  "run": "fa86d69e",
+  "run": "0a9456bc",
   "transcripts": 20,
   "seed_values": 66,
   "faker_seed": 1234,
@@ -10,7 +10,8 @@
     "LiteLLM spend logs": 0,
     "audit table": 0,
     "de-ID mapping table": 0,
-    "Prometheus label values": 0
+    "Prometheus label values": 0,
+    "Phoenix spans": 0
   },
   "leaked_types_per_sink": {
     "collector file export": [],
@@ -19,16 +20,18 @@
     "LiteLLM spend logs": [],
     "audit table": [],
     "de-ID mapping table": [],
-    "Prometheus label values": []
+    "Prometheus label values": [],
+    "Phoenix spans": []
   },
   "sink_bytes_scanned": {
-    "collector file export": 83950,
-    "docker compose logs": 339381,
+    "collector file export": 85555,
+    "docker compose logs": 125883,
     "Langfuse observations": 439,
-    "LiteLLM spend logs": 202448,
-    "audit table": 13806,
+    "LiteLLM spend logs": 203179,
+    "audit table": 13774,
     "de-ID mapping table": 13864,
-    "Prometheus label values": 1210
+    "Prometheus label values": 1477,
+    "Phoenix spans": 69230
   },
   "positive_control_recall": 1.0,
   "llm_exposed_seed_values": 0,

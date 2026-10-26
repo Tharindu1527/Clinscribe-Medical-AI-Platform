@@ -6,7 +6,8 @@ control finds every seed value.
 
 Sinks scanned: collector file export, `docker compose logs` of every service, Langfuse (v2
 observations API), LiteLLM spend logs, the audit table and the de-ID mapping table, and, when the
-`obs` profile runs, every metric label value in Prometheus (ADR-0023).
+`obs` profile runs, every metric label value in Prometheus (ADR-0023), and, during the Phoenix
+trial (`just phoenix on`), the run's spans as Phoenix stored them (ADR-0024).
 Also reported (not part of gate b): seed values that survived de-ID in the text the LLM saw.
 All PHI here is synthetic (Faker, seed 1234). The report names entity types, never values.
 """
@@ -166,7 +167,28 @@ def collect_sinks(
     prometheus = prometheus_labels()
     if prometheus is not None:  # the obs profile: span metrics are labelled from span data
         sinks["Prometheus label values"] = prometheus
+    phoenix = phoenix_spans(trace_ids)
+    if phoenix is not None:  # the Phoenix trial: a second trace store
+        sinks["Phoenix spans"] = phoenix
     return sinks
+
+
+def phoenix_spans(trace_ids: list[str], base: str = "http://127.0.0.1:6006") -> str | None:
+    """The run's spans as Phoenix stored them; None when Phoenix is not running."""
+    try:
+        httpx.get(f"{base}/v1/projects", timeout=10).raise_for_status()
+    except httpx.HTTPError:
+        return None
+    bodies = []
+    for trace_id in trace_ids:
+        response = httpx.get(
+            f"{base}/v1/projects/default/spans",
+            params={"trace_id": trace_id, "limit": 1000},
+            timeout=60,
+        )
+        response.raise_for_status()
+        bodies.append(response.text)
+    return "{NL}".join(bodies)
 
 
 def prometheus_labels(base: str = "http://127.0.0.1:9090") -> str | None:

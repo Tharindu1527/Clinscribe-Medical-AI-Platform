@@ -11,6 +11,7 @@ only, and model and tracing vendors receive de-identified text only.
 | OpenRouter (`:free` models) | Second fallback | De-identified text | Free models | Routes to third-party hosts; not suitable for PHI |
 | Ollama (local `llama3.2:3b`) | Last fallback; contextual-retrieval prefixes | De-identified text | Local GPU | No third party |
 | Langfuse Cloud (EU) | Traces, prompt versions, scores | De-identified, redacted spans; no message content | Hobby (free) | DPA on paid plans (verify), or self-host |
+| Arize Phoenix, self-hosted (optional, ADR-0024) | Traces | The same redacted spans; stays on the machine | Open source, local | None needed (not a processor); switch on its authentication before shared use |
 | Deepgram / AssemblyAI | Speech-to-text (Phase 4) | **Raw audio, before de-ID** | Free credit | Must be BAA-covered for real use (verify); alternative: self-hosted Whisper |
 | Deepgram (Aura-2) | Text-to-speech, the agent's voice since 2026-10-19 (ADR-0013) | Reply text (de-identified answer) | Free credit | Same vendor and agreement as speech-to-text |
 | LiveKit server (self-hosted) | WebRTC media and data between the browser and the voice agent (ADR-0019) | Doctor's audio, de-identified answers and sources | Runs locally (Apache-2.0); not a processor | None needed while self-hosted; LiveKit Cloud would need one |
