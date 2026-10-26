@@ -26,6 +26,7 @@ from pydantic import SecretStr
 from pypdf.errors import PdfReadError
 
 from agents.approval import ApprovalError, verify
+from agents.lab.hl7 import parse_oru
 from agents.lab.parser import identity_matches, parse, to_observation
 from agents.schemas import (
     IDENTITY_MISMATCH,
@@ -180,14 +181,21 @@ def build_server(
 
     @server.tool()
     def parse_lab_report(request: ParseLabReportInput) -> LabParseResult:
-        """Lab-report PDF -> preliminary Observations pending confirmation. Writes nothing."""
+        """Lab-report PDF or HL7 v2 ORU^R01 message -> preliminary Observations pending
+        confirmation. Writes nothing."""
         patient = store.read("Patient", request.patient_id)
         if patient is None:
             raise ToolError(f"no patient {request.patient_id}")
-        try:
-            report = parse(base64.b64decode(request.pdf_base64, validate=True))
-        except (ValueError, PdfReadError) as exc:
-            raise ToolError(f"not a readable PDF: {exc}") from None
+        if request.hl7_message is not None:
+            try:
+                report = parse_oru(request.hl7_message)
+            except ValueError as exc:
+                raise ToolError(f"not a readable HL7 v2 ORU^R01 message: {exc}") from None
+        else:
+            try:
+                report = parse(base64.b64decode(request.pdf_base64 or "", validate=True))
+            except (ValueError, PdfReadError) as exc:
+                raise ToolError(f"not a readable PDF: {exc}") from None
         observations, not_mapped = [], []
         for result in report.results:
             try:
@@ -201,7 +209,11 @@ def build_server(
                 action="lab.parse",
                 resource_type="Patient",
                 resource_id=request.patient_id,
-                details={"observations": len(observations), "not_mapped": len(not_mapped)},
+                details={
+                    "format": "hl7v2" if request.hl7_message is not None else "pdf",
+                    "observations": len(observations),
+                    "not_mapped": len(not_mapped),
+                },
             )
         )
         return LabParseResult(

@@ -41,6 +41,7 @@ class LabReport(BaseModel):
     collected: str | None
     results: list[LabResult]
     unreadable_rows: list[str]
+    mrn: str | None = None  # an HL7 message names the record (PID-3); a printed report does not
 
 
 def reference() -> dict[str, dict[str, Any]]:
@@ -156,12 +157,21 @@ def to_observation(result: LabResult, patient_id: str, collected: str | None) ->
 
 
 def identity_matches(report: LabReport, patient: dict[str, Any]) -> dict[str, bool]:
-    """Wrong-patient control: the report's name and birth date against the chosen record."""
+    """Wrong-patient control: the report's name and birth date (and MRN, when the report carries
+    one) against the chosen record."""
     names = {
         " ".join([*n.get("given", []), n.get("family", "")]).strip().lower()
         for n in patient.get("name", [])
     }
-    return {
+    checks = {
         "name": (report.patient_name or "").strip().lower() in names,
         "birth_date": report.birth_date == patient.get("birthDate"),
     }
+    if report.mrn is not None:
+        records = {
+            i.get("value")
+            for i in patient.get("identifier", [])
+            if any(c.get("code") == "MR" for c in i.get("type", {}).get("coding", []))
+        }
+        checks["mrn"] = report.mrn in records
+    return checks
