@@ -1,6 +1,6 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-26 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-28 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
 **Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
@@ -1137,12 +1137,36 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   api` is confirmed after it and keeps no values; a second confirm is 404; retention, erasure and
   access cases on the real Postgres.
 
+- 2026-10-28: **Reasoning effort for the cited answer: measured, not adopted** (ADR-0025, proposed).
+  The answer is the largest stage of a voice turn, and gpt-oss spends most of its output reasoning
+  (median 282 output tokens for ~100–150 tokens of JSON). Rule written first: adopt `low` only if
+  correctness and faithfulness are non-inferior (margin 0.05), correct abstentions do not fall and the
+  answer call is faster. Trial (`prompts/experiments/answer_cited_low.yaml`, 60 of 60, all served by
+  Groq gpt-oss-20b): output tokens 282 → 98, correctness 0.910 → 0.890 (−0.020 [−0.080, +0.030]),
+  faithfulness 0.931 → 0.942 (+0.011 [−0.062, +0.076]), citation precision +0.033 (n.s.), correct
+  abstentions 10/10 → 9/10 (mazdutide answered from the semaglutide label again; ADR-0018 stops it in
+  the full system, but the rule is the generator's), false abstentions 1 → 4 of 50: **fails on
+  three criteria; the default effort stays.** Found before reading any result, each fixed: (1) setting
+  an effort broke the last fallback (LiteLLM passes it to Ollama as `think`; llama3.2 answers 400), now
+  dropped for the local and OpenRouter deployments, with a config test over every fallback target;
+  (2) Groq's free tier allows 200,000 tokens per rolling day for gpt-oss-20b, and once spent the
+  gateway answered the production prompt with the local model, so the first timing run timed the
+  wrong model: evaluations now send `disable_fallbacks` (`complete(fallbacks=False)`); (3) LiteLLM's
+  `num_retries` waits out per-minute limits inside a request, so 1 s answers were timed at up to 60 s:
+  the client now records `x-litellm-attempted-retries` (`Completion.retries`) and the timing script
+  re-measures a retried answer. Latencies stored by earlier evaluations can include such waits (19 of
+  the trial's 60 do), so they are not used. A paired uncached timing (10 questions,
+  `evals/rag/answer_latency.py`) is running on the remaining daily budget; it does not change the
+  decision. Also: the committed red-team report was from the v1-rule comparison run; regenerated
+  (67/67). Unit +5. `just lint` clean; `just test` 471 passed, 3 skipped.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `durable-labs`** (the built-in browser is signed out of GitHub).
+- **You: open the PR for `voice-latency`** (the built-in browser is signed out of GitHub) and
+  **review ADR-0025** (reasoning effort for the cited answer: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
   #36 as false positives in its dashboard. Grafana: `just up obs`, then http://127.0.0.1:3000 (user
@@ -1229,7 +1253,10 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 
 - Gemini 3.x Flash and Groq gpt-oss reason before answering; reasoning tokens count against `max_tokens`
   (16 tokens returned empty text) and add latency. Decide the thinking level per task from the Phase 2/4
-  latency and quality evals, then set it in `config/models.yaml`.
+  latency and quality evals, then set it in `config/models.yaml`. **Update 2026-10-28:** for the cited
+  answer, measured (ADR-0025): `low` failed the quality rule, so the default stays; it is now a prompt
+  setting (`reasoning_effort`), not `config/models.yaml`. The note-quality judge runs at `low` (it has to fit
+  Groq's per-minute limit). The other prompts are not measured.
 - LiteLLM's response `model` field echoes the alias for the primary but names the real deployment after
   failover. The spend log (`model`, `model_group`) is the reliable record; task 7 traces should use it.
 - HAPI uses 1.52 of its 2 GB limit with 50 patients. Watch it when adding data; raise the limit or the heap only
