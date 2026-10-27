@@ -279,21 +279,36 @@ def run_write(case: dict[str, Any]) -> tuple[bool, str]:
     return ok, message[:110].replace("\n", " ")
 
 
-def main(argv: list[str] | None = None) -> int:
-    control = "--control" in (argv if argv is not None else sys.argv[1:])
+# The categories whose every case relies on a rule the control switches off (CI checks that each
+# of them fails under the control; tests/unit/test_quality_gates.py)
+CONTROLLED = ("unsourced_dose", "diagnosis_wording", "injection_in_evidence", "wrong_drug")
+
+
+def run_suite(control: bool = False) -> list[tuple[dict[str, Any], bool, str]]:
+    """(case, passed, detail) for every case; `control` weakens the system for this run only."""
+    saved = dict(SYSTEM)
     if control:
         SYSTEM["guard"] = weakened()
         SYSTEM["grounding"] = False
-    data = yaml.safe_load(CASES.read_text(encoding="utf-8"))
-    results = []
-    for case in data["cases"]:
-        if case["kind"] in ("answer", "injection", "phi", "subject"):
-            ok, detail = run_ask(case, data["sources"])
-        elif case["kind"] == "note":
-            ok, detail = run_note(case)
-        else:
-            ok, detail = run_write(case)
-        results.append((case, ok, detail))
+    try:
+        data = yaml.safe_load(CASES.read_text(encoding="utf-8"))
+        results = []
+        for case in data["cases"]:
+            if case["kind"] in ("answer", "injection", "phi", "subject"):
+                ok, detail = run_ask(case, data["sources"])
+            elif case["kind"] == "note":
+                ok, detail = run_note(case)
+            else:
+                ok, detail = run_write(case)
+            results.append((case, ok, detail))
+        return results
+    finally:
+        SYSTEM.update(saved)
+
+
+def main(argv: list[str] | None = None) -> int:
+    control = "--control" in (argv if argv is not None else sys.argv[1:])
+    results = run_suite(control)
     by_category: Counter[str] = Counter()
     passed: Counter[str] = Counter()
     for case, ok, _ in results:
