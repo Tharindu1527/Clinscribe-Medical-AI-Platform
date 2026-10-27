@@ -1,0 +1,28 @@
+# CI quality gates on committed evidence (ADR-0026; SPEC sections 7 and 11).
+# The answer evaluation calls the provider (`just answers`), and CI holds no provider keys, so it
+# runs locally and its rows are committed. CI checks that those rows were made with the prompts and
+# the model the repo now uses, and that they meet these floors. Changing the answer prompt (a new
+# version, prompts/versions.lock) or its model therefore fails CI until a new evaluation of that
+# version is committed.
+# A floor is a regression limit a little below the measured value, not the SPEC target: SPEC
+# section 1 asks citation precision >= 0.95; measured 0.871, a gap the README states.
+version: 1
+answer:
+  # rows in evals/reports/rag/answers/<system>.jsonl: the chosen pipeline (ADR-0006)
+  system: hybrid_colbert_ctx
+  prompts:  # row field -> prompt file id in prompts/
+    answer: answer_cited
+    judge: judge_citations
+  task: answer_cited  # config/models.yaml task -> alias -> deployment in the gateway config
+  alias: clinscribe-fallback-groq
+  deployment: groq/openai/gpt-oss-20b
+  questions: 60
+  min:  # the committed rows (`uv run python -m evals.quality_gates` prints them)
+    faithfulness: 0.90  # 0.935; SPEC target 0.90
+    correctness: 0.85  # 0.910
+    citation_precision: 0.85  # 0.871; SPEC target 0.95, not met
+    correct_abstain_rate: 0.90  # 1.0 (10 unanswerable questions)
+  max:
+    false_abstain_rate: 0.10  # 0.02
+    judge_errors: 0
+    answer_errors: 0
