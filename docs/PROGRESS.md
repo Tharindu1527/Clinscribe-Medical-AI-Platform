@@ -1142,7 +1142,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `router-eval`** (the built-in browser is signed out of GitHub).
+- **You: open the PR for `durable-labs`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
   #36 as false positives in its dashboard. Grafana: `just up obs`, then http://127.0.0.1:3000 (user
