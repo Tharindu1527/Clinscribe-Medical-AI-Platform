@@ -71,8 +71,7 @@ Option 2 (`scripts/retention.py`, `just retention`, `just erase`).
   mappings. Removing either safeguard (the re-check, the waiting-draft exception) fails a test.
 - Not an API endpoint: an admin cannot erase from the review UI. A scheduler must run
   `just retention --apply` (daily; operations runbook); nothing enforces the limits otherwise.
-- Not reached: lab values pending confirmation (the API's memory only, gone at restart),
-  de-identified traces (the local trace file and Langfuse Cloud keep their own retention), and the
+- Not reached: de-identified traces (the local trace file and Langfuse Cloud keep their own retention), and the
   gateway's spend logs (no prompt text).
 - The SPEC says "erasure endpoint"; this is a command. The reason is the API's least privilege
   over the mapping, which stays as it was.
@@ -94,4 +93,13 @@ Tested on the real Postgres (`tests/integration/test_retention.py`): a draft mad
 whose saved transcript and note held a surrogate comes back with the original; the copy holds the
 patient's two encounters' originals and their audit row, and nothing of another patient's; the
 audit row holds counts, not data; the chain verifies.
+
+## Update 2026-10-27: lab results
+
+Lab results awaiting confirmation moved from the API's memory to Postgres (ADR-0016 update), so
+the jobs now reach them: retention ends a result nobody confirmed in 14 days
+(`lab_results_awaiting_confirmation_days`) as "expired" and drops its values; erasure ends a
+patient's waiting results as "erased"; the access copy lists every lab result with its values
+while it waits, and the audit rows of its confirmation. Audit counts gain `lab_results_ended`
+(retention, erasure) and `lab_results` (access).
 

@@ -6,14 +6,18 @@ Needs `just up` and `just fhir-load`; skipped otherwise unless CLINSCRIBE_REQUIR
 """
 
 import base64
+import subprocess
+import time
 from typing import Any
 
 import httpx
+import psycopg
 import pytest
 
 from agents.lab.hl7 import build_oru
 from agents.lab.pdf import report_lines, write_pdf
 from apps.api.auth import issue_token
+from config.db import owner_conninfo
 from config.settings import Settings
 
 API = "http://127.0.0.1:8000"
@@ -137,3 +141,49 @@ def test_a_request_with_both_or_neither_report_is_rejected(patients: list[dict[s
     ):
         response = httpx.post(f"{API}/v1/lab/parse", json=body, headers=_headers(), timeout=60)
         assert response.status_code == 422
+
+
+def _lab_row(lab_id: str) -> tuple[Any, ...] | None:
+    with psycopg.connect(owner_conninfo(Settings())) as conn:
+        row: tuple[Any, ...] | None = conn.execute(
+            "SELECT status, payload, written FROM lab_results WHERE lab_id = %s", (lab_id,)
+        ).fetchone()
+    return row
+
+
+def _api_ready(timeout_s: int = 180) -> None:
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            if httpx.get(f"{API}/health", timeout=5).status_code == 200:
+                return
+        except httpx.HTTPError:
+            pass
+        time.sleep(2)
+    pytest.fail("the API did not come back after the restart")
+
+
+def test_a_pending_lab_result_survives_an_api_restart_and_keeps_no_values_after(
+    patients: list[dict[str, Any]],
+) -> None:
+    patient = patients[0]
+    body = {"patient_id": patient["id"], "pdf_base64": _pdf(patient)}
+    parsed = httpx.post(f"{API}/v1/lab/parse", json=body, headers=_headers(), timeout=60).json()
+    lab_id = parsed["lab_id"]
+    status, payload, _ = _lab_row(lab_id) or (None, None, None)
+    assert status == "awaiting_confirmation"
+    assert len(payload["observations"]) == 2  # the values wait in Postgres, not in memory
+    subprocess.run(["docker", "compose", "restart", "api"], check=True, capture_output=True)
+    _api_ready()
+    confirm = {"birth_date": patient["birthDate"], "family_name": patient["name"][0]["family"]}
+    done = httpx.post(
+        f"{API}/v1/lab/{lab_id}/confirm", json=confirm, headers=_headers(), timeout=60
+    )
+    assert done.status_code == 200, done.text
+    status, payload, written = _lab_row(lab_id) or (None, None, None)
+    assert (status, payload) == ("confirmed", None)  # confirmed: the values are in FHIR now
+    assert written == done.json()["written"]
+    again = httpx.post(
+        f"{API}/v1/lab/{lab_id}/confirm", json=confirm, headers=_headers(), timeout=60
+    )
+    assert again.status_code == 404  # an ended result cannot be confirmed twice

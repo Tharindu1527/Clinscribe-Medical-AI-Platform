@@ -32,6 +32,7 @@ from agents.schemas import ReviewDecision, SoapNote
 from apps.api.audit import AuditEntry
 from apps.api.auth import Principal, issue_token, require, users
 from apps.api.drafts import WAITING, Draft
+from apps.api.labs import PendingLab
 from apps.api.voice_token import room_token
 from config.db import app_conninfo
 from config.settings import Settings
@@ -482,7 +483,7 @@ def lab_parse(body: LabParseRequest, request: Request, who: Doctor) -> dict[str,
     except ToolError as exc:
         raise HTTPException(422, str(exc)) from None
     lab_id = f"lab-{uuid.uuid4().hex[:16]}"
-    request.app.state.labs[lab_id] = {"patient_id": body.patient_id, **parsed.model_dump()}
+    request.app.state.labs.add(PendingLab(lab_id, body.patient_id, who.user, parsed.model_dump()))
     return {"lab_id": lab_id, **parsed.model_dump()}
 
 
@@ -494,9 +495,10 @@ def lab_confirm(
     from agents.schemas import PatientIdentifiers, WriteFhirInput
     from agents.tools import ToolError
 
-    pending = request.app.state.labs.get(lab_id)
-    if pending is None:
+    lab = request.app.state.labs.get(lab_id)
+    if lab is None:
         raise HTTPException(404, "no such lab report")
+    pending = {"patient_id": lab.patient_id, **lab.payload}
     if not all(pending["identity"].values()):
         raise HTTPException(409, f"report does not match the patient record: {pending['identity']}")
     chosen = range(len(pending["observations"])) if body.indexes is None else body.indexes
@@ -534,5 +536,5 @@ def lab_confirm(
         resource_id=lab_id,
         details={"written": len(written), "refused": len(refused)},
     )
-    request.app.state.labs.pop(lab_id, None)
+    request.app.state.labs.finish(lab_id, "confirmed", written)  # the values are in FHIR now
     return {"lab_id": lab_id, "written": written, "refused": refused}

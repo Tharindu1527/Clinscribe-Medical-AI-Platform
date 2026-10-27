@@ -5,10 +5,13 @@ version: "1"
 # A draft nobody reviewed is ended as "expired" and its saved state (de-identified transcript and
 # note) deleted; the doctor drafts again if it is still wanted.
 drafts_awaiting_review_days: 14
+# A lab result nobody confirmed is ended as "expired" and its parsed values dropped; the
+# report can be parsed again.
+lab_results_awaiting_confirmation_days: 14
 # The de-ID mapping is the only place ClinScribe keeps original PHI (encrypted). It is needed while
 # a draft waits (the doctor reads originals; the approved record is re-identified) and not after:
 # the record in FHIR holds the originals. Deleted as whole encounters, never partly.
 deid_mapping_idle_days: 30
 # Kept on purpose (ADR-0022): the audit log (append-only, at least the AI Act's six months; no
-# deletion is implemented), the drafts list (pseudonymous outcome rows), the FHIR record (its
-# retention is the EHR controller's).
+# deletion is implemented), the drafts and lab-results lists (pseudonymous outcome rows), the
+# FHIR record (its retention is the EHR controller's).

@@ -1127,12 +1127,22 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   double cost and four times the wait for every question. Caveats: small n, one judge, the
   router's interaction cues were widened on this golden set. Unit +1.
 
+- 2026-10-27: **Lab results awaiting confirmation are durable** (ADR-0016 and ADR-0022 updates).
+  They were the last clinical state in the API's memory: every `just up` rebuild dropped them, and
+  retention, erasure and access could not reach them. Now a `lab_results` table (migration 005,
+  `apps/api/labs.py`): the parsed result waits there and its values are set to NULL when it ends
+  (confirmed results are in FHIR; the row keeps who, when, the outcome and the Observations
+  written). Retention ends results nobody confirmed in 14 days, erasure ends a patient's waiting
+  results, the access copy lists them. Integration: a result parsed before `docker compose restart
+  api` is confirmed after it and keeps no values; a second confirm is 404; retention, erasure and
+  access cases on the real Postgres.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `router-eval`** (the built-in browser is signed out of GitHub).
+- **You: open the PR for `durable-labs`** (the built-in browser is signed out of GitHub).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
   #36 as false positives in its dashboard. Grafana: `just up obs`, then http://127.0.0.1:3000 (user
@@ -1175,7 +1185,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 ## Open questions
 
 - ~~Pending drafts live in LangGraph's in-memory checkpointer~~: resolved 2026-10-24 (ADR-0016), Postgres
-  checkpoints without PHI; lab results awaiting confirmation are still in memory.
+  checkpoints without PHI; lab results awaiting confirmation followed on 2026-10-27 (ADR-0016 update).
 - ~~Drafts and answers are shown in surrogate form (PATIENT_1)~~: resolved 2026-10-24 (ADR-0015): doctors
   see the originals, the approved record holds them, models, logs and traces stay surrogate-only.
 
