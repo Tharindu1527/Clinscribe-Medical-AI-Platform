@@ -136,7 +136,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 | 2 | MCP servers: `guidelines-mcp`, `druggraph-mcp`, `fhir-mcp` (`get_patient_context` audited; `write_fhir` refuses without a valid token) | Contract tests per tool over stdio; a read leaves an audit row | ✅ 2026-10-13: unit 14, stdio 4/4 |
 | 3 | Retrieval as a service (models need torch, which the API image excludes): own image + memory limit | Health test; stack memory measured ≤ 8 GB | ✅ 2026-10-13: HTTP 2/2; stack 4.0 GB; p50 244–261 / p95 288–326 ms warm |
 | 4 | LangGraph graph: intake → router → ask / note_writer → guardrail_check → hitl_review (`interrupt()`) → commit | Graph unit tests with scripted models; replay from a checkpoint | ✅ 2026-10-13: 11/11 incl. resume on a new graph instance |
-| 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ◐ 2026-10-14: router interaction recall 14/20 (other questions agentic 25/215); fast-vs-agentic answer quality not measured (budget) |
+| 5 | Ask agent: fast path + agentic loop (grading, query rewrite: Self-RAG/CRAG style); graph facts for drug questions; ablation step 7 (routing) | Router accuracy; answer quality vs fast path; cost | ✅ 2026-10-14: router interaction recall 14/20 (other questions agentic 25/215); 2026-10-27: answer quality fast vs agentic measured (`agents/router_quality.md`) |
 | 6 | Note-writer: transcript → SOAP statements with spans and citations | Schema validity rate on ACI-Bench dialogues | ✅ 2026-10-14: 8 dialogues: 6 drafts, 5 clean on the first attempt; 2 long ones truncated |
 | 7 | Guardrails (`config/guardrails.yaml`): input (injection, de-ID check) and output (citations, dose sources, diagnosis wording, schema); retry once, then safe reply | Unit tests per rule | ✅ 2026-10-13: 6/6 |
 | 8 | Approval token (HMAC; bound to draft hash, approver, patient, expiry) + two-identifier check before any write | No write without token; tampered/expired/wrong-patient refused | ✅ 2026-10-13: fhir-mcp checks (task 2) + API signs the token for the exact resource at review; live approve → write |
@@ -1110,16 +1110,34 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   as the original; another patient's data absent; the audit row holds counts, not data; repeatable
   across runs, since the audit log keeps every earlier row), unit +1.
 
+- 2026-10-27: **Fast path vs agentic loop, and the router** (SPEC §6 "judged by how often it picks
+  the cheaper path without losing answer quality"; ablation step 7; closes Phase 3 task 5).
+  `evals/agents/routing_quality.py`: 39 golden questions (all 19 answerable interaction questions,
+  10 other questions the router sends agentic, 10 it sends fast) through the real Ask graph
+  forced down each path (production retrieval, drug facts, models, guardrails; `Agents` now takes
+  a routing rule, production default unchanged), every answer judged by `judge_citations`; one
+  run, 78 answers, 0 judge errors. **Correctness does not separate the paths** (fast 0.833,
+  agentic 0.833, router 0.859; every interval spans 0). **The agentic loop raises faithfulness**
+  +0.103 [+0.015, +0.206] (n 34; grading drops passages before the answer is written); citation
+  precision +0.082 [-0.029, +0.201]. **The router against always-agentic**: correctness +0.026
+  [-0.026, +0.090], faithfulness -0.038 [-0.117, +0.019], neither shown worse; on all 209
+  answerable golden questions it sends 17% agentic, so about 1.3 model calls and 2,820 tokens per
+  question against 2.4 and 5,125, and the agentic median is 7.2 s against 1.9 s (it matters for
+  voice). Reading: keep the router; the faithfulness gain is real but not enough here to pay
+  double cost and four times the wait for every question. Caveats: small n, one judge, the
+  router's interaction cues were widened on this golden set. Unit +1.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `phoenix-trial`** (the built-in browser is signed out of GitHub); review
-  ADR-0024 (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention and erasure), ADR-0021 (HL7 v2) and ADR-0020 (dose
-  rule v2). After merging: `just gen-keys`, `just up obs`, `just migrate`; Grafana on
-  http://127.0.0.1:3000 (user `admin`, `GRAFANA_ADMIN_PASSWORD` in `.env`). Schedule
-  `just retention --apply` daily if the stack stays up.
+- **You: open the PR for `router-eval`** (the built-in browser is signed out of GitHub).
+- **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
+  access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
+  #36 as false positives in its dashboard. Grafana: `just up obs`, then http://127.0.0.1:3000 (user
+  `admin`, `GRAFANA_ADMIN_PASSWORD` in `.env`). Schedule `just retention --apply` daily if the
+  stack stays up.
 - **You: review ADR-0012** (turn detection: punctuation off) **and ADR-0013** (Deepgram Aura TTS).
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.

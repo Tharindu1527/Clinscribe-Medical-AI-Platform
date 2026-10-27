@@ -5,7 +5,7 @@ import base64
 import json
 import pickle
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
@@ -520,3 +520,23 @@ def test_an_answer_whose_sources_do_not_name_the_drug_is_retried_then_safe() -> 
     assert out["violations"] == ["drug_not_in_sources: the cited sources do not name Apixaban"]
     assert [c for c, _ in chat.calls] == ["answer", "answer"]  # one retry, then the safe reply
     assert tools.groundings[-1].cited == ["fda:w#s1#c0"]
+
+
+def test_a_routing_rule_can_force_the_agentic_path() -> None:
+    # the router evaluation runs each question down both paths (evals/agents/routing_quality.py)
+    question = "What is the starting dose of warfarin?"
+    assert route_question(question) == "fast"
+    chat = ScriptedChat(
+        grade=[{"relevant": ["S1"]}],
+        answer=[_cited(("Start at 2 to 5 mg daily.", ["S1"]))],
+    )
+
+    def always_agentic(_question: str) -> Literal["fast", "agentic"]:
+        return "agentic"
+
+    agents = Agents(
+        chat, FakeTools([WARFARIN, INR]), alias=lambda t: f"alias-{t}", route=always_agentic
+    )
+    out = agents.build().invoke({"mode": "ask", "encounter_id": "q9", "question": question})
+    assert out["route"] == "agentic"
+    assert [kind for kind, _ in chat.calls][0] == "grade"  # graded before answering
