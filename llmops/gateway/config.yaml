@@ -46,6 +46,8 @@ model_list:
       model: openrouter/google/gemma-4-31b-it:free
       api_key: os.environ/OPENROUTER_API_KEY
       api_base: os.environ/OPENROUTER_API_BASE  # empty normally; broken by `cloud-down`
+      # reasoning_effort is a gpt-oss setting (ADR-0025); a fallback answers without it
+      additional_drop_params: ["reasoning_effort"]
 
   # Load tests only (Phase 6): a canned cited answer, no provider call, no quota. Never a fallback.
   - model_name: clinscribe-mock
@@ -66,6 +68,9 @@ model_list:
       # A cold load takes ~75 s (2026-10-06), longer than the router's 60 s: with every cloud
       # alias rate-limited the last fallback timed out (voice latency run, 2026-10-19). 180 s here.
       timeout: 180
+      # drop_params does not cover it: LiteLLM turns reasoning_effort into Ollama's "think", and
+      # llama3.2 refuses ("does not support thinking", 400), so the last fallback failed (ADR-0025)
+      additional_drop_params: ["reasoning_effort"]
 
 router_settings:
   fallbacks:

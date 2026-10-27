@@ -68,6 +68,7 @@ class Completion:
     call_id: str | None = None
     cached: bool = False  # replayed from the local cache (not a provider cache)
     cached_input_tokens: int = 0  # input tokens the provider served from its prompt cache
+    retries: int = 0  # the gateway's own retries (its waits are inside latency_ms)
 
 
 class CacheMissError(LookupError):
@@ -153,6 +154,7 @@ class GatewayClient:
         max_tokens: int = 512,
         response_format: dict[str, object] | None = None,
         reasoning_effort: str | None = None,
+        fallbacks: bool = True,
     ) -> Completion:
         for message in messages:
             if not isinstance(message.content, DeidentifiedText):
@@ -195,6 +197,8 @@ class GatewayClient:
             body_out = {**payload, "metadata": {"spend_logs_metadata": tags}}  # not in the key
             if not self._trace:
                 body_out["no-log"] = True
+            if not fallbacks:  # a measurement of one model: a rate limit, never a silent swap
+                body_out["disable_fallbacks"] = True
             response = self._http.post("/v1/chat/completions", json=body_out, headers=headers)
             latency_ms = (time.perf_counter() - started) * 1000
             span.set_attribute("http.response.status_code", response.status_code)
@@ -212,6 +216,7 @@ class GatewayClient:
                 cached_input_tokens=int(
                     (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
                 ),
+                retries=int(response.headers.get("x-litellm-attempted-retries") or 0),
             )
             span.set_attribute("gen_ai.response.model", completion.model)
             span.set_attribute("gen_ai.response.id", completion.response_id or "")

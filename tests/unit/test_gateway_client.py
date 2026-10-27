@@ -85,6 +85,17 @@ def test_provider_prompt_cache_hits_are_reported() -> None:
     assert no_details.cached_input_tokens == 0
 
 
+def test_gateway_retries_are_reported() -> None:
+    # LiteLLM retries a rate-limited call itself (num_retries), and the wait lands in the
+    # latency; a timing run must be able to see it (ADR-0025)
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = {"model": "m", "choices": [{"message": {"content": "ok"}}], "usage": {}}
+        return httpx.Response(200, json=body, headers={"x-litellm-attempted-retries": "1"})
+
+    assert _client(httpx.MockTransport(handler)).complete("m", HELLO).retries == 1
+    assert _client(_ok_transport([])).complete("m", HELLO).retries == 0
+
+
 def test_reasoning_effort_is_sent_only_when_asked() -> None:
     calls: list[httpx.Request] = []
     client = _client(_ok_transport(calls))
@@ -92,6 +103,22 @@ def test_reasoning_effort_is_sent_only_when_asked() -> None:
     client.complete("clinscribe-judge", HELLO, reasoning_effort="low")
     assert "reasoning_effort" not in json.loads(calls[0].content)  # old cache keys unchanged
     assert json.loads(calls[1].content)["reasoning_effort"] == "low"
+
+
+def test_fallbacks_can_be_turned_off_without_changing_the_cache_key(tmp_path: Path) -> None:
+    # an evaluation of one model asks LiteLLM not to fail over (ADR-0025): a fallback had
+    # silently answered timing calls with the local model
+    calls: list[httpx.Request] = []
+    client = _client(_ok_transport(calls), ReplayCache(tmp_path, "record"))
+    client.complete("clinscribe-fallback-groq", HELLO)
+    assert "disable_fallbacks" not in json.loads(calls[0].content)
+    pinned = _client(_ok_transport(calls))
+    pinned.complete("clinscribe-fallback-groq", HELLO, fallbacks=False)
+    assert json.loads(calls[1].content)["disable_fallbacks"] is True
+    replayed = _client(_fail_transport(), ReplayCache(tmp_path, "replay")).complete(
+        "clinscribe-fallback-groq", HELLO, fallbacks=False
+    )
+    assert replayed.cached  # same key as the request with fallbacks
 
 
 def test_replay_cache_hit_makes_zero_network_calls(tmp_path: Path) -> None:
@@ -181,6 +208,20 @@ def test_gateway_config_fallback_chain_matches_spec() -> None:
     ]
     assert set(ALIASES) == set(names)  # the app key may use every alias (chain and judge)
     assert config["general_settings"]["store_prompts_in_spend_logs"] is False
+
+
+def test_fallback_targets_that_cannot_reason_drop_reasoning_effort() -> None:
+    # ADR-0025: the cited answer sets reasoning_effort for gpt-oss; LiteLLM's drop_params keeps
+    # it for Ollama (as "think") and llama3.2 refused the request, so the last fallback failed
+    config = yaml.safe_load(GATEWAY_CONFIG.read_text(encoding="utf-8"))
+    params = {m["model_name"]: m["litellm_params"] for m in config["model_list"]}
+    targets = {
+        t for chain in config["router_settings"]["fallbacks"] for ts in chain.values() for t in ts
+    }
+    for alias in targets:
+        if "gpt-oss" not in params[alias]["model"]:
+            assert "reasoning_effort" in params[alias].get("additional_drop_params", []), alias
+    assert config["litellm_settings"]["drop_params"] is True
 
 
 def test_every_primary_deployment_obeys_the_chaos_switch() -> None:
