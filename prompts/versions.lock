@@ -1,0 +1,50 @@
+{
+  "answer_cited@v1": {
+    "file": "prompts/answer_cited.yaml",
+    "sha256": "a9bbaa042ff7e517c9bc689f79e0492e2695608f36b2d7afd0280676b11372ed"
+  },
+  "answer_cited@v1-low": {
+    "file": "prompts/experiments/answer_cited_low.yaml",
+    "sha256": "f3f68845ea58bff1fe447c5029c10571ec1e9d539090ed6dcaac7031976ca80e"
+  },
+  "answer_cited@v2": {
+    "file": "prompts/experiments/answer_cited_v2.yaml",
+    "sha256": "fd8ea5f0e4624ef3bf585ecbadf61ac40765a65cb86d271a5bf4646cedb7fd75"
+  },
+  "contextual_prefix@v1": {
+    "file": "prompts/contextual_prefix.yaml",
+    "sha256": "13843a65753f82dd0a0c9bb28491cef62a74d3d59d7e8d15c62fc500c680cada"
+  },
+  "dev_complete@v1": {
+    "file": "prompts/dev_complete.yaml",
+    "sha256": "1f92d297cf97b50c9667066f8d2c66fdcf96d62400778033b8b504ee4d1ccbc5"
+  },
+  "grade_evidence@v1": {
+    "file": "prompts/grade_evidence.yaml",
+    "sha256": "d2f7d9e2929e75afe566add179d0a14b9241f5858e874af29334901e7c95192a"
+  },
+  "judge_citations@v1": {
+    "file": "prompts/judge_citations.yaml",
+    "sha256": "7e6523a8177a3ea44fade9e232b41eaf59d3f71bd127a97e83946793096eb97b"
+  },
+  "judge_note@v2": {
+    "file": "prompts/judge_note.yaml",
+    "sha256": "896e83e1819e4a8d23bf3daab7e772e769ad2d3dbb8a85bd093ae538a9a3b914"
+  },
+  "judge_note_support@v1": {
+    "file": "prompts/judge_note_support.yaml",
+    "sha256": "ba3d0bd99ccb3ca5f6e203a5eab0fbf4b9c1e007aca75da99047146b82b209e9"
+  },
+  "note_writer@v1": {
+    "file": "prompts/note_writer.yaml",
+    "sha256": "9e4e481fa91bcbf7d30333b0120e6c174aa6a65389521ea8bded43467af08fde"
+  },
+  "note_writer@v2": {
+    "file": "prompts/note_writer.yaml",
+    "sha256": "1b26babcf31243657535d4551d08b6c8eb643fff0e659591048f8ae3a5dcf81a"
+  },
+  "rewrite_query@v1": {
+    "file": "prompts/rewrite_query.yaml",
+    "sha256": "7263b57706df955e5ddb8ba7d7029c2490eac046bac4c94bc477695860cc7d2f"
+  }
+}
