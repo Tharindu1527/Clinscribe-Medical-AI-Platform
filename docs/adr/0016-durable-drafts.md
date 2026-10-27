@@ -60,6 +60,19 @@ Option 2 with c, and the draft's checkpoints deleted when it ends.
 - Data minimisation: after a draft ends only its outcome row remains; the de-identified transcript
   and note go with the checkpoints. Drafts nobody reviews stay until reviewed: a retention job for
   abandoned drafts is not built (DPIA).
-- Lab results awaiting confirmation (`/v1/lab/*`) are still held in memory; a restart drops them
-  (the PDF can be parsed again). Same fix when it matters.
+- Lab results awaiting confirmation (`/v1/lab/*`) were still held in memory; a restart dropped
+  them. Fixed 2026-10-27 (below).
 - ADR-0015's caveat (the identified resource held in the review payload) no longer applies.
+
+## Update 2026-10-27: lab results awaiting confirmation
+
+They were the last clinical state in the API's memory: every `just up` rebuild dropped them, and
+retention, erasure and access requests (ADR-0022) could not reach them. Now a `lab_results` table
+(migration 005, `apps/api/labs.py`): the parsed result (preliminary Observations, flags, the
+identity check's booleans; no name or birth date) is kept while it waits, and set to NULL when it
+ends, since a confirmed result is in the FHIR record; the row keeps who, when, the outcome and the
+Observations written. A confirmed result cannot be confirmed again (404). The API may insert and
+update, never delete; the retention login ends results that wait too long or that an erasure
+request covers. Tested on the stack: a result parsed before `docker compose restart api` is
+confirmed after it; afterwards its row holds no values.
+

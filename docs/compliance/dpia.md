@@ -13,7 +13,7 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 | Data subjects | Patients (special-category health data, GDPR Art. 9), clinicians (user ids, actions) |
 | Data | Consultation transcripts, patient summaries (age band, sex, conditions, medications, allergies), lab values, approved notes; audit records |
 | Recipients | Clinicians; model providers receive **de-identified text only**; tracing (Langfuse Cloud, EU) receives **de-identified, redacted spans only** |
-| Storage | Postgres (audit log, encrypted re-identification mapping, drafts awaiting review as de-identified LangGraph checkpoints, deleted when the draft ends; ADR-0016), HAPI FHIR (clinical record), files on the clinic host |
+| Storage | Postgres (audit log, encrypted re-identification mapping, drafts awaiting review as de-identified LangGraph checkpoints, deleted when the draft ends; lab results awaiting confirmation, their values dropped once confirmed; ADR-0016), HAPI FHIR (clinical record), files on the clinic host |
 | In this build | Synthea patients, ACI-Bench dialogues and public guideline text; no real patient data anywhere |
 
 ## 2. Necessity and proportionality
