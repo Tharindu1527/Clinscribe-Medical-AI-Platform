@@ -14,14 +14,15 @@ Without --apply nothing changes. An applied run writes one audit row with counts
 transaction as the deletions. Connects as the "retention" login (scripts/migrate.py): it may delete
 de-ID mappings and checkpoints, end drafts and append to the audit log, nothing else.
 
-Removed: drafts nobody reviewed in time (ended "expired", checkpoints deleted) and de-ID mappings of
+Removed: drafts nobody reviewed in time (ended "expired", checkpoints deleted), lab results nobody
+confirmed in time (ended "expired", their values dropped) and de-ID mappings of
 idle encounters, the only place ClinScribe keeps original PHI (encrypted). Always whole encounters:
 surrogate numbers count an encounter's rows, so a partial delete would hand a number out twice.
-Erasure of one patient ends their drafts still awaiting review ("erased") and deletes the mapping of
-every encounter their drafts used, whatever its age.
-Kept: the audit log, the drafts list (pseudonymous outcome rows) and the FHIR record. Not reached:
-lab values pending confirmation (the API's memory only), Ask and voice encounters (not tied to a
-patient; the idle limit removes their mappings), de-identified traces.
+Erasure of one patient ends their drafts and lab results still waiting ("erased") and deletes the
+mapping of every encounter their drafts used, whatever its age.
+Kept: the audit log, the drafts and lab-results lists (pseudonymous outcome rows) and the FHIR
+record. Not reached: Ask and voice encounters (not tied to a patient; the idle limit removes their
+mappings), de-identified traces.
 """
 
 import argparse
@@ -42,6 +43,7 @@ from psycopg.rows import dict_row
 from apps.api.audit import AuditEntry, AuditLog
 from apps.api.auth import users
 from apps.api.drafts import WAITING
+from apps.api.labs import AWAITING
 from config.db import retention_conninfo
 from config.settings import Settings
 from privacy.deid.engine import SURROGATE_RE
@@ -60,10 +62,12 @@ class Plan:
     drafts: list[str] = field(default_factory=list)  # awaiting review: to end
     encounters: list[str] = field(default_factory=list)  # whose whole mapping goes
     mappings: Counter[str] = field(default_factory=Counter)  # rows by entity type
+    labs: list[str] = field(default_factory=list)  # lab results awaiting confirmation: to end
 
     def summary(self) -> dict[str, Any]:
         return {
             "drafts_ended": len(self.drafts),
+            "lab_results_ended": len(self.labs),
             "encounters": len(self.encounters),
             "mappings_deleted": sum(self.mappings.values()),
             "by_type": dict(sorted(self.mappings.items())),
@@ -72,7 +76,12 @@ class Plan:
 
 def limits(path: Path = CONFIG) -> dict[str, int]:
     cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return {k: int(cfg[k]) for k in ("drafts_awaiting_review_days", "deid_mapping_idle_days")}
+    keys = (
+        "drafts_awaiting_review_days",
+        "lab_results_awaiting_confirmation_days",
+        "deid_mapping_idle_days",
+    )
+    return {k: int(cfg[k]) for k in keys}
 
 
 def _mapping_counts(conn: psycopg.Connection[Any], encounters: list[str]) -> Counter[str]:
@@ -110,7 +119,16 @@ def plan_retention(conn: psycopg.Connection[Any], now: datetime, days: dict[str,
         )
         if str(r[0]) not in still_waiting  # a waiting draft still needs its originals
     ]
-    return Plan(expired, idle, _mapping_counts(conn, idle))
+    lab_cutoff = now - timedelta(days=days["lab_results_awaiting_confirmation_days"])
+    labs = [
+        str(r[0])
+        for r in conn.execute(
+            "SELECT lab_id FROM lab_results WHERE status = %s AND created_at < %s "
+            "ORDER BY created_at",
+            (AWAITING, lab_cutoff),
+        )
+    ]
+    return Plan(expired, idle, _mapping_counts(conn, idle), labs)
 
 
 def plan_erasure(conn: psycopg.Connection[Any], patient_id: str) -> Plan:
@@ -129,7 +147,14 @@ def plan_erasure(conn: psycopg.Connection[Any], patient_id: str) -> Plan:
             (used,),
         )
     ]
-    return Plan(waiting, encounters, _mapping_counts(conn, encounters))
+    labs = [
+        str(r[0])
+        for r in conn.execute(
+            "SELECT lab_id FROM lab_results WHERE patient_id = %s AND status = %s",
+            (patient_id, AWAITING),
+        )
+    ]
+    return Plan(waiting, encounters, _mapping_counts(conn, encounters), labs)
 
 
 def apply(
@@ -166,10 +191,19 @@ def apply(
         + " RETURNING encounter_id, entity_type",
         {"enc": plan.encounters, "idle": idle_before},
     ).fetchall()
+    labs = [
+        str(r[0])
+        for r in conn.execute(  # the values go; the row keeps the outcome
+            "UPDATE lab_results SET status = %s, payload = NULL, ended_at = %s "
+            "WHERE lab_id = ANY(%s) AND status = %s RETURNING lab_id",
+            (ended_as, datetime.now(UTC), plan.labs, AWAITING),
+        )
+    ]
     return Plan(
         ended,
         sorted({str(e) for e, _ in deleted}),
         Counter(str(t) for _, t in deleted),
+        labs,
     )
 
 
@@ -244,6 +278,20 @@ def subject_access(
         "OR encounter_id = ANY(%s) OR details->>'draft_id' = ANY(%s) ORDER BY seq",
         (patient_id, ids, encounters, ids),
     ).fetchall()
+    labs = conn.execute(
+        "SELECT lab_id, created_by, created_at, status, ended_at, written, payload "
+        "FROM lab_results WHERE patient_id = %s ORDER BY created_at",
+        (patient_id,),
+    ).fetchall()
+    lab_ids = [str(r[0]) for r in labs]
+    log = [
+        *log,
+        *conn.execute(
+            "SELECT seq, ts, actor, role, action, resource_type, resource_id, encounter_id "
+            "FROM audit_log WHERE resource_id = ANY(%s) AND NOT (resource_id = %s) ORDER BY seq",
+            (lab_ids, patient_id),
+        ).fetchall(),
+    ]
     columns = ("seq", "ts", "actor", "role", "action", "resource_type", "resource_id", "encounter")
     return {
         "patient_id": patient_id,
@@ -255,7 +303,19 @@ def subject_access(
             for e, rows in held.items()
             for kind, sur, orig in rows
         ],
-        "access_log": [dict(zip(columns, row, strict=True)) for row in log],
+        "lab_results": [
+            {
+                "lab_id": lab_id,
+                "created_by": by,
+                "created_at": created,
+                "status": status,
+                "ended_at": ended,
+                "observations_written": written,
+                "awaiting_confirmation": payload,  # None once it ended: the values are in FHIR
+            }
+            for lab_id, by, created, status, ended, written, payload in labs
+        ],
+        "access_log": [dict(zip(columns, row, strict=True)) for row in sorted(log)],
     }
 
 
@@ -277,6 +337,7 @@ def access(args: argparse.Namespace, settings: Settings, audit: AuditLog) -> int
         report = subject_access(conn, store, PostgresSaver(raw), args.patient_id)
         counts = {
             "drafts": len(report["drafts"]),
+            "lab_results": len(report["lab_results"]),
             "identifiers": len(report["identifiers_held"]),
             "audit_rows": len(report["access_log"]),
         }
