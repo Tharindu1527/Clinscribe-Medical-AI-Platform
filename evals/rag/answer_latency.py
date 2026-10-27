@@ -12,10 +12,9 @@ a slow minute at the provider falls on both. Two things made earlier runs time t
   retried is measured again after a pause, and calls are spaced to stay under the limit.
 Rows are kept, so a run stopped by the daily budget resumes.
 
-A second table needs no calls: the evaluation's cached completions keep the latency of the
-uncached call that recorded them, so every stored answer row of both prompts is timed too
-(recorded on different days, retries not recorded before 2026-10-27; the first table is the
-paired measurement).
+The output tokens of every stored answer row of both prompts come from the evaluation's cache
+(no calls). Their recorded latencies are not reported: the gateway's waits were not recorded
+before 2026-10-27, and the trial's rows were recorded under its rate limits.
 
   uv run python -m evals.rag.answer_latency [--n 10] [--prompt prompts/experiments/...yaml]
 Writes evals/reports/rag/answer_latency.md (rows in answer_latency.jsonl).
@@ -239,21 +238,18 @@ def main(argv: list[str] | None = None) -> int:
         "trial": recorded(TRIAL_ROWS, specs["trial"], items, corpus),
     }
     if stored["trial"]:
-        common = [k for k in stored["trial"] if k in stored["production"]]
+        tokens = {
+            k: statistics.median(r["output_tokens"] for r in v.values()) for k, v in stored.items()
+        }
+        retried = sum(r["retries"] > 0 for r in stored["trial"].values())
         lines += [
             "",
-            "**Recorded with the quality evaluation** (no new calls): the latency each cached",
-            "completion kept from the uncached call that recorded it. Production rows were",
-            "recorded on 2026-10-09, trial rows from 2026-10-27, so provider load differs, and",
-            "the gateway's retries were not recorded then: a few of these include its waits.",
-            "Read the medians.",
-            "",
-            *table({k: list(v.values()) for k, v in stored.items()}, specs),
-            "",
-            paired_line(
-                [stored["production"][k]["latency_ms"] for k in common],
-                [stored["trial"][k]["latency_ms"] for k in common],
-            ),
+            "**Output tokens of every stored answer** of the quality evaluation (no new calls;",
+            f"the cache keeps them): production median {tokens['production']:.0f} "
+            f"(n {len(stored['production'])}), trial median {tokens['trial']:.0f} "
+            f"(n {len(stored['trial'])}). Their recorded latencies are not used: the gateway's",
+            "waits inside a request were not recorded for the production rows (2026-10-09), and",
+            f"{retried} of the trial's rows include one.",
         ]
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print("\n".join(lines))
