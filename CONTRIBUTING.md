@@ -24,7 +24,12 @@
 - **A dependency:** one-line reason in `pyproject.toml`; prefer releases at least two weeks old; lock
   with `uv lock --upgrade-package <name>==<version>` so nothing else moves.
 - **A prompt:** a new YAML in `prompts/` with `id`, `version`, `task`; map the task to an alias in
-  `config/models.yaml`; bump the version for every change.
+  `config/models.yaml`; add its loader and inputs to `tests/unit/test_prompts.py`; `just prompt-lock`.
+- **A prompt change:** a new version (a locked version never changes: `prompts/versions.lock`), then
+  `just prompt-lock`. For the cited answer, CI also needs a committed evaluation of the new version
+  that meets `config/quality_gates.yaml`: run `just answers`, commit its rows and report (ADR-0026).
+  The same holds when its task moves to another alias or model. A trial goes in
+  `prompts/experiments/` under the production id and a version of its own.
 - **A guardrail rule:** `config/guardrails.yaml`, a unit test in `tests/unit/test_guardrails.py` and a
   red-team case in `evals/redteam/cases.yaml`.
 - **A tool:** a typed contract in `agents/schemas.py`, the tool on an MCP server, an in-process unit

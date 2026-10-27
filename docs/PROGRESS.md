@@ -1160,13 +1160,37 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   decision. Also: the committed red-team report was from the v1-rule comparison run; regenerated
   (67/67). Unit +5. `just lint` clean; `just test` 471 passed, 3 skipped.
 
+- 2026-10-28: **Quality gates in CI** (ADR-0026, proposed; SPEC section 7 "prompt render tests, then
+  the golden-set regression", section 11 "a pull request fails when faithfulness, citation precision
+  or schema validity fall below threshold"). CI ran lint, types and unit tests with the retrieval
+  fixture; the red-team suite, the de-ID gates and anything about prompts ran only locally. CI holds
+  no provider keys, so it gates on committed evidence, as unit tests (no workflow change): (1)
+  prompt contracts: every prompt and trial loads with its code's loader, has a task with a gateway
+  alias, and its templates ask for exactly the fields its code fills in; (2) **prompt lock**
+  (`prompts/versions.lock`, `just prompt-lock`): the SHA-256 of each version's parsed content, so a
+  version names one text (a changed text under a locked version fails; git history checked first:
+  no version ever had two texts; the retired `note_writer@v1` locked from history); (3) **answer
+  evidence gate** (`config/quality_gates.yaml`, `just quality-gates`): the chosen pipeline's
+  committed 60 rows must carry the current `answer_cited` and `judge_citations` versions, the task's
+  alias and deployment must be the evaluated ones, and the rows meet floors (faithfulness 0.935 vs
+  0.90, correctness 0.910 vs 0.85, citation precision 0.871 vs 0.85, correct abstentions 1.0 vs 0.90,
+  false abstentions 0.02 vs 0.10): a prompt or model change fails CI until its evaluation is
+  committed; (4) red-team 67/67 in CI, and its control fails all 38 cases of the categories whose
+  rules it switches off; (5) de-ID gates in CI with the default spaCy recogniser, and a de-identifier
+  that changes nothing fails them. Checked: an unversioned edit of the answer prompt fails the lock
+  test; a bumped version, a model switch, a quality drop and missing rows each fail the answer gate.
+  `evals/redteam/run.py` and `evals/privacy/deid_eval.py` gained `run_suite` and `evaluate` (no
+  reports written by tests); the de-ID evaluation re-run gives the same numbers. Not gated: note
+  writer, agentic-loop prompts and contextual prefixes (no committed rows with versions; locked and
+  render-tested only). Unit +35 (~30 s more for `just test-unit`).
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `voice-latency`** (the built-in browser is signed out of GitHub) and
-  **review ADR-0025** (reasoning effort for the cited answer: measured, not adopted).
+- **You: open the PR for `ci-quality-gates`** (the built-in browser is signed out of GitHub) and
+  **review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
   #36 as false positives in its dashboard. Grafana: `just up obs`, then http://127.0.0.1:3000 (user
