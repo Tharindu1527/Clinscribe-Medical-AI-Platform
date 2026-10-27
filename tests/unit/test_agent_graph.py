@@ -523,7 +523,7 @@ def test_an_answer_whose_sources_do_not_name_the_drug_is_retried_then_safe() -> 
 
 
 def test_a_routing_rule_can_force_the_agentic_path() -> None:
-    # the router evaluation runs each question down both paths (evals/agents/router_eval.py)
+    # the router evaluation runs each question down both paths (evals/agents/routing_quality.py)
     question = "What is the starting dose of warfarin?"
     assert route_question(question) == "fast"
     chat = ScriptedChat(

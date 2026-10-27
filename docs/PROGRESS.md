@@ -1112,7 +1112,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 
 - 2026-10-27: **Fast path vs agentic loop, and the router** (SPEC §6 "judged by how often it picks
   the cheaper path without losing answer quality"; ablation step 7; closes Phase 3 task 5).
-  `evals/agents/router_eval.py`: 39 golden questions (all 19 answerable interaction questions,
+  `evals/agents/routing_quality.py`: 39 golden questions (all 19 answerable interaction questions,
   10 other questions the router sends agentic, 10 it sends fast) through the real Ask graph
   forced down each path (production retrieval, drug facts, models, guardrails; `Agents` now takes
   a routing rule, production default unchanged), every answer judged by `judge_citations`; one
