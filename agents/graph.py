@@ -211,11 +211,13 @@ class Agents:
         tools: Tools,
         guardrails: Guardrails | None = None,
         alias: Callable[[str], str] = alias_for,
+        route: Callable[[str], Literal["fast", "agentic"]] = route_question,
     ) -> None:
         self.chat = chat
         self.tools = tools
         self.guard = guardrails or Guardrails()
         self.alias = alias
+        self.route = route  # the router's rule; the router evaluation forces each path
         self.answerer = AnswerGenerator(chat, alias("answer_cited"))
         self.prompts = {n: load(n) for n in ("note_writer", "grade_evidence", "rewrite_query")}
 
@@ -258,7 +260,7 @@ class Agents:
         return "router" if state["mode"] == "ask" else "note_writer"
 
     def router(self, state: State) -> State:
-        route = route_question(state["question"])
+        route = self.route(state["question"])
         events = [*state["events"], route]
         check = self.tools.grounding(CheckGroundingInput(question=state["question"]))
         if check.unseen_terms:  # the sources cannot be about it: abstain before search and models
