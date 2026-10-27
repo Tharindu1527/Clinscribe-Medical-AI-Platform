@@ -136,6 +136,7 @@ class Chat(Protocol):
         temperature: float = 0.0,
         max_tokens: int = 512,
         response_format: dict[str, object] | None = None,
+        reasoning_effort: str | None = None,
     ) -> Completion: ...
 
 

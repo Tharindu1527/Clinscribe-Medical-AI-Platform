@@ -73,10 +73,13 @@ def wait_seconds(response: httpx.Response) -> float:
 class PatientClient:
     """Gateway client that waits out short rate limits and retries server errors."""
 
-    def __init__(self, client: GatewayClient) -> None:
+    def __init__(self, client: GatewayClient, *, fallbacks: bool = True) -> None:
         self._client = client
+        self._fallbacks = fallbacks  # False: the named model or a wait, never another model
 
     def complete(self, model: str, messages: Sequence[ChatMessage], **kwargs: Any) -> Completion:
+        if not self._fallbacks:
+            kwargs["fallbacks"] = False
         for attempt in range(8):
             try:
                 return self._client.complete(model, messages, **kwargs)
@@ -380,7 +383,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         for system in args.system or ["dense"]:
-            path = run(system, items, PatientClient(gateway), args.prompt, args.name)
+            # no fallbacks: a gateway failover would answer some questions with another model
+            path = run(
+                system, items, PatientClient(gateway, fallbacks=False), args.prompt, args.name
+            )
             name = args.name or system
             print(json.dumps({name: summary(load_rows(name))}, indent=2))
             print(f"rows: {path}")

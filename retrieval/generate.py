@@ -31,6 +31,7 @@ class AnswerSpec(BaseModel):
     safe_reply: str
     system: str
     user: str
+    reasoning_effort: str | None = None  # gpt-oss: low/medium/high; unset sends nothing (old keys)
 
 
 class CitedSentence(BaseModel):
@@ -59,6 +60,7 @@ class Chat(Protocol):
         temperature: float = 0.0,
         max_tokens: int = 512,
         response_format: dict[str, object] | None = None,
+        reasoning_effort: str | None = None,
     ) -> Completion: ...
 
 
@@ -159,6 +161,7 @@ class AnswerGenerator:
                 temperature=spec.temperature,
                 max_tokens=spec.max_tokens,
                 response_format={"type": "json_object"},
+                reasoning_effort=spec.reasoning_effort,  # None: not sent, old cache keys
             )
             try:
                 abstained, sentences = parse_reply(reply.text, labels, spec.max_sentences)

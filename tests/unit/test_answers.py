@@ -21,6 +21,7 @@ from retrieval.generate import (
     AnswerGenerator,
     CitedAnswer,
     CitedSentence,
+    load_spec,
     parse_reply,
     source_block,
 )
@@ -170,9 +171,42 @@ def test_rate_limit_waits_are_parsed_and_long_waits_stop_the_run() -> None:
         PatientClient(_Limited()).complete("m", [])  # type: ignore[arg-type]
 
 
+def test_patient_client_can_keep_a_trial_on_the_named_model() -> None:
+    seen: list[dict[str, Any]] = []
+
+    class _Recording:
+        def complete(self, *args: Any, **kwargs: Any) -> Completion:
+            seen.append(kwargs)
+            return Completion("ok", "m", 1, 1, 1.0)
+
+    PatientClient(_Recording()).complete("m", [], max_tokens=8)  # type: ignore[arg-type]
+    PatientClient(_Recording(), fallbacks=False).complete("m", [])  # type: ignore[arg-type]
+    assert seen == [{"max_tokens": 8}, {"fallbacks": False}]
+
+
 def test_subset_is_stratified_and_seeded() -> None:
     subset = stratified_subset(load_items())
     assert len(subset) == 60
     assert sum(not i.answerable for i in subset) == 10
     assert len({i.area for i in subset}) == 5
     assert stratified_subset(load_items()) == subset
+
+
+def test_the_prompt_sets_the_reasoning_effort_or_sends_none() -> None:
+    # ADR-0025: an effort in the prompt file reaches the gateway; without one nothing is sent,
+    # so the production prompt's cached requests keep their keys
+    good = '{"abstain": false, "sentences": [{"text": "Start low.", "sources": ["S1"]}]}'
+    sent: list[Any] = []
+
+    class Recording(_Scripted):
+        def complete(
+            self, model: str, messages: Sequence[ChatMessage], **kwargs: Any
+        ) -> Completion:
+            sent.append(kwargs.get("reasoning_effort"))
+            return super().complete(model, messages, **kwargs)
+
+    question = issue("Dose?", "synthetic-test-fixture")
+    AnswerGenerator(Recording([good]), "m").answer(question, CHUNKS)
+    low = load_spec().model_copy(update={"reasoning_effort": "low"})
+    AnswerGenerator(Recording([good]), "m", low).answer(question, CHUNKS)
+    assert sent == [None, "low"]
