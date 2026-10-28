@@ -156,6 +156,7 @@ class State(TypedDict, total=False):
     patient_id: str
     question: str  # de-identified
     transcript: list[str]  # de-identified turns, "DOCTOR: ..." / "PATIENT: ..."
+    unsure: list[list[dict[str, Any]]]  # per turn, words the recogniser was unsure of (ADR-0027)
     route: Literal["fast", "agentic"]
     unseen: list[str]  # question words the corpus never uses (the answer abstains)
     query: str

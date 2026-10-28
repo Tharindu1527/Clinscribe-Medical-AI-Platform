@@ -83,8 +83,8 @@ def mix(consultation: str) -> bytes:
     return np.clip(total, -32768, 32767).astype("<i2").tobytes()
 
 
-def diarize(consultation: str) -> list[Word]:
-    path = CACHE / f"{consultation}.json"
+def diarize(consultation: str, cache: Path = CACHE) -> list[Word]:
+    path = cache / f"{consultation}.json"
     if path.exists():
         return [Word(**w) for w in json.loads(path.read_text(encoding="utf-8"))]
     try:

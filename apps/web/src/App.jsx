@@ -116,6 +116,16 @@ function Draft({ draft, onDone }) {
   const unsupportedText = new Set(draft.unsupported.map((s) => s.text));
   const unsupported = new Set(
     draft.draft.statements.flatMap((s, i) => (unsupportedText.has(s.text) ? [i] : [])));
+  // Words the speech recogniser was unsure of, on the statements that rely on them (ADR-0027)
+  const speech = draft.unsure_speech?.statements ?? [];
+  const unsureTurns = draft.unsure_speech?.turns ?? [];
+  const unsure = new Set(speech.flatMap((f, i) => (f.heard.length || f.changed ? [i] : [])));
+  const percent = (u) => `${Math.round(u.confidence * 100)}%`;
+  function turnText(t) {
+    const words = (unsureTurns[t] ?? []).map((u) => `${u.word} ${percent(u)}`);
+    const text = (modelView ? draft.transcript : transcript)[t];
+    return words.length ? `${text}\n[recogniser unsure: ${words.join(", ")}]` : text;
+  }
 
   async function decide(decision) {
     setError("");
@@ -147,20 +157,38 @@ function Draft({ draft, onDone }) {
           Show what the AI saw (names, dates and places as surrogates)
         </label>
       )}
+      {unsure.size > 0 && (
+        <p className="banner">
+          {unsure.size} statement{unsure.size === 1 ? " relies" : "s rely"} on speech the recogniser
+          was unsure of (dashed below): check against the consultation before approving.
+        </p>
+      )}
       {SECTIONS.map((section) => (
         <div key={section}>
           <h3>{section}</h3>
           {statements.map((s, i) => s.section === section && (
-            <div key={i} className={`statement ${unsupported.has(i) ? "unsupported" : ""}`}>
+            <div key={i} className={`statement ${unsure.has(i) ? "unsure" : ""} ${unsupported.has(i) ? "unsupported" : ""}`}>
               <input value={modelView ? draft.draft.statements[i].text : s.text}
                      disabled={!!result || modelView}
                      onChange={(e) => setStatements(statements.map((x, j) =>
                        j === i ? { ...x, text: e.target.value } : x))} />
-              <span className="turns" title={s.transcript_turns.map((t) =>
-                (modelView ? draft.transcript : transcript)[t]).join("\n")}>
+              <span className="turns" title={s.transcript_turns.map(turnText).join("\n")}>
                 turns {s.transcript_turns.join(", ")}
               </span>
               {unsupported.has(i) && <span className="tag">no guideline source</span>}
+              {speech[i]?.heard.map((u) => (
+                <span key={u.word} className="tag speech"
+                      title={`speech recognition ${percent(u)} sure (turn ${u.turn})`}>
+                  unsure speech: “{u.word}”
+                </span>
+              ))}
+              {speech[i]?.changed && (
+                <span className="tag speech" title={"the recogniser was unsure of "
+                  + speech[i].changed.unsure.map((u) => `“${u.word}” ${percent(u)} (turn ${u.turn})`)
+                    .join(", ")}>
+                  check: {speech[i].changed.terms.join(", ")} not in the cited speech
+                </span>
+              )}
             </div>
           ))}
         </div>

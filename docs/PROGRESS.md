@@ -1185,11 +1185,44 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   writer, agentic-loop prompts and contextual prefixes (no committed rows with versions; locked and
   render-tested only). Unit +35 (~30 s more for `just test-unit`).
 
+- 2026-10-28: **Low-confidence speech shown to the doctor** (ADR-0027, proposed; SPEC section 4
+  "low-confidence drug names are highlighted for the doctor, never silently corrected", section 5,
+  section 8 hazard "misheard drug name"). The Scribe listener dropped Deepgram's word confidence, so
+  a guessed word looked like a clear one on the review screen. Now `voice/scribe.py` sends each
+  turn's words under `UNSURE_BELOW`; the API keeps the ones still in the de-identified turn (a word
+  de-ID replaced was PHI) beside the draft, without function words, and the draft responses carry
+  `unsure_speech`: per statement, **heard** (it uses an unsure word of a turn it cites) and
+  **changed** (it names a lexicon drug or clinical term none of its turns says, while one had an
+  unsure word: a possible silent correction by the note writer); the review screen shows a banner,
+  a dashed border and a tag per statement, the confidence on hover; `draft.create` audits the counts.
+  **Threshold** by a rule written first (`evals/voice/asr_confidence.py`,
+  `evals/reports/voice/asr_confidence.md`): the largest grid value flagging at most 5% of words,
+  2-fold over 6 PriMock57 consultations streamed through the listener (7,419 scored words, 10.0%
+  wrong; median confidence 0.998 right, 0.936 wrong): **0.65**, 4.4% of words flagged, 18.1% of
+  errors caught, 40.9% of flagged words wrong; held out 3.9% / 16.5% and (0.70) 6.3% / 24.0%;
+  medical-term errors 3 of 16 (some are spelling variants). **On 5 drafts** by the real note writer:
+  26 of 118 statements flagged heard, 0 changed; one is the hazard itself, "valve palsy" (0.57) for
+  the doctor's "Bell's palsy", written into the note as said. A first drafts run flagged 38 of 100
+  statements, mostly for "a", "and", "to": function words are now left out (stopword list, negations
+  kept), a rule added after that run. Confidence is a weak signal (four in five errors sit above the
+  threshold): the flag asks for a check, it certifies nothing. A check the doctor can see in the
+  browser is still to do: demo sign-in is off (`DEV_LOGIN=false`); the API was checked live (a
+  synthetic draft flags "Start high drugs in 25 mg"). Unit +16.
+- 2026-10-28: **De-ID workers killed mid-request by uvicorn's health check** (postmortem 0005).
+  Found by the drafts run above: 2 of 6 drafts returned 500 ("Server disconnected"). uvicorn's
+  supervisor kills a worker that misses a ping for 5 s; under memory pressure in the VM (3.2 GB
+  available, 1.8 GB swap in use, 33k major faults in de-ID) a busy worker stalled past that. No OOM
+  kill (`oom_kill 0`). Reproduced with no model calls (396 de-ID calls: 1 drop, slowest 5.37 s, on a
+  4-character turn); fixed with `--timeout-worker-healthcheck 60`; verified by freezing a worker for
+  8 s (5 s: killed; 60 s: survives) and a replay of 594 calls (0 errors); the drafts re-run had no
+  worker death. `tests/unit/test_compose_workers.py` keeps it for every multi-worker service.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
+- **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027** and **postmortem 0005**.
 - **You: review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR

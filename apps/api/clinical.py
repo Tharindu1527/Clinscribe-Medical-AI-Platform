@@ -9,6 +9,8 @@ edits again before they go back into the graph.
 Drafts awaiting review are checkpointed in Postgres and listed in the `drafts` table, so they
 survive a restart; the PHI a write needs is passed as run context, never checkpointed, and a
 draft's checkpoints are deleted when it ends (ADR-0016).
+Words the speech recogniser was unsure of come with the Scribe listener's turns and are shown on
+the statements that rely on them (ADR-0027); only those still in the de-identified turn are kept.
 """
 
 import hmac
@@ -29,6 +31,7 @@ from agents.approval import approve
 from agents.fhir_docs import note_to_resource
 from agents.graph import WriteContext
 from agents.schemas import ReviewDecision, SoapNote
+from agents.speech_flags import flag_statements, kept
 from apps.api.audit import AuditEntry
 from apps.api.auth import Principal, issue_token, require, users
 from apps.api.drafts import WAITING, Draft
@@ -53,9 +56,15 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
 
 
+class Unsure(BaseModel):
+    word: str = Field(pattern=r"^\S{1,64}$")
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
 class Turn(BaseModel):
     speaker: Literal["doctor", "patient", "unknown"]
     text: str = Field(min_length=1, max_length=4000)
+    unsure: list[Unsure] = Field(default=[], max_length=200)  # from the Scribe listener
 
 
 class DraftRequest(BaseModel):
@@ -121,6 +130,13 @@ def _identified_draft(
     statements = [s["text"] for s in payload["draft"]["statements"]]
     texts = _reidentify(request, who, encounter_id, transcript + statements, "draft", draft_id)
     return {"transcript": texts[: len(transcript)], "statements": texts[len(transcript) :]}
+
+
+def _speech(
+    statements: list[dict[str, Any]], transcript: list[str], unsure: list[list[dict[str, Any]]]
+) -> dict[str, Any]:
+    """Unsure words per turn, and on each statement that relies on them (ADR-0027)."""
+    return {"turns": unsure, "statements": flag_statements(statements, transcript, unsure)}
 
 
 def _run(step: Callable[[], Any], encounter_id: str) -> Any:
@@ -206,10 +222,11 @@ def create_draft(
     body: DraftRequest, request: Request, who: Doctor, identified: bool = False
 ) -> dict[str, Any]:
     deid = request.app.state.deid
-    turns = [
-        f"{t.speaker.upper()}: {deid.deidentify(t.text, body.encounter_id).text.text}"
-        for t in body.transcript
-    ]
+    turns, unsure = [], []
+    for t in body.transcript:
+        text = deid.deidentify(t.text, body.encounter_id).text.text
+        turns.append(f"{t.speaker.upper()}: {text}")
+        unsure.append(kept([u.model_dump() for u in t.unsure], text))
     draft_id = f"draft-{uuid.uuid4().hex[:16]}"
     out = _run(
         lambda: request.app.state.graph.invoke(
@@ -218,6 +235,7 @@ def create_draft(
                 "encounter_id": body.encounter_id,
                 "patient_id": body.patient_id,
                 "transcript": turns,
+                "unsure": unsure,
             },
             _config(draft_id),
         ),
@@ -226,6 +244,7 @@ def create_draft(
     if "__interrupt__" not in out:
         raise HTTPException(422, (out.get("result") or {}).get("reason", "no draft produced"))
     payload = out["__interrupt__"][0].value
+    speech = _speech(payload["draft"]["statements"], turns, unsure)
     request.app.state.drafts.add(Draft(draft_id, body.patient_id, body.encounter_id, who.user))
     _audit(
         request,
@@ -240,9 +259,13 @@ def create_draft(
             "statements": len(payload["draft"]["statements"]),
             "unsupported": len(payload["unsupported"]),
             "removed": len(payload["removed"]),
+            "unsure_words": sum(len(u) for u in unsure),
+            "statements_unsure": sum(
+                bool(f["heard"] or f["changed"]) for f in speech["statements"]
+            ),
         },
     )
-    response = {"draft_id": draft_id, "transcript": turns, **payload}
+    response = {"draft_id": draft_id, "transcript": turns, **payload, "unsure_speech": speech}
     if identified:
         response["identified"] = _identified_draft(
             request, who, draft_id, body.encounter_id, response
@@ -284,11 +307,13 @@ def get_draft(
     if not pending:
         raise HTTPException(410, "the draft's saved state is gone")
     transcript = state.values.get("transcript", [])
+    unsure = state.values.get("unsure") or [[] for _ in transcript]  # older drafts have none
     response = {
         "draft_id": draft_id,
         "status": "awaiting_review",
         "transcript": transcript,
         **pending[0],
+        "unsure_speech": _speech(pending[0]["draft"]["statements"], transcript, unsure),
     }
     if identified:
         encounter_id = state.values["encounter_id"]

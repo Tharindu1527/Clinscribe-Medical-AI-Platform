@@ -13,6 +13,9 @@ sees it. The draft then waits in the review UI (Scribe tab, "Drafts awaiting rev
 - A dropped connection ends the session with an error and nothing is drafted: reconnecting is not
   done because Deepgram numbers speakers per connection, so roles could swap. Seen on this PC's
   network about once in ten long file streams; a recorded file can simply be run again.
+- Words recognised with a confidence under UNSURE_BELOW go with their turn, and the review screen
+  shows them on the statements that use them (ADR-0027; the threshold is chosen in
+  evals/voice/asr_confidence.py).
 - Live diarization needs real voices: two synthetic TTS voices were not told apart (tried for the
   demo), so the demo plays a PriMock57 consultation instead.
 - The speech vendor hears raw audio before de-identification (SPEC section 8: a BAA-covered vendor
@@ -51,6 +54,7 @@ API = "http://127.0.0.1:8000"
 MAX_TURN_CHARS = 4000  # the API's limit per turn
 DRAIN_S = 300  # longest wait for the last results after the audio ends
 MINOR_SHARE = 0.05  # a "speaker" with fewer words than this share is a diarization fragment
+UNSURE_BELOW = 0.65  # word confidence under which the doctor is shown the word (ADR-0027)
 # numerals: live nova-3-medical wrote "five hundred milligrams" even with smart_format, and the dose
 # guardrail matches digits ("500 mg" in the note against the transcript turn)
 LISTEN = (
@@ -66,6 +70,7 @@ class Word:
     start: float  # seconds from the start of the stream
     end: float
     speaker: int
+    confidence: float = 1.0  # Deepgram's word confidence (caches made before 2026-10-28 lack it)
 
 
 @dataclass(frozen=True)
@@ -74,6 +79,7 @@ class Turn:
     text: str
     start: float
     end: float
+    unsure: tuple[tuple[str, float], ...] = ()  # (word, confidence) under UNSURE_BELOW
 
 
 def words_from_result(data: dict[str, Any]) -> list[Word]:
@@ -87,6 +93,7 @@ def words_from_result(data: dict[str, Any]) -> list[Word]:
             start=float(w["start"]),
             end=float(w["end"]),
             speaker=int(w.get("speaker", 0)),
+            confidence=float(w.get("confidence", 1.0)),
         )
         for w in words
     ]
@@ -107,7 +114,13 @@ def group_turns(words: list[Word]) -> list[Turn]:
 
 
 def _turn(words: list[Word]) -> Turn:
-    return Turn(words[0].speaker, " ".join(w.text for w in words), words[0].start, words[-1].end)
+    unsure = tuple(
+        (bare, w.confidence)
+        for w in words
+        if w.confidence < UNSURE_BELOW and (bare := re.sub(r"^\W+|\W+$", "", w.text))
+    )
+    text = " ".join(w.text for w in words)
+    return Turn(words[0].speaker, text, words[0].start, words[-1].end, unsure)
 
 
 def assign_roles(turns: list[Turn], min_share: float = MINOR_SHARE) -> dict[int, str]:
@@ -147,12 +160,22 @@ def split_text(text: str, limit: int = MAX_TURN_CHARS) -> list[str]:
     return parts
 
 
-def transcript_for_api(turns: list[Turn], roles: dict[int, str]) -> list[dict[str, str]]:
-    return [
-        {"speaker": roles.get(t.speaker, "unknown"), "text": part}
-        for t in turns
-        for part in split_text(t.text)
-    ]
+def transcript_for_api(turns: list[Turn], roles: dict[int, str]) -> list[dict[str, Any]]:
+    """API turns; each part of a split turn carries the unsure words that are in it."""
+    out: list[dict[str, Any]] = []
+    for turn in turns:
+        for part in split_text(turn.text):
+            words = set(re.findall(r"\w+", part.lower()))
+            unsure = [
+                {"word": word, "confidence": round(confidence, 3)}
+                for word, confidence in turn.unsure
+                if set(re.findall(r"\w+", word.lower())) <= words
+            ]
+            row: dict[str, Any] = {"speaker": roles.get(turn.speaker, "unknown"), "text": part}
+            if unsure:
+                row["unsure"] = unsure
+            out.append(row)
+    return out
 
 
 def read_wav(path: Path) -> bytes:
@@ -233,7 +256,7 @@ async def transcribe(
 
 
 def post_draft(
-    transcript: list[dict[str, str]], patient_id: str, token: str, api: str = API
+    transcript: list[dict[str, Any]], patient_id: str, token: str, api: str = API
 ) -> dict[str, Any]:
     response = httpx.post(
         f"{api}/v1/scribe/drafts",
