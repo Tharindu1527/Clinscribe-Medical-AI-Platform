@@ -18,6 +18,7 @@ import sys
 import time
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 from cryptography.fernet import Fernet
 from pydantic import SecretStr
@@ -60,14 +61,67 @@ def leaked(entity: str, value: str, output: str) -> bool:
     return normalise(value) in normalise(output)
 
 
-def main() -> int:
-    settings = Settings()
-    model = settings.deid_spacy_model
-    deidentifier = Deidentifier(
-        analyzer_for(settings.deid_ner, settings.deid_spacy_model, settings.deid_tagger_path),
+def deidentifier_for(ner: str, spacy_model: str, tagger_path: str = "") -> Deidentifier:
+    return Deidentifier(
+        analyzer_for(ner, spacy_model, tagger_path),
         InMemoryStore(SecretStr(Fernet.generate_key().decode())),  # throwaway; nothing persisted
     )
 
+
+def main() -> int:
+    settings = Settings()
+    model = settings.deid_spacy_model
+    deidentifier = deidentifier_for(
+        settings.deid_ner, settings.deid_spacy_model, settings.deid_tagger_path
+    )
+    summary, over, elapsed = evaluate(deidentifier)
+    summary = {"spacy_model": model, "ner": settings.deid_ner, **summary}
+    failed = summary["failed"]
+    p50, p95 = summary["latency_ms_p50"], summary["latency_ms_p95"]
+    corpus_size, rows = summary["snippets"], summary["results"]
+    held_rows = summary["heldout"]
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    name = "deid_v2_tagger" if settings.deid_ner == "tagger" else f"{REPORT_PREFIX}_{model}"
+    (REPORT_DIR / f"{name}.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    lines = [
+        f"# De-ID ({settings.deid_ner}): recall and over-redaction (synthetic data)",
+        "",
+        f"Names/places: `{settings.deid_ner}` (tokens: `{model}`); {corpus_size} seeded snippets "
+        "(Faker seed 42), "
+        f"{elapsed:.1f} s; per snippet p50 {p50:.1f} ms, p95 {p95:.1f} ms (in-process).",
+        "",
+        "| Entity | N | Recall | Gate |",
+        "|---|---|---|---|",
+        *[f"| {r['entity']} | {r['n']} | {r['recall']:.3f} | {r['gate']} |" for r in rows],
+        "",
+        f"Over-redaction: **{len(over)} of {len(SENTENCES)}** PHI-free clinical sentences altered "
+        f"({summary['over_redaction_rate']:.1%}; gate {MAX_OVER_REDACTION:.0%}).",
+        *[f"- #{i} ({types}): {text}" for i, types, text in over],
+        "",
+        f"Misses by template (entity@template: count): {summary['misses_by_template'] or 'none'}",
+        "",
+        "## Held out (no gate): new phrasings and seed, not used to design the recognisers",
+        "",
+        "| Entity | N | Recall |",
+        "|---|---|---|",
+        *[f"| {r['entity']} | {r['n']} | {r['recall']:.3f} |" for r in held_rows],
+        "",
+        f"Held-out misses (entity@template: count): "
+        f"{summary['heldout_misses_by_template'] or 'none'}",
+        "",
+        f"Gate: **{'PASS' if not failed else 'FAIL: ' + '; '.join(failed)}**",
+        "",
+        "Limits: template-based synthetic text; Faker draws names from US Census-style lists, so",
+        "recall is optimistic. Real dictation (Phase 2 transcripts) is the harder test.",
+    ]
+    (REPORT_DIR / f"{name}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+    return 1 if failed else 0
+
+
+def evaluate(deidentifier: Any) -> tuple[dict[str, Any], list[tuple[int, str, str]], float]:
+    """Recall per type, over-redaction and the held-out set for one de-identifier, with the
+    gates applied; nothing is written (CI runs this, tests/unit/test_quality_gates.py)."""
     corpus = build()
     totals: Counter[str] = Counter()
     caught: Counter[str] = Counter()
@@ -131,8 +185,6 @@ def main() -> int:
         failed.append(f"over-redaction {over_rate:.1%} > {MAX_OVER_REDACTION:.0%}")
 
     summary = {
-        "spacy_model": settings.deid_spacy_model,
-        "ner": settings.deid_ner,
         "snippets": len(corpus),
         "seed": 42,
         "latency_ms_p50": round(p50, 1),
@@ -147,43 +199,7 @@ def main() -> int:
         "gate_passed": not failed,
         "failed": failed,
     }
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    name = "deid_v2_tagger" if settings.deid_ner == "tagger" else f"{REPORT_PREFIX}_{model}"
-    (REPORT_DIR / f"{name}.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    lines = [
-        f"# De-ID ({settings.deid_ner}): recall and over-redaction (synthetic data)",
-        "",
-        f"Names/places: `{settings.deid_ner}` (tokens: `{model}`); {len(corpus)} seeded snippets "
-        "(Faker seed 42), "
-        f"{elapsed:.1f} s; per snippet p50 {p50:.1f} ms, p95 {p95:.1f} ms (in-process).",
-        "",
-        "| Entity | N | Recall | Gate |",
-        "|---|---|---|---|",
-        *[f"| {r['entity']} | {r['n']} | {r['recall']:.3f} | {r['gate']} |" for r in rows],
-        "",
-        f"Over-redaction: **{len(over)} of {len(SENTENCES)}** PHI-free clinical sentences altered "
-        f"({over_rate:.1%}; gate {MAX_OVER_REDACTION:.0%}).",
-        *[f"- #{i} ({types}): {text}" for i, types, text in over],
-        "",
-        f"Misses by template (entity@template: count): {summary['misses_by_template'] or 'none'}",
-        "",
-        "## Held out (no gate): new phrasings and seed, not used to design the recognisers",
-        "",
-        "| Entity | N | Recall |",
-        "|---|---|---|",
-        *[f"| {r['entity']} | {r['n']} | {r['recall']:.3f} |" for r in held_rows],
-        "",
-        f"Held-out misses (entity@template: count): "
-        f"{summary['heldout_misses_by_template'] or 'none'}",
-        "",
-        f"Gate: **{'PASS' if not failed else 'FAIL: ' + '; '.join(failed)}**",
-        "",
-        "Limits: template-based synthetic text; Faker draws names from US Census-style lists, so",
-        "recall is optimistic. Real dictation (Phase 2 transcripts) is the harder test.",
-    ]
-    (REPORT_DIR / f"{name}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("\n".join(lines))
-    return 1 if failed else 0
+    return summary, over, elapsed
 
 
 if __name__ == "__main__":

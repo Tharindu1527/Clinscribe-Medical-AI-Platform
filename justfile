@@ -122,6 +122,15 @@ golden *args:
 golden-review action="summary":
     uv run python -m evals.golden.review {{action}}
 
+# Lock new prompt versions in prompts/versions.lock (a locked version never changes; ADR-0026);
+# `just prompt-lock --check` lists unlocked or changed versions, as CI does
+prompt-lock *args:
+    uv run python -m llmops.prompt_lock {{args}}
+
+# CI quality gates on the committed answer evaluation (config/quality_gates.yaml; no LLM calls)
+quality-gates:
+    uv run python -m evals.quality_gates
+
 # Evaluation suites (`just eval privacy`, or all); reports go to evals/reports/
 eval suite="all":
     uv run python -m evals.run {{suite}}
