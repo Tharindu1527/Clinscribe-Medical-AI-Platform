@@ -163,7 +163,7 @@ def paired_line(a: Sequence[float], b: Sequence[float]) -> str:
     diff, low, high = median_difference(a, b)
     faster = sum(y < x for x, y in zip(a, b, strict=True))
     return (
-        f"Paired over {len(a)} questions: median difference (trial − production) "
+        f"Paired over {len(a)} questions: median difference (trial - production) "
         f"**{diff:+,.0f} ms**, 95% bootstrap interval [{low:+,.0f}, {high:+,.0f}]; "
         f"the trial was faster on {faster} of {len(a)}."
     )
