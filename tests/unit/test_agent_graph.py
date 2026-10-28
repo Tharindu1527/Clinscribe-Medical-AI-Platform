@@ -427,6 +427,34 @@ def test_invalid_note_is_retried_and_bad_statements_are_removed() -> None:
     assert any("unsourced_dose" in r for r in draft["removed"])
 
 
+def test_a_retry_that_comes_back_unreadable_keeps_the_first_drafts_checked_part() -> None:
+    """A long note cut off at the output limit on the retry must not throw away the first draft:
+    its statements that passed the checks wait for the doctor, the failing one is removed."""
+    first = {
+        "statements": [
+            {"section": "plan", "text": "Start metformin 1000 mg.", "turns": [3]},  # never said
+            {"section": "subjective", "text": "Thirsty.", "turns": [1]},
+        ]
+    }
+    chat, tools = (
+        ScriptedChat(note=[first, '{"statements": [{"section": "plan", "te']),
+        FakeTools([]),
+    )
+    _, out = _scribe(chat, tools)
+    assert len(chat.calls) == 2
+    draft = out["__interrupt__"][0].value
+    assert [s["text"] for s in draft["draft"]["statements"]] == ["Thirsty."]
+    assert any("unsourced_dose" in r for r in draft["removed"])
+    assert any("the first draft is kept" in r for r in draft["removed"])
+
+
+def test_two_unreadable_attempts_still_end_without_a_draft() -> None:
+    chat, tools = ScriptedChat(note=["not json", "still not json"]), FakeTools([])
+    _, out = _scribe(chat, tools)
+    assert "__interrupt__" not in out
+    assert out["note"]["statements"] == []
+
+
 def test_review_survives_a_new_graph_instance_with_the_same_checkpointer() -> None:
     saver = InMemorySaver()
     tools = FakeTools([])
