@@ -104,6 +104,9 @@ just test; just gate 3   # tests; a phase gate
   opt-in (`DEID_NER=tagger`, ADR-0014) because the model is a local artefact, so CI and a fresh clone
   run the spaCy rules; it costs ~35 ms per de-ID call.
 - Free-tier rate limits shaped the evaluations (60-question answer subset, 8 scribe dialogues).
+- Doctors' edits are kept as before/after pairs for evaluation (ADR-0028), de-identified and
+  scanned again before export; the only pairs so far come from tests, so nothing is measured
+  from them yet.
 - Lab parsing is measured on one synthetic layout; scanned reports (true OCR) are not covered.
   HL7 v2 messages come from one synthetic sender written by this project: no MLLP listener,
   no ACKs, no local codes or Z-segments.

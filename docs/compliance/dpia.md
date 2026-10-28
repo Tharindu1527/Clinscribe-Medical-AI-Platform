@@ -13,7 +13,7 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 | Data subjects | Patients (special-category health data, GDPR Art. 9), clinicians (user ids, actions) |
 | Data | Consultation transcripts, patient summaries (age band, sex, conditions, medications, allergies), lab values, approved notes; audit records |
 | Recipients | Clinicians; model providers receive **de-identified text only**; tracing (Langfuse Cloud, EU) receives **de-identified, redacted spans only** |
-| Storage | Postgres (audit log, encrypted re-identification mapping, drafts awaiting review as de-identified LangGraph checkpoints, deleted when the draft ends; lab results awaiting confirmation, their values dropped once confirmed; ADR-0016), HAPI FHIR (clinical record), files on the clinic host |
+| Storage | Postgres (audit log, encrypted re-identification mapping, drafts awaiting review as de-identified LangGraph checkpoints, deleted when the draft ends; lab results awaiting confirmation, their values dropped once confirmed; ADR-0016; doctors' edits as de-identified before/after pairs for evaluation, ADR-0028), HAPI FHIR (clinical record), files on the clinic host |
 | In this build | Synthea patients, ACI-Bench dialogues and public guideline text; no real patient data anywhere |
 
 ## 2. Necessity and proportionality
@@ -26,9 +26,11 @@ This DPIA follows GDPR Art. 35(7): description, necessity and proportionality, r
 - **Transparency:** every draft and answer is labelled AI-generated; answers cite their sources.
 - **Storage limitation** (Art. 5(1)(e); ADR-0022): drafts nobody reviews end after 14 days; the
   encrypted re-identification mapping, the only place originals are kept, is deleted 30 days
-  after an encounter last used it (`config/retention.yaml`, `just retention --apply`, daily).
+  after an encounter last used it; doctors' edit pairs (surrogate form, ADR-0028) after 365 days,
+  a default to confirm (`config/retention.yaml`, `just retention --apply`, daily).
 - **Erasure** (Art. 17; ADR-0022): `just erase <patient> --request <ticket> --by <admin>` ends the
-  patient's waiting drafts and deletes the mappings of their encounters; audited
+  patient's waiting drafts and deletes the mappings of their encounters and the edit pairs of
+  their drafts; audited
   (`gdpr.erasure`, counts only). Kept, with their basis: the audit log (accountability,
   Art. 5(2); AI Act logging for high-risk systems, at least six months), the pseudonymous drafts
   list it refers to, and the FHIR record (the EHR controller's retention; requests about the

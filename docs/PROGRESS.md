@@ -1217,12 +1217,31 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   8 s (5 s: killed; 60 s: survives) and a replay of 594 calls (0 errors); the drafts re-run had no
   worker death. `tests/unit/test_compose_workers.py` keeps it for every multi-worker service.
 
+- 2026-10-28: **Doctors' edits kept as evaluation data** (ADR-0028, proposed; SPEC section 5
+  "doctor edits are saved as before/after pairs, which become new evaluation data"). The graph
+  built the pair and the API returned it once; nothing stored it. Now `edit_pairs` (migration 006,
+  `apps/api/edits.py`): one pair per approved, edited draft, both sides the de-identified note,
+  `app` inserts and reads, only `retention` deletes; retention after 365 days (a default to
+  confirm), erasure through the patient's drafts, listed in the access copy (re-identified while
+  the mapping exists); `just edit-pairs` exports them to `data/edit_pairs/` after a PHI scan with
+  the spaCy rules (a pair where they would replace anything is withheld), with what changed per
+  statement. Two review-path defects fixed on the way: (1) an edit typed on the AI's (surrogate)
+  view reached the graph as typed (the UI locks that view, the API did not); edits are now
+  de-identified on either view; (2) on the identified view every statement was de-identified again
+  on approval, and the tagger turned the untouched "Patient has been really thirsty ..." into
+  "PERSON_2 has been ..." (found on the first live pair: 1 statement edited, 3 counted); statements
+  left as shown now keep the model's text (the comparison re-identifies once, audited). Live: the
+  clinical-flow test's pair holds the doctor's words and no name, 1 edited and 7 unchanged. The scan
+  first ran the service's recogniser (the tagger here), which took "Patient" for a name and
+  withheld that pair; it now uses the spaCy rules (the same engine finds nothing new in text it
+  de-identified). Unit +7, integration: retention, erasure, access and login cases extended.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027** and **postmortem 0005**.
+- **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027**, **postmortem 0005** and **ADR-0028** (doctors' edits as evaluation data; confirm the 365-day limit).
 - **You: review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
