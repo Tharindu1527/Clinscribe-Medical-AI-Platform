@@ -1,12 +1,12 @@
 # ClinScribe — Progress
 
-Last updated: 2026-10-28 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
+Last updated: 2026-10-29 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; de-ID v1 merged (PR #1).
 **Phase 2 — Advanced RAG: gate passes except the golden review (task 3)**.
 **Phase 3 — Agents + safety: COMPLETE (2026-10-14, `just gate 3` PASS)**.
 **Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
 **Phase 5 — Lab + open models: COMPLETE (2026-10-14, `just gate 5` PASS)**; LoRA de-ID tagger trained
 (round 2) and adopted behind `DEID_NER=tagger` (2026-10-24, ADR-0014).
-**Phase 6 — Hardening: done; demo video re-recorded 2026-10-19 (upload pending)**.
+**Phase 6 — Hardening: done; demo video re-recorded 2026-10-29 on the new UI (upload pending)**.
 Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -1278,6 +1278,23 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   free tier) with a passage opened, then the audit log as admin. The demo video itself still shows
   the old UI.
 
+- 2026-10-29: **A cut-off retry no longer throws away the first draft** (graph fix), found re-recording
+  the demo video on the new UI. Two takes ended "no draft produced": the note writer's calls went to
+  `gemini-2.5-flash` in the default pool, which spends the 4,500-token output limit on its thinking
+  (3,607 and 4,495 completion tokens in the spend log), and the retry the guardrails asked for came back
+  cut off. `guardrail_note` then replaced the first attempt with the empty retry, so a usable draft was
+  lost. Now each attempt's checked part (its statements minus the failing ones) is kept as a fallback,
+  and when the retry has no valid statements the doctor gets the first draft, with the removal reasons
+  of both attempts listed. Two unreadable attempts still end without a draft. Unit +2
+  (`test_agent_graph.py`), red-team 67/67 with its control. The same consultation from cached words
+  drafted fine when the pool chose `gemini-3.5-flash-lite` (20 s, 24 statements). `demo_video.py`
+  also asks once more on a 422. **Demo video re-recorded** (`docs/presentation/demo_video.md`): 5 min
+  13 s on the redesigned UI, all scenes live; the Scribe draft (61 turns, 42 statements, 15 without a
+  guideline source, unsure speech marked) came through first time, the wrong family name was refused
+  with "2 attempts left", the corrected approval saved `DocumentReference/68511`. Narration and
+  results card updated (red team 67/67, 7 leak-test sinks; citations and statements now pointed at so
+  their links show). The 2026-10-19 take is kept as `old-ui-2026-10-19_clinscribe_demo.mp4`.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
@@ -1285,8 +1302,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
 - **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027**, **postmortem 0005**, **ADR-0028** (doctors' edits as evaluation data; confirm the 365-day limit) and **ADR-0029** (role words are not names).
 - **You: look at the new review UI**: `just ui-demo` (no stack), or with the API and
-  `DEV_LOGIN=true`. The demo video shows the old UI; re-record it with `just demo-video` if you want
-  the new one in it (it overwrites `.artifacts/demo/clinscribe_demo.mp4`).
+  `DEV_LOGIN=true`.
 - **You: review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
@@ -1297,8 +1313,9 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
-- **You: watch `.artifacts/demo/clinscribe_demo.mp4`, upload it (YouTube, unlisted) and send me the
-  link** for `docs/presentation/demo_video.md`.
+- **You: watch `.artifacts/demo/clinscribe_demo.mp4` (re-recorded 2026-10-29 on the new UI; the old take
+  is kept beside it), upload it (YouTube, unlisted) and send me the link** for
+  `docs/presentation/demo_video.md`.
 - Optional: try `just scribe 1617` with two people at one microphone (the eval mixed two close-talk
   microphones; a room is harder).
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
@@ -1386,6 +1403,10 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - Core + fhir + rag + voice was estimated at ~10.2 GB, above the 10 GB WSL cap. Resolved in Phase 4: the
   voice agent and the Scribe listener run on the host (LiveKit console mode), so the `voice` profile is
   not started; core + fhir + rag measured 5.9 GiB with the de-ID tagger (2026-10-24).
+- **Note writer on `gemini-2.5-flash`** (2026-10-29): it thinks within the 4,500-token output limit, so a
+  long consultation's note can come back cut off. The graph now keeps the first draft when a retry
+  fails, but the cause stays: options are a thinking budget for that deployment or the note writer on a
+  non-thinking model, either one with a note-quality re-run (`evals/agents/note_quality.py`) first.
 - The package name `agents/` clashes with the OpenAI Agents SDK import name (`agents`). The Phase 3
   framework comparison should run in its own isolated project under `evals/agents/`.
 - SPEC §3 and §6 still contain embedded-diagram placeholders (architecture, RAG pipeline). Text is enough
