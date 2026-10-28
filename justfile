@@ -196,12 +196,6 @@ ui-fixtures:
 ui-screenshots theme="light":
     uv run --with playwright==1.63.0 python -m scripts.ui_screenshots --theme {{theme}}
 
-# Demo video (SPEC section 14), recorded live from a hidden Chrome: .artifacts/demo/clinscribe_demo.mp4
-# Needs `just up rag`, the UI dev server and ffmpeg (not DEV_LOGIN); `--scenes title,results` for a subset.
-# playwright drives the installed Chrome (no browser download); it is not a project dependency.
-demo-video *args:
-    uv run --with playwright==1.63.0 python -m scripts.demo_video {{args}}
-
 # Browser voice over WebRTC, checked end to end without a browser (ADR-0019): needs `just up voice`
 # and the agent worker (`just voice start`, another terminal); writes evals/reports/voice/webrtc.md
 voice-webrtc user="dr-demo" *args:

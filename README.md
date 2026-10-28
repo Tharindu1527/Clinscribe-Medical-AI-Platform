@@ -12,6 +12,12 @@ not certified.
 - **Lab:** a lab-report PDF or an HL7 v2 ORU^R01 message becomes FHIR `Observation`s with
   abnormal values flagged; the doctor confirms before anything is saved.
 
+[![Demo video: a consultation becomes an approved FHIR note](docs/presentation/demo_thumbnail.png)](https://youtu.be/Nu2pVtMFT-g)
+
+**Demo video (5 min 13 s):** https://youtu.be/Nu2pVtMFT-g. A spoken question, then a recorded
+consultation streamed into Scribe, through the doctor's review to the approved FHIR note, recorded
+against the running stack (what is synthetic is labelled on screen).
+
 ## Architecture
 
 ```text
@@ -78,8 +84,8 @@ Dark theme and the sign-in screen: `docs/presentation/ui/`.
 | Incidents | 3 drills with postmortems: provider outage (found and fixed a fallback gap: 2/4 → 4/4 answered), retrieval drift, latency spike; plus one real defect: FastAPI's built-in telemetry had silently replaced the app-level span redaction (the collector's layer held: 0 leaks), now off and fail-closed | `docs/postmortems/` |
 
 Phase gates (`just gate N`) pass for phases 1, 3, 4 and 5; phase 2 passes every criterion except the
-human review of the golden-set sample (pending). The demo video (5 min 13 s on the review UI, recorded live by
-`just demo-video`; what is live and what is not: `docs/presentation/demo_video.md`) goes from a spoken
+human review of the golden-set sample (pending). The [demo video](https://youtu.be/Nu2pVtMFT-g) (5 min 13 s on the review UI;
+what is live and what is not: `docs/presentation/demo_video.md`) goes from a spoken
 question to a recorded consultation streamed into Scribe, through the doctor's review to an approved
 FHIR note.
 
@@ -99,7 +105,6 @@ just up obs; just migrate   # dashboards: Grafana on 127.0.0.1:3000 (admin / GRA
 just phoenix on         # optional local trace UI (Arize Phoenix, 127.0.0.1:6006); `just phoenix off`
 npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173 (DEV_LOGIN=true)
 just ui-demo             # the review UI on recorded synthetic data, no stack (:5174)
-just demo-video          # re-record the demo video (needs the UI dev server and ffmpeg)
 just test; just gate 3   # tests; a phase gate
 ```
 
