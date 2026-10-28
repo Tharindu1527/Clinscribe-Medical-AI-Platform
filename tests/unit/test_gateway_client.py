@@ -204,10 +204,64 @@ def test_gateway_config_fallback_chain_matches_spec() -> None:
     ]
     assert "clinscribe-mock" not in chain  # load-test alias, never a fallback
     assert ["clinscribe-default", *chain] == [
-        n for n in names if n not in ("clinscribe-judge", "clinscribe-mock")
+        n
+        for n in names
+        if n not in ("clinscribe-judge", "clinscribe-mock") and not n.startswith("clinscribe-eval-")
     ]
     assert set(ALIASES) == set(names)  # the app key may use every alias (chain and judge)
     assert config["general_settings"]["store_prompts_in_spend_logs"] is False
+
+
+def test_evaluation_aliases_copy_a_pool_model_and_are_never_fallback_targets() -> None:
+    # ADR-0030: a test pins one pool model through its own alias; it must be the same deployment
+    # (model, key, chaos switch) and must never carry traffic as a fallback
+    config = yaml.safe_load(GATEWAY_CONFIG.read_text(encoding="utf-8"))
+    pool = {
+        m["litellm_params"]["model"]: m["litellm_params"]
+        for m in config["model_list"]
+        if m["model_name"] == "clinscribe-default"
+    }
+    evals = [m for m in config["model_list"] if m["model_name"].startswith("clinscribe-eval-")]
+    assert evals
+    targets = {
+        t for chain in config["router_settings"]["fallbacks"] for ts in chain.values() for t in ts
+    }
+    for m in evals:
+        params = m["litellm_params"]
+        assert m["model_name"] == f"clinscribe-eval-{params['model'].split('/', 1)[1]}"
+        base = pool[params["model"]]
+        assert {k: params[k] for k in base} == base, m["model_name"]
+        assert m["model_name"] not in targets
+        assert m["model_name"] not in {
+            k for chain in config["router_settings"]["fallbacks"] for k in chain
+        }
+
+
+def test_completion_records_finish_reason_and_thinking_tokens(tmp_path: Path) -> None:
+    # ADR-0030: Gemini 2.5 thinking counts against max_tokens; a cut-off must be visible as one
+    def handler(request: httpx.Request) -> httpx.Response:
+        usage = {"prompt_tokens": 2200, "completion_tokens": 4495,
+                 "completion_tokens_details": {"reasoning_tokens": 4316}}  # fmt: skip
+        choice = {"message": {"content": '{"statements": [{"sec'}, "finish_reason": "length"}
+        return httpx.Response(
+            200, json={"id": "c", "model": "m", "choices": [choice], "usage": usage}
+        )
+
+    cache = ReplayCache(tmp_path, "record")
+    reply = _client(httpx.MockTransport(handler), cache).complete("clinscribe-default", HELLO)
+    assert (reply.finish_reason, reply.reasoning_tokens) == ("length", 4316)
+    plain = _client(_ok_transport([])).complete("clinscribe-default", HELLO)
+    assert (plain.finish_reason, plain.reasoning_tokens) == (None, 0)
+    # recorded before these fields existed: still replays
+    (old,) = tmp_path.glob("*.json")
+    data = json.loads(old.read_text(encoding="utf-8"))
+    del data["finish_reason"], data["reasoning_tokens"]
+    old.write_text(json.dumps(data), encoding="utf-8")
+    again = _client(_fail_transport(), ReplayCache(tmp_path, "replay")).complete(
+        "clinscribe-default", HELLO
+    )
+    assert again.cached
+    assert again.finish_reason is None
 
 
 def test_fallback_targets_that_cannot_reason_drop_reasoning_effort() -> None:

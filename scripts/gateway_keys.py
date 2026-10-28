@@ -21,6 +21,7 @@ ALIASES = [
     "clinscribe-fallback-local",
     "clinscribe-judge",
     "clinscribe-mock",  # load tests only (Phase 6)
+    "clinscribe-eval-gemini-2.5-flash",  # one pool model pinned for a test (ADR-0030)
 ]
 LIMITS = {
     "key_alias": "clinscribe-app",

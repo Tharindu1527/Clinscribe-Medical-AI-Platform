@@ -6,11 +6,14 @@ from typing import Any
 import pytest
 
 from evals.agents.note_quality import (
+    Recording,
     parse_coverage,
     parse_support,
     reference_as_draft,
     support_blocks,
+    writer_replies,
 )
+from llmops.gateway.client import Completion
 
 pytestmark = pytest.mark.unit
 
@@ -62,3 +65,45 @@ def test_support_needs_every_statement_rated_exactly_once() -> None:
         parse_support('{"statements": [{"n": 1, "support": "supported"}]}', 2)
     with pytest.raises(ValueError, match="support must be"):
         parse_support('{"statements": [{"n": 1, "support": "sure"}]}', 1)
+
+
+def _reply(finish: str, thinking: int) -> Completion:
+    return Completion("{}", "m", 2000, thinking + 900, 30_000.0, finish_reason=finish,
+                      reasoning_tokens=thinking)  # fmt: skip
+
+
+def _result(finish: str, recall: float, critical: float, unsupported: int) -> dict[str, Any]:
+    scores = {"recall": recall, "critical_recall": critical, "unsupported": unsupported}
+    return {"id": "aci-x", "draft": True, "statements": 50, "calls": [_reply(finish, 1000)],
+            "draft_scores": scores}  # fmt: skip
+
+
+def _verdict(results: list[dict[str, Any]]) -> list[str]:
+    judged = [r for r in results if r["draft"]]
+    lines = writer_replies(results, [r["draft_scores"] for r in judged], judged)
+    return [line for line in lines if line.startswith("- ")]
+
+
+def test_adr_0030_rule_adopts_only_when_every_check_passes() -> None:
+    # ADR-0030: complete (no "length" reply), recall >= 0.80, critical >= 0.87, unsupported <= 3%
+    good = [_result("stop", 0.85, 0.90, 1), _result("stop", 0.80, 0.88, 2)]
+    assert _verdict(good)[-1].startswith("- **adopt**")
+    for bad in (
+        [_result("length", 0.85, 0.90, 1), *good],  # a reply cut off
+        [_result("stop", 0.70, 0.90, 1), good[0]],  # recall 0.775
+        [_result("stop", 0.85, 0.80, 1), good[0]],  # critical recall 0.85
+        [_result("stop", 0.85, 0.90, 3), good[0]],  # 4 of 100 statements unsupported
+        [{"id": "aci-y", "draft": False, "calls": [_reply("stop", 900)]}, *good],  # no draft
+    ):
+        assert _verdict(bad)[-1].startswith("- **do not adopt**"), bad
+
+
+def test_recording_keeps_only_the_note_writers_replies() -> None:
+    class Fake:
+        def complete(self, model: str, messages: Any, **kwargs: Any) -> Completion:
+            return _reply("stop", 10)
+
+    recording = Recording(Fake(), "clinscribe-eval-gemini-2.5-flash")  # type: ignore[arg-type]
+    recording.complete("clinscribe-judge", [])
+    recording.complete("clinscribe-eval-gemini-2.5-flash", [])
+    assert len(recording.calls) == 1

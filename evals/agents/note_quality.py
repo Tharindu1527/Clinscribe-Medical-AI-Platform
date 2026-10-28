@@ -17,6 +17,10 @@ draft without its assessment and plan statements (critical recall should fall).
 
   uv run python -m evals.agents.note_quality [--n 8]   (needs `just up`: de-ID + gateway)
 Writes evals/reports/agents/note_quality.md. Judge responses are cached in data/llm_cache.
+
+`--alias clinscribe-eval-gemini-2.5-flash` pins the note writer to one model, with no fallbacks
+(ADR-0030), and writes `note_quality_<alias>.md` with every note-writer reply: finish reason
+("length" is a cut-off), thinking tokens and latency, and the ADR's adoption rule checked.
 """
 
 import argparse
@@ -27,7 +31,7 @@ import random
 import re
 import statistics
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +42,13 @@ from agents.graph import Agents
 from config.settings import Settings
 from evals.agents.note_eval import DATA, SEED, SHA256, NoTools, turns
 from evals.rag.answer_eval import BudgetExhaustedError, PatientClient
-from llmops.gateway.client import ChatMessage, GatewayClient, ReplayCache, alias_for
+from llmops.gateway.client import (
+    ChatMessage,
+    Completion,
+    GatewayClient,
+    ReplayCache,
+    alias_for,
+)
 from privacy.deid.client import DeidClient
 from privacy.deid.types import issue
 
@@ -55,6 +65,23 @@ SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
 TPM_LIMIT = 8000
 CHARS_PER_TOKEN = 3.2  # a cautious estimate for clinical English
 MIN_REPLY = 1500
+# ADR-0030's rule, written before the pinned run: the committed pool run had recall 0.85, critical
+# recall 0.92 and 3 of 171 statements unsupported; margin 0.05, at most 3% unsupported
+RULE = {"recall": 0.80, "critical_recall": 0.87, "unsupported_share": 0.03}
+
+
+class Recording:
+    """Passes calls through and keeps the note writer's replies (model `alias`)."""
+
+    def __init__(self, client: PatientClient, alias: str) -> None:
+        self._client, self._alias = client, alias
+        self.calls: list[Completion] = []
+
+    def complete(self, model: str, messages: Sequence[ChatMessage], **kwargs: Any) -> Completion:
+        reply = self._client.complete(model, messages, **kwargs)
+        if model == self._alias:
+            self.calls.append(reply)
+        return reply
 
 
 def reference_as_draft(note: str) -> list[dict[str, Any]]:
@@ -194,6 +221,7 @@ def support(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--n", type=int, default=8)
+    parser.add_argument("--alias", help="pin the note writer to this gateway alias, no fallbacks")
     args = parser.parse_args(argv)
     if hashlib.sha256(DATA.read_bytes()).hexdigest() != SHA256:
         raise SystemExit(f"{DATA} missing or changed")
@@ -207,14 +235,21 @@ def main(argv: list[str] | None = None) -> int:
         timeout=300,
         trace=False,
     )
-    client = PatientClient(gateway)
-    graph = Agents(client, NoTools()).build(InMemorySaver())
+    client = PatientClient(gateway, fallbacks=not args.alias)
+    writer = args.alias or alias_for("note_writer")
+    recording = Recording(client, writer)
+    graph = Agents(
+        recording,
+        NoTools(),
+        alias=lambda task: writer if task == "note_writer" else alias_for(task),
+    ).build(InMemorySaver())
     cover = yaml.safe_load(COVERAGE.read_text(encoding="utf-8"))
     back = yaml.safe_load(SUPPORT_PROMPT.read_text(encoding="utf-8"))
     results: list[dict[str, Any]] = []
     try:
         for row in rows:
             encounter = f"aci-{row['encounter_id']}"
+            before = len(recording.calls)
             transcript = [
                 f"{speaker.upper()}: {deid.deidentify(text, encounter).text.text}"
                 for speaker, text in turns(row["dialogue"])
@@ -224,8 +259,9 @@ def main(argv: list[str] | None = None) -> int:
                  "transcript": transcript},
                 {"configurable": {"thread_id": encounter}},
             )  # fmt: skip
+            calls = recording.calls[before:]
             if not out.get("__interrupt__"):
-                results.append({"id": encounter, "draft": False})
+                results.append({"id": encounter, "draft": False, "calls": calls})
                 continue
             draft = out["__interrupt__"][0].value["draft"]["statements"]
             reference = deid.deidentify(row["note"], encounter).text.text
@@ -234,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
                 result = {
                     "id": encounter,
                     "draft": True,
+                    "calls": calls,
                     "statements": len(draft),
                     "draft_scores": {
                         **recall(client, cover, reference, draft),
@@ -245,7 +282,9 @@ def main(argv: list[str] | None = None) -> int:
                     "no_plan_control": recall(client, cover, reference, no_plan),
                 }
             except ValueError as exc:  # the judge failed on this note: report it, go on
-                results.append({"id": encounter, "draft": True, "judge_error": str(exc)})
+                results.append(
+                    {"id": encounter, "draft": True, "judge_error": str(exc), "calls": calls}
+                )
                 print(encounter, "judge error:", exc, file=sys.stderr)
                 continue
             results.append(result)
@@ -253,8 +292,9 @@ def main(argv: list[str] | None = None) -> int:
     except BudgetExhaustedError as exc:
         print(f"stopped: {exc}. Rerun later: judged notes are cached.", file=sys.stderr)
         return 2
-    write_report(results, cover, back)
-    print(REPORT.read_text(encoding="utf-8"))
+    path = REPORT.with_name(f"note_quality_{args.alias}.md") if args.alias else REPORT
+    write_report(results, cover, back, path, pinned=args.alias)
+    print(path.read_text(encoding="utf-8"))
     return 0
 
 
@@ -264,17 +304,24 @@ def _mean(values: list[Any]) -> str:
 
 
 def write_report(
-    results: list[dict[str, Any]], cover: dict[str, Any], back: dict[str, Any]
+    results: list[dict[str, Any]],
+    cover: dict[str, Any],
+    back: dict[str, Any],
+    path: Path = REPORT,
+    pinned: str | None = None,
 ) -> None:
     judged = [r for r in results if r["draft"] and "judge_error" not in r]
     d = [r["draft_scores"] for r in judged]
     ref = [r["reference_control"] for r in judged]
     nop = [r["no_plan_control"] for r in judged]
     lines = [
-        "# Note quality vs the reference note (ACI-Bench, rubric judge)",
+        "# Note quality vs the reference note (ACI-Bench, rubric judge)"
+        + (f": note writer on `{pinned}`" if pinned else ""),
         "",
         "Generated by `evals/agents/note_quality.py`: drafts for the note evaluation's "
-        f"{len(results)} dialogues, written with the current de-ID and note writer, judged by",
+        f"{len(results)} dialogues, written with the current de-ID and note writer"
+        + (f" pinned to `{pinned}` (no fallbacks)" if pinned else "")
+        + ", judged by",
         f"`{cover['id']}@v{cover['version']}` and `{back['id']}@v{back['version']}` "
         f"({alias_for(cover['task'])}) against the clinician's reference note, all de-identified.",
         "Recall: share of the reference's important facts the draft conveys (yes 1, partial 0.5);",
@@ -326,7 +373,71 @@ def write_report(
         lines.append(f"- **{r['id']}**")
         lines += [f"  - missed (critical): {fact}" for fact in s["missed_critical"]]
         lines += [f"  - unsupported: {text}" for text in s["unsupported_text"]]
-    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if pinned:
+        lines += writer_replies(results, d, judged)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def writer_replies(
+    results: list[dict[str, Any]], d: list[dict[str, Any]], judged: list[dict[str, Any]]
+) -> list[str]:
+    """The pinned run's note-writer replies, and ADR-0030's rule checked."""
+    calls = [c for r in results for c in r["calls"]]
+    cut = [c for c in calls if c.finish_reason == "length"]
+    lines = [
+        "",
+        "## Note-writer replies",
+        "",
+        "Every reply of the pinned model, first attempts and retries. Thinking tokens count",
+        'inside the output tokens; "length" means the reply stopped at the output limit.',
+        "",
+        "| dialogue | replies | finish reasons | output tokens | thinking tokens | latency (s) |",
+        "|---|---|---|---|---|---|",
+    ]
+    for r in results:
+        cs = r["calls"]
+        lines.append(
+            f"| {r['id']} | {len(cs)} | {', '.join(str(c.finish_reason) for c in cs)} | "
+            f"{', '.join(str(c.output_tokens) for c in cs)} | "
+            f"{', '.join(str(c.reasoning_tokens) for c in cs)} | "
+            f"{', '.join(f'{c.latency_ms / 1000:.1f}' for c in cs)} |"
+        )
+    latency = sorted(c.latency_ms for c in calls)
+    if latency:
+        p95 = latency[min(len(latency) - 1, round(0.95 * (len(latency) - 1)))]
+        lines += [
+            "",
+            f"Replies cut off: {len(cut)} of {len(calls)}. Thinking tokens: median "
+            f"{statistics.median(c.reasoning_tokens for c in calls):.0f}, most "
+            f"{max(c.reasoning_tokens for c in calls)}. Latency per reply: p50 "
+            f"{statistics.median(latency) / 1000:.1f} s, p95 {p95 / 1000:.1f} s.",
+        ]
+    statements = sum(r["statements"] for r in judged)
+    unsupported = sum(int(s["unsupported"] or 0) for s in d)
+    critical = [s["critical_recall"] for s in d if s["critical_recall"] is not None]
+    checks = [
+        (
+            "every dialogue drafted and judged, no reply cut off",
+            all(r["draft"] for r in results) and not cut and len(judged) == len(results),
+        ),
+        (
+            f"fact recall >= {RULE['recall']}",
+            bool(d) and statistics.mean(s["recall"] for s in d) >= RULE["recall"],
+        ),
+        (
+            f"critical recall >= {RULE['critical_recall']}",
+            bool(critical) and statistics.mean(critical) >= RULE["critical_recall"],
+        ),
+        (
+            f"unsupported <= {RULE['unsupported_share']:.0%} of statements",
+            bool(statements) and unsupported / statements <= RULE["unsupported_share"],
+        ),
+    ]
+    lines += ["", "## ADR-0030 rule (written before this run)", ""]
+    lines += [f"- {'PASS' if ok else 'FAIL'}: {name}" for name, ok in checks]
+    verdict = "adopt" if all(ok for _, ok in checks) else "do not adopt"
+    lines.append(f"- **{verdict}** the thinking budget on the pool deployment")
+    return lines
 
 
 if __name__ == "__main__":

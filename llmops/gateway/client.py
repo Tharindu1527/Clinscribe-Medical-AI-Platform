@@ -69,6 +69,8 @@ class Completion:
     cached: bool = False  # replayed from the local cache (not a provider cache)
     cached_input_tokens: int = 0  # input tokens the provider served from its prompt cache
     retries: int = 0  # the gateway's own retries (its waits are inside latency_ms)
+    finish_reason: str | None = None  # "length": cut off at max_tokens (ADR-0030)
+    reasoning_tokens: int = 0  # thinking tokens, counted inside output_tokens
 
 
 class CacheMissError(LookupError):
@@ -217,6 +219,10 @@ class GatewayClient:
                     (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
                 ),
                 retries=int(response.headers.get("x-litellm-attempted-retries") or 0),
+                finish_reason=body["choices"][0].get("finish_reason"),
+                reasoning_tokens=int(
+                    (usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0
+                ),
             )
             span.set_attribute("gen_ai.response.model", completion.model)
             span.set_attribute("gen_ai.response.id", completion.response_id or "")

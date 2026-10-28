@@ -28,6 +28,14 @@ model_list:
       model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_API_KEY
       api_base: os.environ/GEMINI_API_BASE
+  # Evaluation only, never a fallback target: one pool model on its own, so a test can pin it
+  # (ADR-0030: the note writer with a thinking budget; Gemini 2.5 thinking counts against max_tokens)
+  - model_name: clinscribe-eval-gemini-2.5-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+      api_base: os.environ/GEMINI_API_BASE
+      thinking: {type: enabled, budget_tokens: 1024}
 
   - model_name: clinscribe-fallback-groq
     litellm_params:
