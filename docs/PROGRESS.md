@@ -1155,9 +1155,10 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   `num_retries` waits out per-minute limits inside a request, so 1 s answers were timed at up to 60 s:
   the client now records `x-litellm-attempted-retries` (`Completion.retries`) and the timing script
   re-measures a retried answer. Latencies stored by earlier evaluations can include such waits (19 of
-  the trial's 60 do), so they are not used. A paired uncached timing (10 questions,
-  `evals/rag/answer_latency.py`) is running on the remaining daily budget; it does not change the
-  decision. Also: the committed red-team report was from the v1-rule comparison run; regenerated
+  the trial's 60 do), so they are not used. Paired uncached timing (10 questions,
+  `evals/rag/answer_latency.py`, finished the same day): p50 1,367 → 860 ms, median difference
+  −681 ms [−1,182, −36], faster on 9 of 10; p95 3,072 → 5,995 ms from one slow low-effort call; it
+  does not change the decision. Also: the committed red-team report was from the v1-rule comparison run; regenerated
   (67/67). Unit +5. `just lint` clean; `just test` 471 passed, 3 skipped.
 
 - 2026-10-28: **Quality gates in CI** (ADR-0026, proposed; SPEC section 7 "prompt render tests, then
@@ -1189,8 +1190,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open the PR for `ci-quality-gates`** (the built-in browser is signed out of GitHub) and
-  **review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
+- **You: review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
   #36 as false positives in its dashboard. Grafana: `just up obs`, then http://127.0.0.1:3000 (user

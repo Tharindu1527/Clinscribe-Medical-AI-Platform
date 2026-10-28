@@ -68,8 +68,14 @@ the same passages, is lower.
 | output tokens per answer, median | 282 | 98 | | |
 
 The latency criterion was not needed: the quality criteria failed first. A paired uncached timing
-of both prompts (`evals/rag/answer_latency.py`, 10 questions) records what was at stake; it runs
-on what is left of Groq's daily token budget after the trial and is added here when it completes.
+of both prompts (`evals/rag/answer_latency.py`, `evals/reports/rag/answer_latency.md`; the first
+10 questions of the subset, order alternating, fallbacks off, every call served by Groq
+gpt-oss-20b, 5 measurements repeated after a gateway retry, none left out) records what was at
+stake: p50 1,367 → 860 ms, median difference −681 ms (95% paired bootstrap [−1,182, −36]), faster
+on 9 of 10; p95 3,072 → 5,995 ms, set by one 6.0 s low-effort call (g0030, 99 output tokens)
+against 1.6 s for the default. Ten pairs show the median saving, not the tail. Against the 1,500
+ms time-to-first-audio budget, ~0.7 s at the median would not have closed the gap on its own
+(TTFA p50 4.3 s, `evals/reports/voice/latency.md`).
 The latencies stored with the trial are not used: 19 of its 60 answers include a rate-limit wait
 inside the gateway, and the production rows (2026-10-09) did not record one.
 
