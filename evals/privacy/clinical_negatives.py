@@ -140,3 +140,64 @@ SENTENCES_V2 = [
     "Midstream urine sample sent before antibiotics.",
     "Sleeps poorly because of reflux at night.",
 ]
+
+# Role words in note-style sentences (v3). Written 2026-10-28, before any engine ran on them, after
+# the fine-tuned tagger replaced "Patient" at the start of a sentence in a doctor's edit (ADR-0028):
+# "Patient has been really thirsty for about three weeks." became "PERSON_2 has been ...". Notes and
+# edits are written like this, the earlier sets mostly are not. No identifiers by construction.
+SENTENCES_V3 = [
+    "Patient has been really thirsty for about three weeks.",
+    "Patient has been feeling tired since the start of the month.",
+    "Patient denies chest pain, palpitations or shortness of breath.",
+    "Patient is worried about the cough keeping her awake.",
+    "Patient was advised to drink more fluids and rest.",
+    "Patient agrees with the plan to start metformin.",
+    "Patient's mother reports a fever overnight.",
+    "Patient's wife says he snores loudly most nights.",
+    "Patients with this rash usually recover within a week.",
+    "Doctor explained the results of the blood tests.",
+    "Doctor advised a repeat blood pressure check in two weeks.",
+    "Nurse took bloods and a urine sample this morning.",
+    "Nurse noted a temperature of 38.2 degrees.",
+    "Clinician discussed the risks and benefits of the procedure.",
+    "GP to review the medication in one month.",
+    "Consultant agrees with a trial of inhaled steroids.",
+    "Registrar requested a chest X-ray before discharge.",
+    "Midwife will visit on day five after the birth.",
+    "Pharmacist checked the inhaler technique.",
+    "Physiotherapist recommends daily stretching exercises.",
+    "Mother says the child has not been eating well.",
+    "Father reports the cough is worse at night.",
+    "Wife has noticed he is more forgetful lately.",
+    "Husband brought her in after she fainted at home.",
+    "Daughter manages his tablets with a dosette box.",
+    "Son is the main carer and attends every appointment.",
+    "Partner confirms the headaches started a month ago.",
+    "Carer reports two falls in the last week.",
+    "Parents are concerned about the recurrent ear infections.",
+    "Baby is feeding well and gaining weight.",
+    "Seen with her mother, who gave most of the history.",
+    "The patient was reassured and safety-netted.",
+    "Discussed with the patient and his daughter.",
+    "Advised the patient to return if the rash spreads.",
+    "Patient and partner both want to try physiotherapy first.",
+    "Patient reports the inhaler helps within minutes.",
+    "Patient feels the swelling has gone down since Monday.",
+    "Patient unsure whether she is allergic to penicillin.",
+    "Patient prefers tablets to injections.",
+    "Patient will book a follow-up appointment at reception.",
+]
+# Role words next to a synthetic name: the name must still be replaced, whatever happens to the
+# role word ("Nurse PERSON_1" or "PERSON_1"). Written with SENTENCES_V3.
+ROLE_NAMES = [
+    ("Patient Jane Smith reports chest pain.", "Jane Smith"),
+    ("Nurse Priya Patel took bloods.", "Priya Patel"),
+    ("Dr Morgan Ellis reviewed the X-ray.", "Morgan Ellis"),
+    ("Doctor Alan Brooks discussed the plan.", "Alan Brooks"),
+    ("His wife, Sarah Jones, called the clinic.", "Sarah Jones"),
+    ("Mother Linda Green gave the history.", "Linda Green"),
+    ("Patient's daughter Emma Wilson manages his tablets.", "Emma Wilson"),
+    ("Consultant David Clarke agrees with the plan.", "David Clarke"),
+    ("Seen with her partner, Tom Baker.", "Tom Baker"),
+    ("Carer Ruth Hughes reports two falls.", "Ruth Hughes"),
+]
