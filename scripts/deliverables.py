@@ -21,7 +21,11 @@ ITEMS: list[tuple[str, str, list[str]]] = [
         "Scribe, Ask and Lab work end to end",
         ["tests/live/test_clinical_flow.py", "tests/integration/test_lab_api.py"],
     ),
-    ("Product", "Doctor review UI (approve, edit, reject)", ["apps/web/src/App.jsx"]),
+    (
+        "Product",
+        "Doctor review UI (approve, edit, reject)",
+        ["apps/web/src/pages/Scribe.jsx", "apps/web/src/pages/Lab.jsx"],
+    ),
     (
         "Evidence",
         "Evaluation report: RAG ablations, agents, safety",
