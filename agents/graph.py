@@ -164,6 +164,8 @@ class State(TypedDict, total=False):
     dropped: list[str]
     answer: dict[str, Any]
     note: dict[str, Any]
+    fallback_note: dict[str, Any]  # an earlier attempt minus its failing statements
+    fallback_violations: list[str]  # why that attempt's other statements were removed
     violations: list[str]
     attempts: int
     feedback: str
@@ -428,12 +430,26 @@ class Agents:
             problems += [str(v) for v in checked]
         else:
             problems.append("the note has no valid statements")
-        if problems and state["attempts"] < self.guard.max_attempts:
-            return {"violations": problems, "feedback": "; ".join(problems)}
         # numbering comes from check_note over the validated statements, not from parse errors
         bad = {int(m.group(1)) for v in checked if (m := re.match(r"statement (\d+)", v.detail))}
         kept = [s for n, s in enumerate(statements, start=1) if n not in bad]
         trimmed = {**state["note"], "statements": [s.model_dump() for s in kept]}
+        if problems and state["attempts"] < self.guard.max_attempts:
+            # the retry may come back worse (cut off, unreadable): keep this attempt's checked part
+            return {
+                "violations": problems,
+                "feedback": "; ".join(problems),
+                "fallback_note": trimmed,
+                "fallback_violations": problems,
+            }
+        earlier = state.get("fallback_note") or {}
+        if not kept and earlier.get("statements"):
+            problems = [
+                *state.get("fallback_violations", []),
+                "the retry gave no valid statements, so the first draft is kept without the "
+                "statements that failed: " + "; ".join(problems),
+            ]
+            trimmed = earlier
         return {"note": trimmed, "violations": problems, "feedback": ""}
 
     def after_guardrail_note(self, state: State) -> str:

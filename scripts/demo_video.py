@@ -90,17 +90,18 @@ NARRATION = {
     "ask_intro": "The same Ask agent in the review screen. A drug interaction question takes the "
     "agentic path: it grades the retrieved passages, rewrites the query when they are weak, and "
     "adds interaction facts from the DDInter drug graph.",
-    "ask_answer": "Every sentence cites a source passage, and the passages can be opened and "
-    "checked. When the evidence is missing, the agent abstains instead of guessing.",
+    "ask_answer": "Every sentence cites a source passage. Pointing at a number lights up its "
+    "source, and the passage opens in place to be checked. When the evidence is missing, the "
+    "agent abstains instead of guessing.",
     "scribe_intro": "Scribe mode listens and never speaks. This is a role-played consultation "
     "from the PriMock57 dataset, with real voices, transcribed live with the speakers told apart.",
     "scribe_roles": "The doctor is the first main speaker to say a full sentence. Each turn is "
     "de-identified, so the name, birth date and address said at the start become surrogates "
     "before the note writer sees them. The draft then waits for the doctor's review.",
     "scribe_open": "In the review screen, the doctor opens it from the drafts awaiting review.",
-    "scribe_flags": "Each statement links back to the transcript turns it came from. Statements "
-    "highlighted in yellow have no guideline source behind them, so they are flagged for the "
-    "doctor. Nothing has been saved yet.",
+    "scribe_flags": "The draft sits beside the transcript: pointing at a statement lights up the "
+    "turns it came from. Amber marks a statement with no guideline source behind it; violet, one "
+    "that uses a word the speech recogniser was unsure of. Nothing has been saved yet.",
     "scribe_wrong": "To approve, the doctor confirms two patient identifiers. Here the family name "
     "is wrong.",
     "scribe_refused": "So the FHIR server refuses the write, and the refusal is recorded in the "
@@ -112,7 +113,7 @@ NARRATION = {
     "approved one, each with its model and prompt version, in a hash-chained log.",
     "results": "Every claim is measured. Hybrid search with reranking and contextual chunks lifts "
     "recall at ten from 0.81 to 0.91, and answer correctness from 0.76 to 0.91. Scribe gives 98 "
-    "percent of words to the right speaker. The red-team suite passes 63 of 63, and the leak test "
+    "percent of words to the right speaker. The red-team suite passes 67 of 67, and the leak test "
     "finds no patient data in any trace or log.",
     "end": "ClinScribe is designed for HIPAA, GDPR and the EU AI Act, not certified for them, and "
     "every result comes from synthetic and public data. Thanks for watching.",
@@ -218,7 +219,7 @@ body{padding-bottom:300px !important}
 TITLE_CARD = """<div class="dc"><h1>ClinScribe</h1>
 <p class="tag">A voice-first clinical copilot: cited answers, human-approved writes</p>
 <div class="chips"><span>Scribe: consultation → SOAP draft → FHIR</span>
-<span>Ask: spoken question → cited answer</span><span>Lab: report PDF → flagged Observations</span></div>
+<span>Ask: spoken question → cited answer</span><span>Lab: PDF or HL7 → flagged Observations</span></div>
 <p class="foot">Synthetic and public data only · recorded by a script against the running stack ·
 narrator and doctor voices are synthetic (Deepgram Aura)</p></div>"""  # noqa: E501
 
@@ -261,8 +262,8 @@ RESULTS_CARD = """<div class="dc"><h2>Measured results <span class="muted" style
 <li>Cited-answer correctness 0.76 → <b>0.91</b>; faithfulness unchanged (0.94)</li>
 <li>Scribe from audio (PriMock57, 6 consultations): <b>98%</b> of words to the right speaker,
 doctor found 6 / 6 (role rule refined on this set), drafts 5 / 6</li>
-<li>Red-team suite <b>63 / 63</b>: unsourced doses, diagnosis wording, injections, unapproved writes</li>
-<li>Seeded PHI leak test: <b>0</b> values in 6 sinks (traces, logs, Langfuse, spend logs, audit)</li>
+<li>Red-team suite <b>67 / 67</b>: unsourced doses, diagnosis wording, injections, wrong drugs, unapproved writes</li>
+<li>Seeded PHI leak test: <b>0</b> values in 7 sinks (traces, logs, Langfuse, spend logs, audit, metrics)</li>
 <li>Turns succeed with <b>every cloud provider down</b> (local Ollama fallback)</li>
 <li class="miss">Voice time to first audio p50 4.3 s / p95 7.1 s vs a 1.5 s budget: <b>not met</b>
 (the cited answer is the bottleneck)</li></ul></div>"""  # noqa: E501
@@ -583,6 +584,10 @@ async def scene_ask(rec: Recorder) -> None:
         raise RuntimeError(f"Ask failed: {await page.locator('.callout-danger').inner_text()}")
     rec.measured["ask"] = {"label": await page.locator(".card-head").first.inner_text()}
     await rec.scroll_to(result, "start")
+    cite = page.locator(".cite").first
+    if await cite.count():
+        await cite.hover()  # lights up its sentence and source
+        await asyncio.sleep(0.8)
     await rec.narrate("ask_answer")
     passage = page.locator(".source .source-head").first
     if await passage.count():
@@ -646,6 +651,20 @@ async def approve(rec: Recorder, family: str, expect: str) -> str:
     return str(await result.inner_text())
 
 
+def draft_once_more(transcript: list[dict[str, Any]], token: str) -> dict[str, Any]:
+    """The draft, asked for once more when the note writer gave none (422): on free tiers a long
+    consultation sometimes fails both of the graph's attempts, and a whole take would be lost."""
+    for attempt in (1, 2):
+        try:
+            return post_draft(transcript, PATIENT["id"], token)
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text[:300]
+            if exc.response.status_code != 422 or attempt == 2:
+                raise RuntimeError(f"no draft: {exc.response.status_code} {detail}") from None
+            print(f"no draft on the first request ({detail}); asking once more", flush=True)
+    raise AssertionError("unreachable")
+
+
 async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
     page = rec.page
     await rec.card(SCRIBE_CARD)
@@ -688,7 +707,7 @@ async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
     transcript = transcript_for_api(turns, roles)
     await rec.settle()
     draft = await rec.wait(
-        "Writing the draft", asyncio.to_thread(post_draft, transcript, PATIENT["id"], token)
+        "Writing the draft", asyncio.to_thread(draft_once_more, transcript, token)
     )
     await rec.set(
         "sc-s",
@@ -714,7 +733,8 @@ async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
     count = await statements.count()
     for index in range(0, count, max(1, count // 7)):  # about seven stops through the draft
         await rec.scroll_to(statements.nth(index))
-        await asyncio.sleep(0.3)
+        await statements.nth(index).hover()  # lights up the transcript turns it came from
+        await asyncio.sleep(0.5)
     await rec.narrate("scribe_wrong")
     refused = await approve(rec, PATIENT["wrong"], ".approve-bar .refusal")
     if "refused" not in refused:

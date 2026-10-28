@@ -1,8 +1,8 @@
 # Demo video
 
-- **File:** `.artifacts/demo/clinscribe_demo.mp4` (git-ignored): 4 min 50 s, 1920×1080, H.264 + AAC,
-  21.3 MB, recorded 2026-10-19 (Deepgram Aura voices; earlier takes used Cartesia until its free
-  credit ran out).
+- **File:** `.artifacts/demo/clinscribe_demo.mp4` (git-ignored): 5 min 13 s, 1920×1080, H.264 + AAC,
+  21.4 MB, recorded 2026-10-29 on the redesigned review UI (Deepgram Aura voices). The previous take
+  (2026-10-19, the old UI, 4 min 50 s) is kept beside it as `old-ui-2026-10-19_clinscribe_demo.mp4`.
 - **Link:** _to be added after upload (YouTube, unlisted)_.
 - **Made with:** `just demo-video` (`scripts/demo_video.py`). The script drives the review UI in a hidden
   Chrome (Playwright, the installed browser), records it with the DevTools screencast and assembles frames
@@ -22,21 +22,28 @@ the API keeps `DEV_LOGIN=false`.
 
 ## Scenes
 
-| Time | Scene | Shown |
-|---|---|---|
-| 0:00 | Title, architecture | modes; voice → de-ID → LangGraph agent → MCP tools → LiteLLM gateway |
-| 0:30 | Voice question | "What is the usual starting dose of warfarin?" → transcript → cited answer (fast path) → spoken answer; time per stage |
-| 1:10 | Ask in the review UI | "Does clarithromycin interact with warfarin?" → agentic path, cited sentences, sources with passages |
-| 1:50 | Scribe from audio | PriMock57 day3_consultation02: live diarized transcript (the patient's name, birth date and address are said in the first 30 s) → roles (speaker 0 doctor, speaker 1 patient, 59 turns) → draft (25 statements, 11 flagged "no guideline source"; name, birth date, address and postcode as surrogates) → opened from "Drafts awaiting review" → wrong family name **refused**, the draft stays open ("2 attempts left") → corrected → `Saved to FHIR: DocumentReference/62852` |
-| 3:50 | Audit log (admin) | the run's actions, with model and prompt version |
-| 4:00 | Results, end card | measured results, including the voice latency budget not met |
+| Scene | Shown |
+|---|---|
+| Title, architecture | modes; voice → de-ID → LangGraph agent → MCP tools → LiteLLM gateway |
+| Voice question | "What is the usual starting dose of warfarin?" → transcript → cited answer (fast path) → spoken answer; time per stage |
+| Ask in the review UI | "Does clarithromycin interact with warfarin?" → agentic path, three cited sentences; pointing at a citation lights up its source, a passage opens in place |
+| Scribe from audio | PriMock57 day3_consultation02: live diarized transcript (the patient's name, birth date and address are said in the first 30 s) → roles (speaker 0 doctor, speaker 1 patient, 61 turns) → draft (42 statements, 15 without a guideline source, unsure speech marked; name, birth date and address as surrogates) → opened from "Awaiting your review"; pointing at statements lights up their turns → wrong family name **refused**, the draft stays open ("2 attempts left") → corrected → "Approved and saved. FHIR DocumentReference/68511" |
+| Audit log (admin) | the run's actions, with model and prompt version |
+| Results, end card | measured results, including the voice latency budget not met |
 
-Voice stages in this run (one turn, so no percentiles): end of speech → final transcript 1,470 ms
-(endpointing included), Ask 2,511 ms, first audio byte 1,343 ms, **time to first audio 5,324 ms** against
-the 1,500 ms budget. Over 30 questions the p50 / p95 are 4,296 / 7,093 ms (`evals/reports/voice/latency.md`,
-2026-10-19).
+Voice stages in this run (one turn, so no percentiles): end of speech → final transcript 1,113 ms
+(endpointing included), Ask 9,049 ms (a slow evening on the free tiers: the agentic Ask in the same take
+took 26.9 s), first audio byte 1,539 ms, **time to first audio 11,701 ms** against the 1,500 ms budget.
+Over 30 questions the p50 / p95 are 4,296 / 7,093 ms (`evals/reports/voice/latency.md`, 2026-10-19).
 
 ## Found while making it
+
+- 2026-10-29: two takes ended without a draft ("no draft produced"). The note writer's calls went to
+  `gemini-2.5-flash` in the default pool, which spends the 4,500-token output limit on thinking, and the
+  retry came back cut off; the graph then discarded the first attempt, which had been usable. Fixed in
+  the graph: when the retry has no valid statements, the first draft is kept without its failing
+  statements (PROGRESS, 2026-10-29); the script also asks once more on a 422. The third take drafted
+  first time.
 
 - An earlier take used two synthetic TTS voices for the consultation: Deepgram's diarization (live and
   batch) did not tell them apart, so the take uses a real recording.
@@ -50,11 +57,13 @@ the 1,500 ms budget. Over 30 questions the p50 / p95 are 4,296 / 7,093 ms (`eval
 
 ## Not shown
 
-Lab mode, failover (`just gate 5`), the browser WebRTC client (not built; the console agent is `just voice`).
+Lab mode (it has a screen since 2026-10-28), failover (`just gate 5`), and the browser Voice tab (the
+voice scene runs the same pipeline from the script).
 
 ## Re-record
 
-`just up rag`, `npm --prefix apps/web run dev`, then `just demo-video` (about 10 minutes; `--scenes
-title,results` records a subset). Narration audio is cached in `.artifacts/demo/tts/`, so a re-recording
-pays only for the live calls: two Ask turns, about 7 minutes of streamed audio, two drafts and one spoken
+`just up rag`, `npm --prefix apps/web run dev`, then `just demo-video` (about 20 minutes on the free
+tiers; `--scenes title,results` records a subset, `--out <folder>` writes elsewhere instead of replacing
+this take). Narration audio is cached in `.artifacts/demo/tts/`, so a re-recording
+pays only for the live calls: two Ask turns, about 7 minutes of streamed audio, one draft and one spoken
 answer.
