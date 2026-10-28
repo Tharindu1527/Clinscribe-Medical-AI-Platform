@@ -17,6 +17,7 @@ from agents.tools import McpTools
 from apps.api.audit import AuditLog
 from apps.api.clinical import router as clinical
 from apps.api.drafts import PostgresDrafts
+from apps.api.edits import PostgresEditPairs
 from apps.api.labs import PostgresLabResults
 from apps.api.pipeline import Pipeline
 from config.db import app_conninfo
@@ -65,6 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.ask_graph = agents.build()  # Ask: nothing to resume, so nothing is stored
     app.state.tools = tools
     app.state.drafts = PostgresDrafts(app_conninfo(settings))
+    app.state.edits = PostgresEditPairs(app_conninfo(settings))  # doctors' edits (ADR-0028)
     app.state.labs = PostgresLabResults(app_conninfo(settings))  # durable, like drafts
     app.state.pipeline = Pipeline(
         deid=deid,

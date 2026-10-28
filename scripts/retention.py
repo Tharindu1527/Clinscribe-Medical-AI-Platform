@@ -15,11 +15,12 @@ transaction as the deletions. Connects as the "retention" login (scripts/migrate
 de-ID mappings and checkpoints, end drafts and append to the audit log, nothing else.
 
 Removed: drafts nobody reviewed in time (ended "expired", checkpoints deleted), lab results nobody
-confirmed in time (ended "expired", their values dropped) and de-ID mappings of
+confirmed in time (ended "expired", their values dropped), doctors' edit pairs past their limit
+(ADR-0028) and de-ID mappings of
 idle encounters, the only place ClinScribe keeps original PHI (encrypted). Always whole encounters:
 surrogate numbers count an encounter's rows, so a partial delete would hand a number out twice.
 Erasure of one patient ends their drafts and lab results still waiting ("erased") and deletes the
-mapping of every encounter their drafts used, whatever its age.
+mapping of every encounter their drafts used and the edit pairs of their drafts, whatever their age.
 Kept: the audit log, the drafts and lab-results lists (pseudonymous outcome rows) and the FHIR
 record. Not reached: Ask and voice encounters (not tied to a patient; the idle limit removes their
 mappings), de-identified traces.
@@ -63,11 +64,13 @@ class Plan:
     encounters: list[str] = field(default_factory=list)  # whose whole mapping goes
     mappings: Counter[str] = field(default_factory=Counter)  # rows by entity type
     labs: list[str] = field(default_factory=list)  # lab results awaiting confirmation: to end
+    edit_pairs: list[str] = field(default_factory=list)  # draft ids whose edit pair goes
 
     def summary(self) -> dict[str, Any]:
         return {
             "drafts_ended": len(self.drafts),
             "lab_results_ended": len(self.labs),
+            "edit_pairs_deleted": len(self.edit_pairs),
             "encounters": len(self.encounters),
             "mappings_deleted": sum(self.mappings.values()),
             "by_type": dict(sorted(self.mappings.items())),
@@ -80,6 +83,7 @@ def limits(path: Path = CONFIG) -> dict[str, int]:
         "drafts_awaiting_review_days",
         "lab_results_awaiting_confirmation_days",
         "deid_mapping_idle_days",
+        "edit_pairs_days",
     )
     return {k: int(cfg[k]) for k in keys}
 
@@ -128,7 +132,15 @@ def plan_retention(conn: psycopg.Connection[Any], now: datetime, days: dict[str,
             (AWAITING, lab_cutoff),
         )
     ]
-    return Plan(expired, idle, _mapping_counts(conn, idle), labs)
+    pairs_cutoff = now - timedelta(days=days["edit_pairs_days"])
+    pairs = [
+        str(r[0])
+        for r in conn.execute(
+            "SELECT draft_id FROM edit_pairs WHERE created_at < %s ORDER BY created_at",
+            (pairs_cutoff,),
+        )
+    ]
+    return Plan(expired, idle, _mapping_counts(conn, idle), labs, pairs)
 
 
 def plan_erasure(conn: psycopg.Connection[Any], patient_id: str) -> Plan:
@@ -154,7 +166,14 @@ def plan_erasure(conn: psycopg.Connection[Any], patient_id: str) -> Plan:
             (patient_id, AWAITING),
         )
     ]
-    return Plan(waiting, encounters, _mapping_counts(conn, encounters), labs)
+    pairs = [
+        str(r[0])
+        for r in conn.execute(
+            "SELECT draft_id FROM edit_pairs WHERE draft_id = ANY(%s) ORDER BY draft_id",
+            ([str(d) for d, _, _ in rows],),
+        )
+    ]
+    return Plan(waiting, encounters, _mapping_counts(conn, encounters), labs, pairs)
 
 
 def apply(
@@ -199,11 +218,19 @@ def apply(
             (ended_as, datetime.now(UTC), plan.labs, AWAITING),
         )
     ]
+    pairs = [
+        str(r[0])
+        for r in conn.execute(
+            "DELETE FROM edit_pairs WHERE draft_id = ANY(%s) RETURNING draft_id",
+            (plan.edit_pairs,),
+        )
+    ]
     return Plan(
         ended,
         sorted({str(e) for e, _ in deleted}),
         Counter(str(t) for _, t in deleted),
         labs,
+        sorted(pairs),
     )
 
 
@@ -234,8 +261,9 @@ def subject_access(
     patient_id: str,
 ) -> dict[str, Any]:
     """Everything ClinScribe holds about one patient: drafts (a waiting draft's transcript and note
-    re-identified), the de-ID mapping's originals, and the audit rows that name the patient, their
-    drafts or encounters (who read or changed what, when)."""
+    re-identified), the doctors' edit pairs of their drafts (re-identified while the mapping is
+    kept), the de-ID mapping's originals, and the audit rows that name the patient, their drafts or
+    encounters (who read or changed what, when)."""
     drafts = conn.execute(
         "SELECT draft_id, encounter_id, created_by, created_at, status, ended_at, resource_id "
         "FROM drafts WHERE patient_id = %s ORDER BY created_at",
@@ -272,6 +300,28 @@ def subject_access(
             }
         items.append(item)
     ids = [str(d[0]) for d in drafts]
+    encounter_of = {str(d[0]): str(d[1]) for d in drafts}
+
+    def statements(note: dict[str, Any], encounter: str) -> list[dict[str, str]]:
+        return [
+            {"section": s["section"], "text": restore(s["text"], encounter)}
+            for s in note.get("statements", [])
+        ]
+
+    edit_pairs = [
+        {
+            "draft_id": draft_id,
+            "reviewer": reviewer,
+            "created_at": created,
+            "before": statements(before, encounter_of[draft_id]),
+            "after": statements(after, encounter_of[draft_id]),
+        }
+        for draft_id, reviewer, created, before, after in conn.execute(
+            "SELECT draft_id, reviewer, created_at, before, after FROM edit_pairs "
+            "WHERE draft_id = ANY(%s) ORDER BY created_at",
+            (ids,),
+        )
+    ]
     log = conn.execute(
         "SELECT seq, ts, actor, role, action, resource_type, resource_id, encounter_id "
         "FROM audit_log WHERE resource_id = %s OR resource_id = ANY(%s) "
@@ -298,6 +348,7 @@ def subject_access(
         **ABOUT,
         "retention": limits(),
         "drafts": items,
+        "edit_pairs": edit_pairs,
         "identifiers_held": [
             {"encounter_id": e, "type": kind, "surrogate": sur, "original": orig}
             for e, rows in held.items()
@@ -338,6 +389,7 @@ def access(args: argparse.Namespace, settings: Settings, audit: AuditLog) -> int
         counts = {
             "drafts": len(report["drafts"]),
             "lab_results": len(report["lab_results"]),
+            "edit_pairs": len(report["edit_pairs"]),
             "identifiers": len(report["identifiers_held"]),
             "audit_rows": len(report["access_log"]),
         }

@@ -12,6 +12,10 @@ lab_results_awaiting_confirmation_days: 14
 # a draft waits (the doctor reads originals; the approved record is re-identified) and not after:
 # the record in FHIR holds the originals. Deleted as whole encounters, never partly.
 deid_mapping_idle_days: 30
+# Doctors' before/after edits, kept as evaluation data (ADR-0028): de-identified notes, linked to
+# the patient only through the draft id; once the encounter's mapping is gone they cannot be
+# re-identified. A default to confirm with the data protection officer.
+edit_pairs_days: 365
 # Kept on purpose (ADR-0022): the audit log (append-only, at least the AI Act's six months; no
 # deletion is implemented), the drafts and lab-results lists (pseudonymous outcome rows), the
 # FHIR record (its retention is the EHR controller's).

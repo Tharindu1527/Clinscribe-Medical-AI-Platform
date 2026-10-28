@@ -19,6 +19,7 @@ from agents.graph import Agents
 from apps.api.auth import Principal, principal
 from apps.api.clinical import router
 from apps.api.drafts import MemoryDrafts
+from apps.api.edits import MemoryEditPairs
 from privacy.deid.app import app as deid_app
 from privacy.deid.client import DeidClient, DeidOutput, Reidentified
 from privacy.deid.engine import Deidentifier
@@ -154,6 +155,7 @@ def api(monkeypatch: pytest.MonkeyPatch) -> tuple[TestClient, FakeTools, FakeAud
     app.state.graph = agents.build(app.state.checkpointer)
     app.state.ask_graph = agents.build()
     app.state.drafts = MemoryDrafts()
+    app.state.edits = MemoryEditPairs()
     return TestClient(app), tools, app.state.audit
 
 
