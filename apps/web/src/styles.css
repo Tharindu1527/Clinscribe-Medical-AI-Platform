@@ -34,9 +34,11 @@ label.toggle { flex-direction: row; align-items: center; gap: 8px; font-weight: 
 .waiting li { margin: 6px 0; color: var(--muted); font-size: 0.9rem; }
 .statement { display: flex; align-items: center; gap: 8px; margin: 4px 0; flex-wrap: wrap; }
 .statement input { flex: 1 1 320px; }
+.statement.unsure input { border-style: dashed; border-color: var(--accent); }
 .statement.unsupported input { border-color: var(--warn); background: var(--warn-bg); }
 .turns { color: var(--muted); font-size: 0.8rem; cursor: help; }
 .tag { font-size: 0.75rem; color: var(--warn); }
+.tag.speech { color: var(--accent); cursor: help; }
 .review { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
 .buttons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .error { color: var(--error); }
