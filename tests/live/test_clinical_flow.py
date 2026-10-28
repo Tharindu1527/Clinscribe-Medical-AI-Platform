@@ -13,6 +13,8 @@ import httpx
 import pytest
 
 from apps.api.auth import issue_token
+from apps.api.edits import PostgresEditPairs
+from config.db import app_conninfo
 from config.settings import Settings
 
 API = "http://127.0.0.1:8000"
@@ -119,6 +121,13 @@ def test_the_doctor_reads_and_the_record_holds_the_originals(patient: dict[str, 
     result = response.json()["result"]
     assert result["status"] == "written", result
     assert name not in str(result["edit_pair"])  # future evaluation data stays de-identified
+    [kept] = [
+        p
+        for p in PostgresEditPairs(app_conninfo(Settings())).all()
+        if p.draft_id == draft["draft_id"]
+    ]
+    assert "three weeks" in str(kept.after)  # the doctor's edit, kept for evaluation (ADR-0028)
+    assert name not in str(kept.before) + str(kept.after)
     doc = httpx.get(
         f"{Settings().fhir_base_url}/DocumentReference/{result['resource_id']}", timeout=30
     ).json()

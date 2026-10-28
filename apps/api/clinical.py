@@ -11,6 +11,8 @@ survive a restart; the PHI a write needs is passed as run context, never checkpo
 draft's checkpoints are deleted when it ends (ADR-0016).
 Words the speech recogniser was unsure of come with the Scribe listener's turns and are shown on
 the statements that rely on them (ADR-0027); only those still in the de-identified turn are kept.
+An approved draft the doctor edited leaves a before/after pair for evaluation, in surrogate form
+(ADR-0028).
 """
 
 import hmac
@@ -35,6 +37,7 @@ from agents.speech_flags import flag_statements, kept
 from apps.api.audit import AuditEntry
 from apps.api.auth import Principal, issue_token, require, users
 from apps.api.drafts import WAITING, Draft
+from apps.api.edits import EditPair
 from apps.api.labs import PendingLab
 from apps.api.voice_token import room_token
 from config.db import app_conninfo
@@ -348,16 +351,28 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
         if not (body.birth_date and body.family_name):
             raise HTTPException(422, "approval needs the patient's birth date and family name")
         encounter_id = state.values["encounter_id"]
-        if body.edited is not None and body.edited_identified:
-            # the doctor's words go to the record; the graph keeps them in surrogate form
-            record = body.edited
+        if body.edited is not None:
+            # the graph (and the edit pair kept for evaluation, ADR-0028) gets the edits in
+            # surrogate form, whichever view they were typed on: a name typed on the AI's view
+            # would otherwise reach the checkpoint as typed. A statement left as the doctor saw it
+            # keeps the model's text: de-identified again, the tagger took "Patient" for a name
+            model_texts = [s.text for s in SoapNote.model_validate(state.values["note"]).statements]
+            shown = (
+                _reidentify(request, who, encounter_id, model_texts, "review", draft_id)
+                if body.edited_identified
+                else model_texts
+            )
+            as_model = dict(zip(shown, model_texts, strict=True))
             deid = request.app.state.deid
             texts = [
-                deid.deidentify(s.text, encounter_id).text.text for s in body.edited.statements
+                as_model.get(s.text) or deid.deidentify(s.text, encounter_id).text.text
+                for s in body.edited.statements
             ]
             decision = decision.model_copy(update={"edited": _with_texts(body.edited, texts)})
+        if body.edited is not None and body.edited_identified:
+            record = body.edited  # the doctor's words go to the record
         else:
-            note = body.edited or SoapNote.model_validate(state.values["note"])
+            note = decision.edited or SoapNote.model_validate(state.values["note"])
             texts = [s.text for s in note.statements]
             record = _with_texts(
                 note, _reidentify(request, who, encounter_id, texts, "record", draft_id)
@@ -383,6 +398,14 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
         meta.encounter_id,
     )
     result = out.get("result", {})
+    pair = result.get("edit_pair") if result.get("status") == "written" else None
+    if pair:  # kept as evaluation data, in surrogate form (ADR-0028)
+        before = pair["before"]
+        request.app.state.edits.add(
+            EditPair(
+                draft_id, who.user, before["prompt_version"], before["model"], before, pair["after"]
+            )
+        )
     if not out.get("__interrupt__"):  # the draft ended: keep the outcome, drop its state
         request.app.state.drafts.finish(draft_id, result.get("status"), result.get("resource_id"))
         request.app.state.checkpointer.delete_thread(draft_id)
@@ -396,6 +419,7 @@ def review(draft_id: str, body: ReviewRequest, request: Request, who: Doctor) ->
             "draft_id": draft_id,
             "status": result.get("status"),
             "edited": body.decision == "edit",
+            "edit_pair_kept": bool(pair),
         },
     )
     response: dict[str, Any] = {"draft_id": draft_id, "result": result}

@@ -167,6 +167,11 @@ load:
     @echo "Load tests are not implemented until Phase 6."; exit 1
 
 # Bearer token for a synthetic demo user (config/users.yaml), e.g. `just token dr-demo`
+# Doctors' before/after edits as evaluation data (ADR-0028): PHI scan, then
+# data/edit_pairs/edit_pairs.jsonl (git-ignored); prints counts only
+edit-pairs:
+    uv run python -m evals.agents.edit_pairs
+
 token user:
     uv run python -m apps.api.auth {{user}}
 

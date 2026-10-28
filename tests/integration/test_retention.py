@@ -16,6 +16,7 @@ from psycopg.rows import dict_row
 
 from apps.api.audit import AuditEntry, AuditLog
 from apps.api.drafts import Draft, PostgresDrafts
+from apps.api.edits import EditPair, PostgresEditPairs
 from apps.api.labs import PendingLab, PostgresLabResults
 from config.db import app_conninfo, owner_conninfo, retention_conninfo
 from config.settings import Settings
@@ -34,6 +35,7 @@ def _cleanup() -> None:
     with psycopg.connect(owner_conninfo(Settings())) as conn:
         for table in CHECKPOINT_TABLES:
             conn.execute(f"DELETE FROM {table} WHERE thread_id LIKE %s", (PREFIX + "%",))  # noqa: S608
+        conn.execute("DELETE FROM edit_pairs WHERE draft_id LIKE %s", (PREFIX + "%",))
         conn.execute("DELETE FROM drafts WHERE draft_id LIKE %s", (PREFIX + "%",))
         conn.execute("DELETE FROM deid_mappings WHERE encounter_id LIKE %s", (PREFIX + "%",))
         conn.execute("DELETE FROM lab_results WHERE lab_id LIKE %s", (PREFIX + "%",))
@@ -85,6 +87,29 @@ def _lab(name: str, patient: str, *, old: bool = False) -> str:
     return lab_id
 
 
+def _edit_pair(draft_id: str, *, old: bool = False) -> None:
+    """A doctor's edit pair for a draft, as the API keeps it (surrogate form)."""
+    before = {"statements": [{"section": "plan", "text": "PERSON_1 to rest."}], "model": "m"}
+    after = {"statements": [{"section": "plan", "text": "PERSON_1 to rest for a week."}]}
+    PostgresEditPairs(app_conninfo(Settings())).add(
+        EditPair(draft_id, "dr-demo", "note_writer@v2", "m", before, after)
+    )
+    if old:
+        with psycopg.connect(owner_conninfo(Settings())) as conn:
+            conn.execute(
+                "UPDATE edit_pairs SET created_at = %s WHERE draft_id = %s", (OLD, draft_id)
+            )
+
+
+def _pairs(*draft_ids: str) -> list[str]:
+    with psycopg.connect(owner_conninfo(Settings())) as conn:
+        rows = conn.execute(
+            "SELECT draft_id FROM edit_pairs WHERE draft_id = ANY(%s) ORDER BY draft_id",
+            (list(draft_ids),),
+        ).fetchall()
+    return [str(r[0]) for r in rows]
+
+
 def _lab_state(lab_id: str) -> tuple[str, bool]:
     """(status, values still held), read as the owner."""
     with psycopg.connect(owner_conninfo(Settings())) as conn:
@@ -133,10 +158,16 @@ def test_retention_ends_stale_drafts_and_removes_idle_mappings(db: None) -> None
     ended = _seed("ended", "p-a", waiting=False, old_draft=True, old_map=True)
     fresh = _seed("fresh", "p-a")
     stale_lab, fresh_lab = _lab("stale", "p-a", old=True), _lab("fresh", "p-a")
+    _edit_pair(ended[0], old=True)
+    _edit_pair(fresh[0])  # a recent pair (the draft itself still waits: a fixture shortcut)
+    later = NOW + timedelta(days=DAYS["edit_pairs_days"])  # past the pairs' limit for OLD rows
     with psycopg.connect(retention_conninfo(Settings())) as conn:
         plan = retention.plan_retention(conn, NOW, DAYS)
+        assert retention.plan_retention(conn, later, DAYS).edit_pairs == [ended[0]]
     assert plan.drafts == [stale[0]]
     assert plan.labs == [stale_lab]
+    assert plan.edit_pairs == []  # 60 days old: inside the limit
+    plan.edit_pairs = [ended[0]]
     assert plan.encounters == sorted([stale[1], ended[1]])
     idle = NOW - timedelta(days=DAYS["deid_mapping_idle_days"])
     entry = AuditEntry(actor="retention-job", role="operator", action="retention.run")
@@ -147,6 +178,7 @@ def test_retention_ends_stale_drafts_and_removes_idle_mappings(db: None) -> None
     assert _state(*fresh) == ("awaiting_review", 1, 1)
     assert _lab_state(stale_lab) == ("expired", False)  # nobody confirmed it: the values go
     assert _lab_state(fresh_lab) == ("awaiting_confirmation", True)
+    assert _pairs(ended[0], fresh[0]) == [fresh[0]]
     row = _audit_row(seq)
     assert (row["action"], row["details"]["drafts_ended"], row["details"]["mappings_deleted"]) == (
         "retention.run",
@@ -176,6 +208,8 @@ def test_erasure_removes_one_patients_mappings_and_waiting_drafts(db: None) -> N
     ended = _seed("p1-ended", "ret-p1", waiting=False)
     other = _seed("p2", "ret-p2")
     lab, other_lab = _lab("p1", "ret-p1"), _lab("p2", "ret-p2")
+    _edit_pair(ended[0])
+    _edit_pair(other[0])
     store = PostgresStore(app_conninfo(settings), settings.deid_mapping_key)
     assert store.original_for(waiting[1], "PERSON_1") == "Synthetic Person"
     assert retention.main(["erase", "ret-p1", "--request", "DSR-1", "--by", "admin-demo"]) == 0
@@ -189,6 +223,7 @@ def test_erasure_removes_one_patients_mappings_and_waiting_drafts(db: None) -> N
     assert _state(*other) == ("awaiting_review", 1, 1)
     assert _lab_state(lab) == ("erased", False)
     assert _lab_state(other_lab) == ("awaiting_confirmation", True)
+    assert _pairs(ended[0], other[0]) == [other[0]]
     assert store.original_for(waiting[1], "PERSON_1") is None  # nothing left to re-identify
     assert store.surrogate_for(waiting[1], "PERSON", "New Synthetic") == "PERSON_1"
     with psycopg.connect(owner_conninfo(settings), row_factory=dict_row) as conn:
@@ -201,6 +236,7 @@ def test_erasure_removes_one_patients_mappings_and_waiting_drafts(db: None) -> N
         "request": "DSR-1",
         "drafts_ended": 1,
         "lab_results_ended": 1,
+        "edit_pairs_deleted": 1,
         "encounters": 2,
         "mappings_deleted": 2,
         "by_type": {"PERSON": 2},
@@ -247,6 +283,11 @@ def test_each_login_can_do_only_its_part(db: None) -> None:
         pytest.raises(psycopg.errors.InsufficientPrivilege),
     ):
         conn.execute("DELETE FROM deid_mappings WHERE encounter_id LIKE 'ret-it-%'")
+    with (
+        psycopg.connect(app_conninfo(settings)) as conn,
+        pytest.raises(psycopg.errors.InsufficientPrivilege),
+    ):
+        conn.execute("DELETE FROM edit_pairs WHERE draft_id LIKE 'ret-it-%'")
 
 
 def _waiting_draft_with_content(name: str, patient: str) -> tuple[str, str]:
@@ -291,6 +332,7 @@ def test_an_access_request_copies_one_patients_data_and_nothing_else(db: None) -
         AuditEntry(actor="dr-demo", role="doctor", action="fhir.read", resource_id=patient)
     )
     pending_lab = _lab("p5", patient)
+    _edit_pair(ended[0])  # its mapping holds PERSON_1 = "Synthetic Person"
     path = retention.ACCESS_DIR / f"DSR-A1-{patient}.json"
     try:
         assert retention.main(["access", patient, "--request", "DSR-A1", "--by", "admin-demo"]) == 0
@@ -311,6 +353,10 @@ def test_an_access_request_copies_one_patients_data_and_nothing_else(db: None) -
         [lab_copy] = report["lab_results"]
         assert lab_copy["lab_id"] == pending_lab
         assert lab_copy["awaiting_confirmation"]["observations"][0]["valueQuantity"]["value"] == 131
+        [pair] = report["edit_pairs"]
+        assert pair["after"] == [
+            {"section": "plan", "text": "Synthetic Person to rest for a week."}
+        ]
         assert "Cy Unrelated" not in text  # another patient's identifiers
         assert other[0] not in text  # and drafts
     finally:
@@ -325,6 +371,7 @@ def test_an_access_request_copies_one_patients_data_and_nothing_else(db: None) -
         "request": "DSR-A1",
         "drafts": 2,
         "lab_results": 1,
+        "edit_pairs": 1,
         "identifiers": 2,
         "audit_rows": 1,
     }
