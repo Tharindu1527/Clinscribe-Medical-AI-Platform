@@ -107,8 +107,10 @@ services:
     image: ${DEID_IMAGE:-clinscribe-python:dev}
     profiles: [core]
     mem_limit: ${DEID_MEM_LIMIT:-2560m}  # 3 workers x ~0.4-0.5 GB (spaCy model per process)
-    # 3 workers (Phase 6 load test): one process queued to p95 26 s at 10+ sessions
-    command: ["uvicorn", "privacy.deid.app:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "3"]
+    # 3 workers (Phase 6 load test): one process queued to p95 26 s at 10+ sessions.
+    # Health check 60 s, not uvicorn's 5: a worker paging its model back in under memory pressure
+    # missed the 5 s ping and was killed mid-request (postmortem 0005)
+    command: ["uvicorn", "privacy.deid.app:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "3", "--timeout-worker-healthcheck", "60"]
     environment:
       POSTGRES_HOST: postgres
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
