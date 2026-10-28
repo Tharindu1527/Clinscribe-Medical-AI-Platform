@@ -70,6 +70,7 @@ Option 1.
 - The scan's spaCy rules miss some names that have no cue around them ("Morgan Ellis is thirsty."
   passes; "Mr Morgan Ellis" and "Jane Smith reports chest pain." do not): it is a second opinion
   after the service's de-ID, not a guarantee. Review exported rows before they leave the machine.
-- The tagger's over-redaction of "Patient" also affects what it de-identifies elsewhere (a
-  doctor's edit, an Ask question starting with "Patient"); it is the class of error ADR-0014
-  measured (1 of 40 PHI-free sentences) and is not changed here.
+- The tagger's over-redaction of "Patient" also affected what it de-identifies elsewhere (a
+  doctor's edit, an Ask question starting with "Patient"). Update: fixed in the engine by
+  ADR-0029 (a model's guess that is only a role word is dropped): 16 of 40 role-word sentences
+  altered before, 0 after.

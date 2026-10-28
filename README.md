@@ -39,6 +39,21 @@ through one gateway; no clinical write without a doctor's approval token for the
 Only the doctor's screen and the approved record see the originals, re-identified by the API and
 audited (ADR-0015).
 
+## The review UI
+
+Every mode ends at the doctor's screen (`apps/web`, React + Vite, light and dark): cited answers
+whose numbers light up their sources, the SOAP draft beside the transcript with unsupported and
+unsure statements flagged, lab values with ranges and flags, and the audit log. `just ui-demo` runs
+it on responses recorded from the real system, with no stack or keys (`apps/web/README.md`).
+
+| Ask: every sentence cites a passage | Scribe: the draft beside its transcript |
+|---|---|
+| ![Ask](docs/presentation/ui/ask-light.png) | ![Scribe review](docs/presentation/ui/scribe-review-light.png) |
+| **Lab: values to confirm, with flags** | **Audit log: who did what, with which model** |
+| ![Lab](docs/presentation/ui/lab-light.png) | ![Audit log](docs/presentation/ui/audit-light.png) |
+
+Dark theme and the sign-in screen: `docs/presentation/ui/`.
+
 ## Results (all from `evals/reports/`, synthetic/public data, one laptop)
 
 | Area | Result | Report |
@@ -49,7 +64,7 @@ audited (ADR-0015).
 | Drug facts | interaction pairs no passage mentions: answered 10/10 with DDInter facts vs 4/10 without | `rag/answers_graph_facts.md` |
 | Routing | 39 golden questions down both paths: the agentic loop raises faithfulness **+0.103** [+0.015, +0.206] but not correctness (0.833 both); the router (17% agentic on the full set) shows no measurable loss against always-agentic (correctness +0.026 [−0.026, +0.090], faithfulness −0.038 [−0.117, +0.019]) at ~1.3 vs 2.4 model calls per question; agentic median 7.2 s vs 1.9 s | `agents/router_quality.md` |
 | Safety | red-team **67/67** (unsourced doses, also written in words, diagnosis wording, injections, PHI, unapproved writes, wrong-drug answers); negative control 23/67. Questions about a drug no source names abstain before any model call (0 of 209 answerable golden questions blocked, ADR-0018) | `redteam/redteam.md`, `rag/drug_grounding.md` |
-| Privacy | 0 seeded PHI values in 6 sinks (traces, logs, Langfuse, spend logs, audit, mapping); de-ID structured recall 1.000; names / places on unseen phrasings 0.973 / 0.850 with spaCy rules → **0.991 / 1.000 with the LoRA fine-tuned tagger** (held-out v1; 1.000 / 1.000 on a set frozen before training), PHI-free sentences altered 1/40 vs 3/40 (ADR-0014) | `privacy/` |
+| Privacy | 0 seeded PHI values in 6 sinks (traces, logs, Langfuse, spend logs, audit, mapping); de-ID structured recall 1.000; names / places on unseen phrasings 0.973 / 0.850 with spaCy rules → **0.991 / 1.000 with the LoRA fine-tuned tagger** (held-out v1; 1.000 / 1.000 on a set frozen before training), PHI-free sentences altered 1/40 vs 3/40 (ADR-0014); the tagger took role words for names ("Patient has been ...": 16 of 40 note-style sentences altered), now 0/40 with recall unchanged (ADR-0029) | `privacy/` |
 | Scribe | ACI-Bench, 8 consultations vs the clinician's reference note (rubric judge, indicative): fact recall 0.85, **critical facts 0.92** (medications, doses, results, plan; controls: the reference 1.00, the draft without assessment and plan 0.50), statements supported by their cited turns 0.97 (3 of 171 not); all 8 drafted this time (6 of 8 on 2026-10-14: long consultations are near the free-tier output budget) | `agents/note_quality.md`, `agents/note_writer.md` |
 | Lab | PDF: 155/155 values mapped and flagged (fixed synthetic layout); HL7 v2 ORU^R01: 155/155 (LOINC, value, UCUM unit, flag), identity checked by name, birth date and MRN; wrong-patient control 20/20 for both (ADR-0021) | `lab/lab_parser.md`, `lab/hl7_oru.md` |
 | Reliability | turns succeed with the primary down (p50 779 / p95 1,080 ms) and with **every cloud provider down** (local Ollama) | `llmops/`, `just gate 5` |
@@ -82,8 +97,9 @@ just up voice; just voice dev   # browser voice: LiveKit server + agent worker, 
 just scribe 1617         # Scribe a consultation from the microphone (Enter to finish) or --file x.wav
 just up obs; just migrate   # dashboards: Grafana on 127.0.0.1:3000 (admin / GRAFANA_ADMIN_PASSWORD)
 just phoenix on         # optional local trace UI (Arize Phoenix, 127.0.0.1:6006); `just phoenix off`
-npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
-just demo-video          # re-record the demo video (needs the UI dev server, DEV_LOGIN=true, ffmpeg)
+npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173 (DEV_LOGIN=true)
+just ui-demo             # the review UI on recorded synthetic data, no stack (:5174)
+just demo-video          # re-record the demo video (needs the UI dev server and ffmpeg)
 just test; just gate 3   # tests; a phase gate
 ```
 

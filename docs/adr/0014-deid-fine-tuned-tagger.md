@@ -74,3 +74,7 @@ held-out v1 names 0.991 and places 1.000 (spaCy 0.973 / 0.850).
   replaces this one; the checksum above identifies the evaluated model.
 - Rolling back is one line in `.env` (`DEID_NER=spacy`, and the three Compose variables removed),
   then `just up`.
+- Update 2026-10-28 (ADR-0029): the tagger takes a role word at the start of a note sentence for a
+  name ("Patient has been ...", "Wife has noticed ..."): 16 of 40 such PHI-free sentences altered,
+  a class the PHI-free sets above did not cover. The engine now drops a model's guess that is only
+  a role word; recall on every set is unchanged.

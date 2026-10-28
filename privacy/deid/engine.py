@@ -23,6 +23,18 @@ CONTEXT_RECOGNIZER = "clinscribe-context"
 ALL_TYPES = (*NER_TYPES, *PATTERNS)
 MIN_SCORE = 0.5
 SURROGATE_RE = re.compile(r"\b(?:" + "|".join(ALL_TYPES) + r")_\d+\b")
+# A person's role in care, never an identifier on its own: the fine-tuned tagger took "Patient" at
+# the start of a note sentence for a name (ADR-0029; evals/privacy/role_words.py). Only a span that
+# is exactly one of these is dropped, so "Patient Jane Smith" still loses the name.
+ROLE_WORDS = frozenset(
+    {
+        "patient", "patients", "doctor", "nurse", "clinician", "gp", "consultant", "registrar",
+        "midwife", "pharmacist", "physiotherapist", "physio", "carer", "mother", "father", "mum",
+        "dad", "wife", "husband", "partner", "daughter", "son", "sister", "brother", "parent",
+        "parents", "child", "baby", "family",
+    }
+)  # fmt: skip
+_POSSESSIVE = re.compile(r"(?:'s|s'|')$")
 
 
 @dataclass(frozen=True)
@@ -78,17 +90,24 @@ def analyzer_for(ner: str, spacy_model: str, tagger_path: str = "") -> AnalyzerE
 
 
 def _not_phi(text: str, result: RecognizerResult) -> bool:
-    """Drop name/place spans that are clinical terms (de-ID v1, see privacy/deid/lexicon.py).
+    """Drop name/place spans that are clinical terms (de-ID v1, see privacy/deid/lexicon.py) or,
+    for a model's guess, a role word alone ("Patient", "Wife's").
 
-    spaCy guesses also pass the eponym rule ("Hodgkin lymphoma"); cue-based matches only the exact
-    lexicon check ("Sent from Cardiology"), so a cue such as "Dr. Parkinson" still redacts the name.
+    Model guesses (spaCy, the tagger) also pass the eponym rule ("Hodgkin lymphoma") and the role
+    words; cue-based matches only the exact lexicon check ("Sent from Cardiology"), so a cue such
+    as "Dr. Parkinson" or "Mr Son" still redacts the name.
     """
     if result.entity_type not in NER_TYPES:
         return False
-    if text[result.start : result.end].strip().lower() in clinical_terms():
+    span = text[result.start : result.end].strip().lower()
+    if span in clinical_terms():
         return True
     recognizer = (result.recognition_metadata or {}).get(RecognizerResult.RECOGNIZER_NAME_KEY)
-    return recognizer != CONTEXT_RECOGNIZER and is_clinical_term(text, result.start, result.end)
+    if recognizer == CONTEXT_RECOGNIZER:  # "Mr Son": after a cue a role word is a surname
+        return False
+    return _POSSESSIVE.sub("", span) in ROLE_WORDS or is_clinical_term(
+        text, result.start, result.end
+    )
 
 
 def _select(results: list[RecognizerResult]) -> list[RecognizerResult]:

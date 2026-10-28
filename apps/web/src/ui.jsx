@@ -1,0 +1,219 @@
+// Small UI kit for the review app: icons (drawn here, 24x24 strokes), buttons, badges, callouts.
+
+const PATHS = {
+  logo: <path d="M3 12h4l2.5-6 4 12 2.5-6H21" />,
+  ask: (
+    <>
+      <path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.1A8.5 8.5 0 1 1 21 12Z" />
+      <path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.4" />
+      <path d="M12 16.6h.01" />
+    </>
+  ),
+  voice: (
+    <>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+    </>
+  ),
+  scribe: (
+    <>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 3v5h5M9 13h6M9 17h4" />
+    </>
+  ),
+  lab: (
+    <>
+      <path d="M9 3h6M10 3v6.5L4.6 18.4A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.4-2.6L14 9.5V3" />
+      <path d="M7.5 15h9" />
+    </>
+  ),
+  audit: (
+    <>
+      <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6Z" />
+      <path d="m9 12 2 2 4-4" />
+    </>
+  ),
+  logout: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </>
+  ),
+  moon: <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" />,
+  check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  alert: (
+    <>
+      <path d="M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9.5v4M12 17h.01" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </>
+  ),
+  external: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />,
+  sparkles: (
+    <>
+      <path d="M12 3.5 13.6 8 18 9.5 13.6 11 12 15.5 10.4 11 6 9.5 10.4 8Z" />
+      <path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7Z" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  upload: <path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />,
+  refresh: <path d="M20 11a8 8 0 0 0-14.3-4.6L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.6L20 16M20 20v-4h-4" />,
+  send: <path d="M5 12h14M13 6l6 6-6 6" />,
+  back: <path d="M19 12H5M11 18l-6-6 6-6" />,
+  book: (
+    <>
+      <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5Z" />
+      <path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7.5h6" />
+    </>
+  ),
+  shield: <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6Z" />,
+  wave: <path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2" />,
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </>
+  ),
+  graph: (
+    <>
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="18" cy="8" r="2.5" />
+      <circle cx="9" cy="18" r="2.5" />
+      <path d="M8.2 7.1 15.6 7.6M7 8.3l1.4 7.3M16.6 10.1l-5.8 6.2" />
+    </>
+  ),
+  chevron: <path d="m6 9 6 6 6-6" />,
+  edit: <path d="M4 20h4L19 9l-4-4L4 16Z M13.5 6.5l4 4" />,
+  phone: <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />,
+};
+
+export function Icon({ name, size = 18, className = "", strokeWidth = 1.9, title }) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
+      {title && <title>{title}</title>}
+      {PATHS[name]}
+    </svg>
+  );
+}
+
+export function Button({ variant = "primary", size, icon, busy, children, className = "", ...rest }) {
+  const classes = ["btn", `btn-${variant}`, size === "sm" ? "btn-sm" : "", className].join(" ");
+  return (
+    <button className={classes} disabled={busy || rest.disabled} {...rest}>
+      {busy ? <span className="spinner" /> : icon && <Icon name={icon} size={16} />}
+      {children}
+    </button>
+  );
+}
+
+export function Badge({ tone = "neutral", icon, children, title }) {
+  return (
+    <span className={`badge badge-${tone}`} title={title}>
+      {icon && <Icon name={icon} size={12} strokeWidth={2.2} />}
+      {children}
+    </span>
+  );
+}
+
+const CALLOUT_ICON = { info: "info", warn: "alert", danger: "alert", ok: "check", speech: "wave" };
+
+export function Callout({ tone = "info", title, children }) {
+  return (
+    <div className={`callout callout-${tone}`} role={tone === "danger" ? "alert" : undefined}>
+      <Icon name={CALLOUT_ICON[tone]} size={17} />
+      <div>
+        {title && <strong>{title} </strong>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function AiBadge() {
+  return (
+    <Badge tone="ai" icon="sparkles" title="Generated by AI; a doctor decides">
+      AI-generated
+    </Badge>
+  );
+}
+
+export function PageHeader({ title, description, children }) {
+  return (
+    <div className="page-header">
+      <div>
+        <h1>{title}</h1>
+        {description && <p>{description}</p>}
+      </div>
+      {children && <div className="row">{children}</div>}
+    </div>
+  );
+}
+
+export function Empty({ icon, title, children }) {
+  return (
+    <div className="empty">
+      <div className="empty-icon">
+        <Icon name={icon} size={22} />
+      </div>
+      <strong>{title}</strong>
+      {children && <div className="small">{children}</div>}
+    </div>
+  );
+}
+
+export function Stat({ value, label, tone }) {
+  return (
+    <div className={`stat ${tone ?? ""}`}>
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
+    </div>
+  );
+}
+
+// A textarea that grows with its text (statements, transcripts).
+export function AutoText({ value, onChange, ...rest }) {
+  return (
+    <textarea
+      rows={1}
+      value={value}
+      onChange={onChange}
+      ref={(el) => {
+        if (el) {
+          el.style.height = "auto";
+          el.style.height = `${el.scrollHeight}px`;
+        }
+      }}
+      {...rest}
+    />
+  );
+}
+
+export const percent = (value) => `${Math.round(value * 100)}%`;
+
+export function seconds(ms) {
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+}

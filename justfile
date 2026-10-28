@@ -184,6 +184,18 @@ voice-turns *args:
 scribe patient *args:
     uv run --group voice python -m voice.scribe {{patient}} {{args}}
 
+# The review UI on recorded synthetic data, no stack needed (apps/web/README.md): http://127.0.0.1:5174
+ui-demo:
+    npm --prefix apps/web run dev:demo -- --port 5174
+
+# Re-record the UI's demo data from the running API (synthetic only; needs `just up rag` and a waiting draft)
+ui-fixtures:
+    uv run python -m scripts.capture_ui_fixtures
+
+# Screenshots of the UI for the docs (docs/presentation/ui/), taken from `just ui-demo` in another terminal
+ui-screenshots theme="light":
+    uv run --with playwright==1.63.0 python -m scripts.ui_screenshots --theme {{theme}}
+
 # Demo video (SPEC section 14), recorded live from a hidden Chrome: .artifacts/demo/clinscribe_demo.mp4
 # Needs `just up rag`, the UI dev server and ffmpeg (not DEV_LOGIN); `--scenes title,results` for a subset.
 # playwright drives the installed Chrome (no browser download); it is not a project dependency.

@@ -556,15 +556,17 @@ async def scene_voice(rec: Recorder, question_pcm: bytes, token: str) -> None:
     await rec.settle(0.8)
 
 
+USER_NAMES = {"dr-demo": "Dr Demo", "dr-second": "Dr Second", "admin-demo": "Admin Demo"}
+
+
 async def sign_in(rec: Recorder, user: str) -> None:
     page = rec.page
-    await page.locator("select").wait_for()
+    await page.locator(".login-box").wait_for()
     if user != "dr-demo":
-        await rec.click(page.locator("select"))
-        await page.select_option("select", user)
+        await rec.click(page.get_by_role("radio", name=USER_NAMES[user]))
         await asyncio.sleep(0.5)
-    await rec.click(page.locator("button", has_text="Sign in"))
-    await page.locator("header").wait_for()
+    await rec.click(page.get_by_role("button", name="Continue as"))
+    await page.locator(".sidebar").wait_for()
 
 
 async def scene_ask(rec: Recorder) -> None:
@@ -572,17 +574,17 @@ async def scene_ask(rec: Recorder) -> None:
     await rec.js("() => demo.uncard()")
     await rec.narrate("ask_intro")
     await sign_in(rec, "dr-demo")
-    await rec.type(page.locator("section form textarea"), ASK_QUESTION)
+    await rec.type(page.get_by_label("Question"), ASK_QUESTION)
     await rec.settle()
-    await rec.click(page.locator("section form button"))
-    result = page.locator("p.label:has-text('path'), p.error").first
+    await rec.click(page.locator("form.composer button[type=submit]"))
+    result = page.locator(".answer-text, .card .callout-warn, .callout-danger").first
     await rec.wait("Searching guidelines", result.wait_for(timeout=300_000))
-    if await page.locator("p.error").count():
-        raise RuntimeError(f"Ask failed: {await page.locator('p.error').inner_text()}")
-    rec.measured["ask"] = {"label": await result.inner_text()}
+    if await page.locator(".callout-danger").count():
+        raise RuntimeError(f"Ask failed: {await page.locator('.callout-danger').inner_text()}")
+    rec.measured["ask"] = {"label": await page.locator(".card-head").first.inner_text()}
     await rec.scroll_to(result, "start")
     await rec.narrate("ask_answer")
-    passage = page.locator("ol.sources details summary").first
+    passage = page.locator(".source .source-head").first
     if await passage.count():
         await rec.click(passage)
         await asyncio.sleep(0.5)
@@ -620,23 +622,25 @@ async def open_waiting(rec: Recorder, draft_id: str, first: bool) -> None:
     page = rec.page
     await rec.js("() => window.scrollTo({top: 0, behavior: 'smooth'})")
     await asyncio.sleep(0.8)
-    await rec.click(page.locator(".card button", has_text="Show" if first else "Refresh"))
-    entry = page.locator(f"ul.waiting li:has-text('{draft_id}') button")
+    await rec.click(page.get_by_role("button", name="Refresh"))
+    entry = page.locator(f".draft-row:has-text('{draft_id}') button")
     await entry.wait_for(timeout=30_000)
     await rec.click(entry)
-    await page.locator(".review").wait_for(timeout=30_000)
+    await page.locator(".approve-bar").wait_for(timeout=30_000)
 
 
 async def approve(rec: Recorder, family: str, expect: str) -> str:
     """Type the two identifiers and approve; `expect` is the message to wait for: the refusal shown
     in the still-open review, or the saved note."""
     page = rec.page
-    await rec.scroll_to(page.locator(".review"))
-    await rec.type(page.locator("input[placeholder^='birth date']"), PATIENT["birth_date"])
-    await rec.type(page.locator("input[placeholder='family name']"), family)
+    await rec.scroll_to(page.locator(".approve-bar"))
+    birth = page.locator(".approve-bar input[type=date]")
+    await rec.click(birth)
+    await birth.fill(PATIENT["birth_date"])  # a date input takes ISO dates, not keystrokes
+    await rec.type(page.locator(".approve-bar input[placeholder='as in the record']"), family)
     await rec.settle()
-    await rec.click(page.locator(".review button", has_text="Approve"))
-    result = page.locator(f"{expect}, p.error").first
+    await rec.click(page.locator(".approve-bar button", has_text="Approve"))
+    result = page.locator(f"{expect}, .callout-danger").first
     await rec.wait("Checking the identifiers and writing", result.wait_for(timeout=120_000))
     await rec.scroll_to(result)
     return str(await result.inner_text())
@@ -694,7 +698,7 @@ async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
     )
     await asyncio.sleep(2.0)
     await rec.js("() => demo.uncard()")
-    await rec.click(page.locator("nav button", has_text="scribe"))
+    await rec.click(page.locator("nav .nav-item", has_text="Scribe"))
     await rec.narrate("scribe_open")
     await open_waiting(rec, draft["draft_id"], first=True)
     rec.measured["scribe_audio"] = {
@@ -704,7 +708,7 @@ async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
         "unsupported": len(draft["unsupported"]),
         "removed": len(draft["removed"]),
     }
-    await rec.scroll_to(page.locator("p.label:has-text('AI-generated draft')"), "start")
+    await rec.scroll_to(page.locator("h1", has_text="Draft note"), "start")
     await rec.narrate("scribe_flags")
     statements = page.locator(".statement")
     count = await statements.count()
@@ -712,13 +716,13 @@ async def scene_scribe(rec: Recorder, consultation: bytes, token: str) -> None:
         await rec.scroll_to(statements.nth(index))
         await asyncio.sleep(0.3)
     await rec.narrate("scribe_wrong")
-    refused = await approve(rec, PATIENT["wrong"], ".review p.warn")
+    refused = await approve(rec, PATIENT["wrong"], ".approve-bar .refusal")
     if "refused" not in refused:
         raise RuntimeError(f"expected a refused write, got: {refused}")
     await rec.narrate("scribe_refused")
     await rec.narrate("scribe_retry")
-    saved = await approve(rec, PATIENT["family"], "p.ok")
-    if not saved.startswith("Saved to FHIR"):
+    saved = await approve(rec, PATIENT["family"], ".callout-ok")
+    if not saved.startswith("Approved and saved"):
         raise RuntimeError(f"approved write failed: {saved}")
     rec.measured["scribe"] = {"refused": refused, "saved": saved}
     await rec.narrate("scribe_saved")
@@ -731,8 +735,7 @@ async def scene_audit(rec: Recorder) -> None:
     with contextlib.suppress(Exception):
         await rec.screencast()  # keep frames coming if Chrome stopped the screencast on reload
     await sign_in(rec, "admin-demo")
-    await rec.click(page.locator("button", has_text="Load audit log"))
-    await page.locator("table").wait_for()
+    await page.locator("table.table").wait_for()  # the log loads when the page opens
     await rec.narrate("audit")
     await asyncio.sleep(3)
     await rec.scroll_to(page.locator("table tbody tr").nth(12))
@@ -829,7 +832,7 @@ async def record(scenes: list[str]) -> int:
 
         await page.route("**/v1/dev/login", sign_in_locally)
         await page.goto(UI)
-        await page.locator("select").wait_for()
+        await page.locator(".login-box").wait_for()
         rec = Recorder(page, await context.new_cdp_session(page), lines)
         await rec.card("")
         await rec.screencast()
@@ -866,13 +869,18 @@ async def record(scenes: list[str]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global OUT, FRAMES  # noqa: PLW0603 (one run, one output folder)
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--scenes",
         default=",".join(SCENES),
         help="comma-separated subset, in order (scribe needs ask first: it signs in)",
     )
+    parser.add_argument(
+        "--out", type=Path, default=OUT, help="output folder (default: .artifacts/demo)"
+    )
     args = parser.parse_args(argv)
+    OUT, FRAMES = args.out, args.out / "frames"
     scenes = [s for s in args.scenes.split(",") if s]
     if unknown := set(scenes) - set(SCENES):
         parser.error(f"unknown scenes: {sorted(unknown)}")
