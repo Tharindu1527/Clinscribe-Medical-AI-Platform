@@ -1236,12 +1236,29 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   withheld that pair; it now uses the spaCy rules (the same engine finds nothing new in text it
   de-identified). Unit +7, integration: retention, erasure, access and login cases extended.
 
+- 2026-10-28: **Role words are not names** (ADR-0029, proposed). The edit-pair work showed the
+  fine-tuned tagger replacing "Patient" at the start of a note sentence; the earlier PHI-free sets
+  did not show it. A new set, frozen before any engine ran on it (`clinical_negatives.SENTENCES_V3`:
+  40 note-style PHI-free sentences with role words; `ROLE_NAMES`: 10 with a synthetic name next to
+  a role word), measured with `evals/privacy/role_words.py` (`evals/reports/privacy/role_words.md`):
+  **the tagger altered 16 of 40** (10 of the 15 "Patient ..." sentences, and Mother, Wife, Husband,
+  Daughter, Son, Registrar at the start); spaCy 0. Fix in the engine: a model's PERSON/LOCATION
+  guess that is exactly a role word (possessive ignored) is dropped, like clinical terms; spans
+  longer than the role word ("Patient Jane Smith") and cue-based matches ("Mr Son": role words are
+  also surnames) are not. After: tagger **0/40**, names next to a role word 10/10, and every earlier
+  set unchanged for both engines (held-out v1 / v3 names 109/110 / 90/90, places 60/60 / 50/50 for
+  the tagger; PHI-free v1 / v2 0/80 / 1/40). Live service: "Patient has been really thirsty ..."
+  kept, "Mr Son" still "Mr PERSON_1". Leak test run `1dbd0aad` on the rebuilt de-ID: **gate b
+  PASS**, 0 leaks in 7 sinks, 0 of 66 seed values reached the model. Unit +7
+  (`tests/unit/test_deid_roles.py`: a fake recogniser that takes every first word for a name, with
+  the filter-off control).
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
-- **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027**, **postmortem 0005** and **ADR-0028** (doctors' edits as evaluation data; confirm the 365-day limit).
+- **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027**, **postmortem 0005**, **ADR-0028** (doctors' edits as evaluation data; confirm the 365-day limit) and **ADR-0029** (role words are not names).
 - **You: review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
