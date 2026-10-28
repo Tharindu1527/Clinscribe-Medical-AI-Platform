@@ -1,0 +1,1300 @@
+{
+ "ask": [
+  {
+   "question": "What is the maximum daily dose of metformin?",
+   "response": {
+    "answer": {
+     "question_id": "demo-1793201926",
+     "abstained": false,
+     "sentences": [
+      {
+       "text": "The maximum daily dose of metformin is about 2550 mg.",
+       "citations": [
+        "pmc:PMC10253663#s10#c1",
+        "fda:05999192-ebc6-4198-bd1e-f46abbfb4f8a#s1#c2"
+       ]
+      }
+     ],
+     "path": "fast",
+     "prompt_version": "answer_cited@v1",
+     "model": "clinscribe-fallback-groq"
+    },
+    "evidence": [
+     {
+      "chunk_id": "pmc:PMC10253663#s10#c1",
+      "title": "An Update on the Molecular and Cellular Basis of Pharmacotherapy in Type 2 Diabetes Mellitus",
+      "section": "7. Oral Hypoglycemic Agents > 7.1. Biguanides",
+      "source": "pmc",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10253663/",
+      "text": "The recommended maximum dose of metformin is about 2550 mg daily [140,141]. The side effects caused by metformin mainly involve the gastrointestinal tract, including nausea, vomiting, diarrhea and abdominal discomfort [141]. Therefore, extended-release forms of metformin were developed to reduce the dosing frequency and eventually reduce these side effects. Moreover, the prolonged use of metformin is associated with folic acid and vitamin B12 deficiencies; as a result, monitoring the levels of both vitamins is needed, especially in the elderly [104,142]. Metformin should also be administered with caution and in low doses in patients with heart failure and renal failure as this category of patients have an increased risk of experiencing lactic acidosis, which is considered the most serious side effect of metformin [55]. The advantages and disadvantages of metformin are depicted in Table 4."
+     },
+     {
+      "chunk_id": "fda:05999192-ebc6-4198-bd1e-f46abbfb4f8a#s1#c1",
+      "title": "Metformin (metformin) prescribing information",
+      "section": "Dosage and administration",
+      "source": "openfda",
+      "source_url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=05999192-ebc6-4198-bd1e-f46abbfb4f8a",
+      "text": "• Metformin hydrochloride extended-release tablets may need to be discontinued at time of, or prior to, iodinated contrast imaging procedures ( 2.5 ) 2.2 Recommended Dosage for Metformin Hydrochloride Extended-Release Tablets in Adults and Pediatric Patients Aged 10 Years and Older With Type 2 Diabetes Mellitus • Swallow metformin hydrochloride extended-release tablets whole and never crush, cut or chew. • The recommended starting dosage of metformin hydrochloride extended-release is 500 mg orally once daily with the evening meal. • Increase the dosage in increments of 500 mg weekly on the basis of glycemic control and tolerability, up to a maximum of 2,000 mg once daily with the evening meal. • If glycemic control is not achieved with metformin hydrochloride extended-release tablets 2,000 mg once daily, consider a trial of metformin hydrochloride extended-release tablets 1,000 mg twice daily. • If a dose of metformin hydrochloride extended-release tablets is missed, instruct patients not to take two doses the same day and to resume their usual dose of metformin hydrochloride extended-release tablets with the next schedule dose. 2.3 Switching Between Metformin Hydrochloride Immediate-Release Tablets and Metformin Hydrochloride Extended-Release Tablets • Patients may switch between metformin hydrochloride immediate-release tablets and metformin hydrochloride extended-release tablets at the same total daily dosage."
+     },
+     {
+      "chunk_id": "fda:05999192-ebc6-4198-bd1e-f46abbfb4f8a#s1#c0",
+      "title": "Metformin (metformin) prescribing information",
+      "section": "Dosage and administration",
+      "source": "openfda",
+      "source_url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=05999192-ebc6-4198-bd1e-f46abbfb4f8a",
+      "text": "2 DOSAGE AND ADMINISTRATION N/A Recommended Dosage in Adults and Pediatric Patients Aged 10 Years and Older: • Swallow metformin hydrochloride extended-release tablets whole and never crush, cut or chew ( 2.2 ) • Starting dosage: 500 mg orally once daily with the evening meal ( 2.2 ) • Increase the dosage in increments of 500 mg weekly, up to a maximum dosage of 2,000 mg once daily with the evening meal ( 2.2 ) • Patients receiving metformin hydrochloride immediate-release tablets may be switched to metformin hydrochloride extended-release tablets once daily at the same total daily dosage, up to 2,000 mg once daily ( 2.3 ) Recommended Dosage in Patients with Renal Impairment: • Prior to initiation, assess renal function with estimated glomerular filtration rate (eGFR) ( 2.4 ) o Do not use in patients with eGFR below 30 mL/minute/1.73 m 2 ( 2.4 ) o Initiation is not recommended in patients with eGFR between 30 to 45 mL/minute/1.73 m 2 ( 2.4 ) o Assess risk/benefit of continuing if eGFR falls below 45 mL/minute/1.73 m 2 ( 2.4 ) o Discontinue if eGFR falls below 30 mL/minute/1.73 m 2 ( 2.4 ) Discontinuation for Iodinated Contrast Imaging Procedures:"
+     },
+     {
+      "chunk_id": "fda:05999192-ebc6-4198-bd1e-f46abbfb4f8a#s1#c2",
+      "title": "Metformin (metformin) prescribing information",
+      "section": "Dosage and administration",
+      "source": "openfda",
+      "source_url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=05999192-ebc6-4198-bd1e-f46abbfb4f8a",
+      "text": "2.3 Switching Between Metformin Hydrochloride Immediate-Release Tablets and Metformin Hydrochloride Extended-Release Tablets • Patients may switch between metformin hydrochloride immediate-release tablets and metformin hydrochloride extended-release tablets at the same total daily dosage. • Patients receiving metformin hydrochloride extended-release tablets who require dosages higher than 2,000 mg daily may switch to metformin hydrochloride immediate-release tablets and titrate to the maximum total daily dosage of 2,550 mg. 2.4 Recommended Dosage in Patients With Renal Impairment • Assess renal function prior to initiation of metformin hydrochloride extended-release tablets and periodically thereafter. • Metformin hydrochloride extended-release tablets are contraindicated in patients with an estimated glomerular filtration rate (eGFR) below 30 mL/minute/1.73 m 2 . • Initiation of metformin hydrochloride extended-release tablets in patients with an eGFR between 30 to 45 mL/minute/1.73 m 2 is not recommended. • In patients taking metformin hydrochloride extended-release tablets whose eGFR later falls below 45 mL/min/1.73 m 2 , assess the benefit risk of continuing therapy. • Discontinue metformin hydrochloride extended-release tablets if the patient’s eGFR later falls below 30 mL/minute/1.73 m 2 [see Warnings and Precautions (5.1) ]."
+     },
+     {
+      "chunk_id": "pmc:PMC12706213#s12#c0",
+      "title": "DIVINE–pilot trial: a phase 2 multicentre, randomised pilot trial of pharmacotherapy and physical activity monitoring conducted in women with recent gestational diabetes and increased risk of type 2 diabetes recruited from tertiary referral hospitals in Australia",
+      "section": "Methods and analysis > Study interventions > Pharmacological intervention > Metformin+semaglutide arms",
+      "source": "pmc",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12706213/",
+      "text": "Metformin SR 1000 mg daily (or individualised tolerable dose) will be taken throughout the trial intervention period of 6 months. Semaglutide will be up-titrated every 4 weeks, starting at 0.25 mg weekly to a maximum weekly tolerated dose of 1 mg weekly."
+     }
+    ],
+    "route": "fast",
+    "violations": [],
+    "dropped": [],
+    "events": [
+     "intake",
+     "fast"
+    ],
+    "unseen_terms": [],
+    "ai_generated": true,
+    "identified": {
+     "sentences": [
+      "The maximum daily dose of metformin is about 2550 mg."
+     ]
+    }
+   }
+  },
+  {
+   "question": "Does clarithromycin interact with warfarin?",
+   "response": {
+    "answer": {
+     "question_id": "demo-1793201937",
+     "abstained": false,
+     "sentences": [
+      {
+       "text": "Clarithromycin co‑administration with warfarin can increase INR and bleeding risk.",
+       "citations": [
+        "fda:9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6#s4#c6",
+        "fda:9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6#s5#c1",
+        "pmc:PMC10455514#s8#c0",
+        "graph:ddinter:Warfarin|Clarithromycin"
+       ]
+      },
+      {
+       "text": "Monitoring of INR/prothrombin time is recommended while patients receive both drugs.",
+       "citations": [
+        "fda:9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6#s4#c6",
+        "fda:9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6#s5#c1"
+       ]
+      }
+     ],
+     "path": "agentic",
+     "prompt_version": "answer_cited@v1",
+     "model": "clinscribe-fallback-groq"
+    },
+    "evidence": [
+     {
+      "chunk_id": "fda:9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6#s4#c6",
+      "title": "Clarithromycin (clarithromycin) prescribing information",
+      "section": "Warnings and cautions",
+      "source": "openfda",
+      "source_url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6",
+      "text": "Refer to quetiapine prescribing information for recommendations on dose reduction if co-administered with CYP3A4 inhibitors such as clarithromycin [see Drug Interactions (7) ] . Oral Anticoagulants: There is a risk of serious hemorrhage and significant elevations in INR and prothrombin time when clarithromycin is co-administered with warfarin. Monitor INR and prothrombin times frequently while patients are receiving clarithromycin and oral anticoagulants concurrently [see Drug Interactions (7) ] . Benzodiazepines: Increased sedation and prolongation of sedation have been reported with concomitant administration of clarithromycin and triazolobenzodiazepines, such as triazolam and midazolam [see Drug Interactions (7) ] . 5.5 All-Cause Mortality in Patients With Coronary Artery Disease 1 to 10 Years After Clarithromycin Exposure In one clinical trial evaluating treatment with clarithromycin on outcomes in patients with coronary artery disease, an increase in risk of all-cause mortality one year or more after the end of treatment was observed in patients randomized to receive clarithromycin. 1 Clarithromycin for treatment of coronary artery disease is not an approved indication. The cause of the increased risk has not been established. Other epidemiologic studies evaluating this risk have shown variable results [see Adverse Reactions (6.1) ]. Consider balancing this potential risk with the treatment benefits when prescribing clarithromycin in patients who have suspected or confirmed coronary artery disease."
+     },
+     {
+      "chunk_id": "fda:9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6#s5#c1",
+      "title": "Clarithromycin (clarithromycin) prescribing information",
+      "section": "Drug interactions",
+      "source": "openfda",
+      "source_url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=9d5848f0-e9f0-4112-a7ca-bcc8ea2e69c6",
+      "text": "There have been spontaneous or published reports of CYP3A based interactions of clarithromycin with disopyramide and quinidine. There have been postmarketing reports of hypoglycemia with the concomitant administration of clarithromycin and disopyramide. Therefore, blood glucose levels should be monitored during concomitant administration of clarithromycin and disopyramide. Digoxin : Digoxin is a substrate for P-glycoprotein (Pgp) and clarithromycin is known to inhibit Pgp. When clarithromycin and digoxin are co-administered, inhibition of Pgp by clarithromycin may lead to increased exposure of digoxin. Elevated digoxin serum concentrations in patients receiving clarithromycin and digoxin concomitantly have been reported in postmarketing surveillance. Some patients have shown clinical signs consistent with digoxin toxicity, including potentially fatal arrhythmias. Monitoring of serum digoxin concentrations should be considered, especially for patients with digoxin concentrations in the upper therapeutic range. Oral Anticoagulants: Warfarin Use With Caution Oral anticoagulants: Spontaneous reports in the postmarketing period suggest that concomitant administration of clarithromycin and oral anticoagulants may potentiate the effects of the oral anticoagulants. Prothrombin times should be carefully monitored while patients are receiving clarithromycin and oral anticoagulants simultaneously [see Warnings and Precautions (5.4) ] . Antiepileptics: Carbamazepine Use With Caution Carbamazepine : Concomitant administration of single doses of clarithromycin and carbamazepine has been shown to result in increased plasma concentrations of carbamazepine. Blood level monitoring of carbamazepine may be considered."
+     },
+     {
+      "chunk_id": "pmc:PMC10455514#s8#c0",
+      "title": "Warfarin and Antibiotics: Drug Interactions and Clinical Considerations",
+      "section": "3. Results > 3.6. Macrolides",
+      "source": "pmc",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10455514/",
+      "text": "The macrolide family of antibiotics prevents bacterial protein synthesis by binding to the 50 S subunit of the bacterial ribosome (Figure 1) [28]. Macrolides are considered bacteriostatic because they inhibit protein synthesis without directly killing the bacteria. The bacterial ribosome structure is highly conserved across almost all bacterial species, allowing macrolides to be classified as broad spectrum [29]. The most commonly used macrolides are erythromycin, clarithromycin, azithromycin, and fidaxomicin. Macrolides are indicated in the treatment of H. pylori, atypical mycobacterial infections, as well as Gram-positive infections of the skin, respiratory tract, and soft tissue [30]. Extensive research has been conducted regarding the side effects of concomitantly prescribing macrolides alongside warfarin. One study found that macrolide use during warfarin therapy is associated with an increased risk of bleeding with an OR of 1.86, while another study specifically looking at this same interaction in the elderly population found an adjusted risk ratio of 3.07 [26]. Another study looking at azithromycin specifically found it to have a twofold increased risk of a serious bleeding event, compared to low-risk antibiotic usage during warfarin therapy [11]. Other studies also demonstrate an increase in the mean INR from 2.7 to 3.6 when receiving macrolides alongside warfarin treatment in pediatric cardiac patients [31]."
+     },
+     {
+      "chunk_id": "graph:ddinter:Warfarin|Clarithromycin",
+      "title": "DDInter 2.0 drug-drug interaction database",
+      "section": "Interaction severity",
+      "source": "ddinter",
+      "source_url": "https://ddinter2.scbdd.com",
+      "text": "Warfarin and Clarithromycin: Major interaction (DDInter 2.0). The database records the pair and its severity, not the mechanism or management."
+     }
+    ],
+    "route": "agentic",
+    "violations": [],
+    "dropped": [],
+    "events": [
+     "intake",
+     "agentic",
+     "graded 3/8 relevant (round 1)",
+     "drug facts 1"
+    ],
+    "unseen_terms": [],
+    "ai_generated": true,
+    "identified": {
+     "sentences": [
+      "Clarithromycin co‑administration with warfarin can increase INR and bleeding risk.",
+      "Monitoring of INR/prothrombin time is recommended while patients receive both drugs."
+     ]
+    }
+   }
+  },
+  {
+   "question": "Which gastrointestinal side effects does mazdutide cause?",
+   "response": {
+    "answer": {
+     "question_id": "demo-1793201954",
+     "abstained": true,
+     "sentences": [],
+     "path": "fast",
+     "prompt_version": "none",
+     "model": "none"
+    },
+    "evidence": [],
+    "route": "fast",
+    "violations": [],
+    "dropped": [],
+    "events": [
+     "intake",
+     "fast",
+     "not in the sources: mazdutide"
+    ],
+    "unseen_terms": [
+     "mazdutide"
+    ],
+    "ai_generated": true,
+    "identified": {
+     "sentences": []
+    }
+   }
+  }
+ ],
+ "drafts": [
+  {
+   "draft_id": "draft-a4159c7306ae416d",
+   "patient_id": "1617",
+   "created_by": "dr-demo",
+   "statements": 5
+  }
+ ],
+ "draft": {
+  "draft_id": "draft-a4159c7306ae416d",
+  "status": "awaiting_review",
+  "transcript": [
+   "DOCTOR: Good morning, what brings you in today?",
+   "PATIENT: I have had an itchy rash on both arms for two weeks. I take lisinopril 10 mg every morning for my blood pressure.",
+   "DOCTOR: It looks like contact dermatitis. I will start high drugs in 25 mg at night for the itch, and I will see you again in two weeks."
+  ],
+  "draft": {
+   "encounter_id": "scribe-e95277b879a1",
+   "statements": [
+    {
+     "section": "subjective",
+     "text": "The patient has had an itchy rash on both arms for two weeks.",
+     "transcript_turns": [
+      1
+     ],
+     "citations": []
+    },
+    {
+     "section": "subjective",
+     "text": "The patient takes lisinopril 10 mg every morning for blood pressure.",
+     "transcript_turns": [
+      1
+     ],
+     "citations": []
+    },
+    {
+     "section": "assessment",
+     "text": "It looks like contact dermatitis.",
+     "transcript_turns": [
+      2
+     ],
+     "citations": []
+    },
+    {
+     "section": "plan",
+     "text": "Start high drugs in 25 mg at night for the itch.",
+     "transcript_turns": [
+      2
+     ],
+     "citations": []
+    },
+    {
+     "section": "plan",
+     "text": "See the patient again in two weeks.",
+     "transcript_turns": [
+      2
+     ],
+     "citations": []
+    }
+   ],
+   "ai_generated": true,
+   "prompt_version": "note_writer@v2",
+   "model": "clinscribe-default"
+  },
+  "unsupported": [
+   {
+    "section": "assessment",
+    "text": "It looks like contact dermatitis.",
+    "transcript_turns": [
+     2
+    ],
+    "citations": []
+   },
+   {
+    "section": "plan",
+    "text": "Start high drugs in 25 mg at night for the itch.",
+    "transcript_turns": [
+     2
+    ],
+    "citations": []
+   },
+   {
+    "section": "plan",
+    "text": "See the patient again in two weeks.",
+    "transcript_turns": [
+     2
+    ],
+    "citations": []
+   }
+  ],
+  "removed": [],
+  "unsure_speech": {
+   "turns": [
+    [],
+    [
+     {
+      "word": "lisinopril",
+      "confidence": 0.46
+     }
+    ],
+    [
+     {
+      "word": "drugs",
+      "confidence": 0.38
+     },
+     {
+      "word": "high",
+      "confidence": 0.52
+     }
+    ]
+   ],
+   "statements": [
+    {
+     "heard": [],
+     "changed": null
+    },
+    {
+     "heard": [
+      {
+       "word": "lisinopril",
+       "confidence": 0.46,
+       "turn": 1
+      }
+     ],
+     "changed": null
+    },
+    {
+     "heard": [],
+     "changed": null
+    },
+    {
+     "heard": [
+      {
+       "word": "drugs",
+       "confidence": 0.38,
+       "turn": 2
+      },
+      {
+       "word": "high",
+       "confidence": 0.52,
+       "turn": 2
+      }
+     ],
+     "changed": null
+    },
+    {
+     "heard": [],
+     "changed": null
+    }
+   ]
+  },
+  "identified": {
+   "transcript": [
+    "DOCTOR: Good morning, what brings you in today?",
+    "PATIENT: I have had an itchy rash on both arms for two weeks. I take lisinopril 10 mg every morning for my blood pressure.",
+    "DOCTOR: It looks like contact dermatitis. I will start high drugs in 25 mg at night for the itch, and I will see you again in two weeks."
+   ],
+   "statements": [
+    "The patient has had an itchy rash on both arms for two weeks.",
+    "The patient takes lisinopril 10 mg every morning for blood pressure.",
+    "It looks like contact dermatitis.",
+    "Start high drugs in 25 mg at night for the itch.",
+    "See the patient again in two weeks."
+   ]
+  }
+ },
+ "lab": {
+  "patient_id": "3346",
+  "hl7_message": "MSH|^~\\&|SYNTH-LAB|SYNTH-LAB|CLINSCRIBE|CLINIC|202403210800||ORU^R01^ORU_R01|DEMO0001|P|2.5.1\rPID|1||2de4dd0d-f665-8a2e-4c6b-997735e14ace^^^SMARTHEALTHIT^MR||Hammes673^Aron520^Gary33||20020117\rOBR|1||DEMO0001-1|24323-8^Comprehensive metabolic panel^LN|||202403210800\rOBX|1|NM|6690-2^White blood cells^LN||3.6121|10*3/uL^10*3/uL^UCUM|4-11|L|||F|||202403210800\rOBX|2|NM|789-8^Red blood cells^LN||4.0448|10*6/uL^10*6/uL^UCUM|4.2-5.9|L|||F|||202403210800\rOBX|3|NM|718-7^Hemoglobin^LN||17.127|g/dL^g/dL^UCUM|12-17.5|N|||F|||202403210800\rOBX|4|NM|787-2^MCV^LN||94.904|fL^fL^UCUM|80-100|N|||F|||202403210800\rOBX|5|NM|785-6^MCH^LN||30.841|pg^pg^UCUM|27-33|N|||F|||202403210800\rOBX|6|NM|786-4^MCHC^LN||34.997|g/dL^g/dL^UCUM|32-36|N|||F|||202403210800\rOBX|7|NM|788-0^RDW^LN||39.416|fL^fL^UCUM|39-46|N|||F|||202403210800\rOBX|8|NM|777-3^Platelets^LN||288.84|10*3/uL^10*3/uL^UCUM|150-400|N|||F|||202403210800\r",
+  "response": {
+   "lab_id": "lab-796d5f2d38d04087",
+   "observations": [
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "6690-2",
+        "display": "White blood cells"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 3.6121,
+      "unit": "10*3/uL",
+      "system": "http://unitsofmeasure.org",
+      "code": "10*3/uL"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 4.0,
+        "unit": "10*3/uL"
+       },
+       "high": {
+        "value": 11.0,
+        "unit": "10*3/uL"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "L"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "789-8",
+        "display": "Red blood cells"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 4.0448,
+      "unit": "10*6/uL",
+      "system": "http://unitsofmeasure.org",
+      "code": "10*6/uL"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 4.2,
+        "unit": "10*6/uL"
+       },
+       "high": {
+        "value": 5.9,
+        "unit": "10*6/uL"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "L"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "718-7",
+        "display": "Hemoglobin"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 17.127,
+      "unit": "g/dL",
+      "system": "http://unitsofmeasure.org",
+      "code": "g/dL"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 12.0,
+        "unit": "g/dL"
+       },
+       "high": {
+        "value": 17.5,
+        "unit": "g/dL"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "N"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "787-2",
+        "display": "MCV"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 94.904,
+      "unit": "fL",
+      "system": "http://unitsofmeasure.org",
+      "code": "fL"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 80.0,
+        "unit": "fL"
+       },
+       "high": {
+        "value": 100.0,
+        "unit": "fL"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "N"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "785-6",
+        "display": "MCH"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 30.841,
+      "unit": "pg",
+      "system": "http://unitsofmeasure.org",
+      "code": "pg"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 27.0,
+        "unit": "pg"
+       },
+       "high": {
+        "value": 33.0,
+        "unit": "pg"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "N"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "786-4",
+        "display": "MCHC"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 34.997,
+      "unit": "g/dL",
+      "system": "http://unitsofmeasure.org",
+      "code": "g/dL"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 32.0,
+        "unit": "g/dL"
+       },
+       "high": {
+        "value": 36.0,
+        "unit": "g/dL"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "N"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "788-0",
+        "display": "RDW"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 39.416,
+      "unit": "fL",
+      "system": "http://unitsofmeasure.org",
+      "code": "fL"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 39.0,
+        "unit": "fL"
+       },
+       "high": {
+        "value": 46.0,
+        "unit": "fL"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "N"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "resourceType": "Observation",
+     "status": "preliminary",
+     "category": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+         "code": "laboratory"
+        }
+       ]
+      }
+     ],
+     "code": {
+      "coding": [
+       {
+        "system": "http://loinc.org",
+        "code": "777-3",
+        "display": "Platelets"
+       }
+      ]
+     },
+     "subject": {
+      "reference": "Patient/3346"
+     },
+     "valueQuantity": {
+      "value": 288.84,
+      "unit": "10*3/uL",
+      "system": "http://unitsofmeasure.org",
+      "code": "10*3/uL"
+     },
+     "effectiveDateTime": "2024-03-21",
+     "referenceRange": [
+      {
+       "low": {
+        "value": 150.0,
+        "unit": "10*3/uL"
+       },
+       "high": {
+        "value": 400.0,
+        "unit": "10*3/uL"
+       }
+      }
+     ],
+     "interpretation": [
+      {
+       "coding": [
+        {
+         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+         "code": "N"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "abnormal": [
+    "White blood cells 3.6121 10*3/uL (L)",
+    "Red blood cells 4.0448 10*6/uL (L)"
+   ],
+   "not_mapped": [],
+   "unreadable_rows": [],
+   "identity": {
+    "name": true,
+    "birth_date": true,
+    "mrn": true
+   },
+   "collected": "2024-03-21"
+  }
+ },
+ "audit": [
+  {
+   "seq": "12375",
+   "ts": "2026-10-28 15:39:20.347429+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.parse",
+   "resource_type": "Patient",
+   "resource_id": "1617",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12374",
+   "ts": "2026-10-28 15:39:15.601752+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "ask",
+   "resource_type": null,
+   "resource_id": null,
+   "encounter_id": "demo-1793201954",
+   "model": "none",
+   "prompt_version": "none"
+  },
+  {
+   "seq": "12373",
+   "ts": "2026-10-28 15:39:14.688629+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "ask",
+   "resource_type": null,
+   "resource_id": null,
+   "encounter_id": "demo-1793201937",
+   "model": "clinscribe-fallback-groq",
+   "prompt_version": "answer_cited@v1"
+  },
+  {
+   "seq": "12372",
+   "ts": "2026-10-28 15:38:56.712621+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "ask",
+   "resource_type": null,
+   "resource_id": null,
+   "encounter_id": "demo-1793201926",
+   "model": "clinscribe-fallback-groq",
+   "prompt_version": "answer_cited@v1"
+  },
+  {
+   "seq": "12371",
+   "ts": "2026-10-28 15:00:35.052039+00:00",
+   "actor": "admin-demo",
+   "role": "admin",
+   "action": "gdpr.access",
+   "resource_type": "Patient",
+   "resource_id": "ret-p5-40859e2b",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12370",
+   "ts": "2026-10-28 15:00:34.738382+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "fhir.read",
+   "resource_type": null,
+   "resource_id": "ret-p5-40859e2b",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12369",
+   "ts": "2026-10-28 15:00:31.899410+00:00",
+   "actor": "admin-demo",
+   "role": "admin",
+   "action": "gdpr.erasure",
+   "resource_type": "Patient",
+   "resource_id": "ret-p1",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12368",
+   "ts": "2026-10-28 15:00:30.725083+00:00",
+   "actor": "retention-job",
+   "role": "operator",
+   "action": "retention.run",
+   "resource_type": null,
+   "resource_id": null,
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12367",
+   "ts": "2026-10-28 15:00:29.810785+00:00",
+   "actor": "retention-job",
+   "role": "operator",
+   "action": "retention.run",
+   "resource_type": null,
+   "resource_id": null,
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12366",
+   "ts": "2026-10-28 14:59:21.296041+00:00",
+   "actor": "itest-doctor",
+   "role": "doctor",
+   "action": "fhir.write.refused",
+   "resource_type": "DocumentReference",
+   "resource_id": null,
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12365",
+   "ts": "2026-10-28 14:59:17.530755+00:00",
+   "actor": "itest-doctor",
+   "role": "doctor",
+   "action": "fhir.write.duplicate",
+   "resource_type": "DocumentReference",
+   "resource_id": "58829",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12364",
+   "ts": "2026-10-28 14:59:13.543983+00:00",
+   "actor": "itest-doctor",
+   "role": "doctor",
+   "action": "fhir.write.duplicate",
+   "resource_type": "DocumentReference",
+   "resource_id": "58829",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12363",
+   "ts": "2026-10-28 14:59:09.476755+00:00",
+   "actor": "itest-doctor",
+   "role": "doctor",
+   "action": "fhir.read",
+   "resource_type": "Patient",
+   "resource_id": "1617",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12362",
+   "ts": "2026-10-28 14:59:04.296533+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.confirm",
+   "resource_type": "Observation",
+   "resource_id": "lab-bf6ae9fbb8e246ab",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12361",
+   "ts": "2026-10-28 14:59:04.226882+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "fhir.write",
+   "resource_type": "Observation",
+   "resource_id": "68307",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12360",
+   "ts": "2026-10-28 14:59:04.023944+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "fhir.write",
+   "resource_type": "Observation",
+   "resource_id": "68306",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12359",
+   "ts": "2026-10-28 14:58:44.499435+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.parse",
+   "resource_type": "Patient",
+   "resource_id": "1617",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12358",
+   "ts": "2026-10-28 14:58:42.368519+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.parse",
+   "resource_type": "Patient",
+   "resource_id": "2631",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12357",
+   "ts": "2026-10-28 14:58:41.252845+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.confirm",
+   "resource_type": "Observation",
+   "resource_id": "lab-d49188b92bda4c41",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12356",
+   "ts": "2026-10-28 14:58:41.183913+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "fhir.write",
+   "resource_type": "Observation",
+   "resource_id": "68305",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12355",
+   "ts": "2026-10-28 14:58:40.954594+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "fhir.write",
+   "resource_type": "Observation",
+   "resource_id": "68304",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12354",
+   "ts": "2026-10-28 14:58:40.321103+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.parse",
+   "resource_type": "Patient",
+   "resource_id": "1617",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12353",
+   "ts": "2026-10-28 14:58:39.220592+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.parse",
+   "resource_type": "Patient",
+   "resource_id": "2631",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12352",
+   "ts": "2026-10-28 14:58:38.157880+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.confirm",
+   "resource_type": "Observation",
+   "resource_id": "lab-f223cd7e4be44910",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12351",
+   "ts": "2026-10-28 14:58:38.085502+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "fhir.write",
+   "resource_type": "Observation",
+   "resource_id": "68303",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12350",
+   "ts": "2026-10-28 14:58:37.968958+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "fhir.write",
+   "resource_type": "Observation",
+   "resource_id": "68302",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12349",
+   "ts": "2026-10-28 14:58:37.061022+00:00",
+   "actor": "dr-demo",
+   "role": "doctor",
+   "action": "lab.parse",
+   "resource_type": "Patient",
+   "resource_id": "1617",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12348",
+   "ts": "2026-10-28 14:56:39.885560+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r--2",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12347",
+   "ts": "2026-10-28 14:56:39.849013+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r--1",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12346",
+   "ts": "2026-10-28 14:56:38.940110+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-99",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12345",
+   "ts": "2026-10-28 14:56:38.939109+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-98",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12344",
+   "ts": "2026-10-28 14:56:38.929113+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-97",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12343",
+   "ts": "2026-10-28 14:56:38.928110+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-96",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12342",
+   "ts": "2026-10-28 14:56:38.921505+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-95",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12341",
+   "ts": "2026-10-28 14:56:38.920247+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-94",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12340",
+   "ts": "2026-10-28 14:56:38.915658+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-93",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12339",
+   "ts": "2026-10-28 14:56:38.913329+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-92",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12338",
+   "ts": "2026-10-28 14:56:38.910653+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-91",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12337",
+   "ts": "2026-10-28 14:56:38.903871+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-90",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  },
+  {
+   "seq": "12336",
+   "ts": "2026-10-28 14:56:38.849387+00:00",
+   "actor": "test",
+   "role": "operator",
+   "action": "test.append",
+   "resource_type": null,
+   "resource_id": "r-89",
+   "encounter_id": null,
+   "model": null,
+   "prompt_version": null
+  }
+ ]
+}
