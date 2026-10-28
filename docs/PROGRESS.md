@@ -1253,12 +1253,40 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   (`tests/unit/test_deid_roles.py`: a fake recogniser that takes every first word for a name, with
   the filter-off control).
 
+- 2026-10-28: **Review UI redesigned; Lab mode gets its screen** (you asked: "beautiful, professional
+  and interactive"). `apps/web` rebuilt on a small design system (`styles.css` tokens for light and
+  dark, hand-drawn icons in `ui.jsx`, no external fonts or requests): a sidebar shell by role, a
+  sign-in page, and per mode: **Ask** (example questions, timed answers, numbered citations that
+  light up their sentence and source, passages that open in place, the guardrail trail, a session
+  history), **Scribe** (drafts awaiting review, a new draft from a transcript, and the review: the
+  SOAP note beside the transcript, a statement lights up the turns it cites, unsure words marked in
+  the turns, flags per statement, edits with undo, "what the AI saw", a sticky approval bar with the
+  two identifiers), **Lab** (new: SPEC section 2's "doctor confirms parsed values" had only the API:
+  a PDF drop zone or an HL7 message, identity checks, values with reference-range bars and flags,
+  per-value confirmation), **Voice** (call panel, live transcript, cited answers) and the **audit
+  log** (search, action filter). **Demo mode** (`just ui-demo`): the UI answers from responses
+  recorded from the real API on synthetic data (`apps/web/src/demo/fixtures.json`, re-recorded by
+  `just ui-fixtures`), so it runs with no stack; every screen carries a "Demo data" badge.
+  Checked in the browser pane (demo mode): every page, the citation-to-source linking, the
+  statement-to-turn linking, an edit and approval, the lab table, the audit filters, the light and
+  dark themes, and phone width (no horizontal scroll); no console errors. Real mode: sign-in shows
+  how to enable demo sign-in when the API refuses it. Screenshots in `docs/presentation/ui/`
+  (`just ui-screenshots`, Playwright on the installed Chrome) and in the README.
+  `scripts/demo_video.py` follows the new UI (selectors) and gains `--out`; checked against the
+  live API with its Ask and audit scenes written to a scratch folder (the recorded video untouched):
+  sign-in by a locally issued token as before, a real agentic answer (3 cited sentences, 32 s on the
+  free tier) with a passage opened, then the audit log as admin. The demo video itself still shows
+  the old UI.
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
   adopted), **ADR-0016** (durable drafts) and
   **postmortem 0004** (FastAPI telemetry bypassed the app-level span redaction), then ADR-0015 and 0014.
 - **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027**, **postmortem 0005**, **ADR-0028** (doctors' edits as evaluation data; confirm the 365-day limit) and **ADR-0029** (role words are not names).
+- **You: look at the new review UI**: `just ui-demo` (no stack), or with the API and
+  `DEV_LOGIN=true`. The demo video shows the old UI; re-record it with `just demo-video` if you want
+  the new one in it (it overwrites `.artifacts/demo/clinscribe_demo.mp4`).
 - **You: review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR

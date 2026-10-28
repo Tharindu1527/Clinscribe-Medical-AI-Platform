@@ -39,6 +39,21 @@ through one gateway; no clinical write without a doctor's approval token for the
 Only the doctor's screen and the approved record see the originals, re-identified by the API and
 audited (ADR-0015).
 
+## The review UI
+
+Every mode ends at the doctor's screen (`apps/web`, React + Vite, light and dark): cited answers
+whose numbers light up their sources, the SOAP draft beside the transcript with unsupported and
+unsure statements flagged, lab values with ranges and flags, and the audit log. `just ui-demo` runs
+it on responses recorded from the real system, with no stack or keys (`apps/web/README.md`).
+
+| Ask: every sentence cites a passage | Scribe: the draft beside its transcript |
+|---|---|
+| ![Ask](docs/presentation/ui/ask-light.png) | ![Scribe review](docs/presentation/ui/scribe-review-light.png) |
+| **Lab: values to confirm, with flags** | **Audit log: who did what, with which model** |
+| ![Lab](docs/presentation/ui/lab-light.png) | ![Audit log](docs/presentation/ui/audit-light.png) |
+
+Dark theme and the sign-in screen: `docs/presentation/ui/`.
+
 ## Results (all from `evals/reports/`, synthetic/public data, one laptop)
 
 | Area | Result | Report |
@@ -82,8 +97,9 @@ just up voice; just voice dev   # browser voice: LiveKit server + agent worker, 
 just scribe 1617         # Scribe a consultation from the microphone (Enter to finish) or --file x.wav
 just up obs; just migrate   # dashboards: Grafana on 127.0.0.1:3000 (admin / GRAFANA_ADMIN_PASSWORD)
 just phoenix on         # optional local trace UI (Arize Phoenix, 127.0.0.1:6006); `just phoenix off`
-npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173
-just demo-video          # re-record the demo video (needs the UI dev server, DEV_LOGIN=true, ffmpeg)
+npm --prefix apps/web install; npm --prefix apps/web run dev   # review UI on :5173 (DEV_LOGIN=true)
+just ui-demo             # the review UI on recorded synthetic data, no stack (:5174)
+just demo-video          # re-record the demo video (needs the UI dev server and ffmpeg)
 just test; just gate 3   # tests; a phase gate
 ```
 
