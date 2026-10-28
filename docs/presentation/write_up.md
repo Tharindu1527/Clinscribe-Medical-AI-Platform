@@ -32,5 +32,7 @@ Three other things I learned:
 3. **Red-team suites need a negative control.** 63 of 63 adversarial cases passed; with the guardrails
    switched off, 23 of 63 did. Without that second number, 100% means nothing.
 
-Everything is in the repo: evaluation reports, nine ADRs, three postmortems, and a DPIA that lists what
+A 5-minute demo, from a recorded consultation to an approved FHIR note: https://youtu.be/Nu2pVtMFT-g
+
+Everything is in the repo: evaluation reports, 29 ADRs, five postmortems, and a DPIA that lists what
 is still missing before real use (because "designed for compliance" is not "compliant").

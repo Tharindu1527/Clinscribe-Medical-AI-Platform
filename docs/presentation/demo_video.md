@@ -1,24 +1,20 @@
 # Demo video
 
-- **File:** `.artifacts/demo/clinscribe_demo.mp4` (git-ignored): 5 min 13 s, 1920×1080, H.264 + AAC,
-  21.4 MB, recorded 2026-10-29 on the redesigned review UI (Deepgram Aura voices). The previous take
-  (2026-10-19, the old UI, 4 min 50 s) is kept beside it as `old-ui-2026-10-19_clinscribe_demo.mp4`.
-- **Link:** _to be added after upload (YouTube, unlisted)_.
-- **Made with:** `just demo-video` (`scripts/demo_video.py`). The script drives the review UI in a hidden
-  Chrome (Playwright, the installed browser), records it with the DevTools screencast and assembles frames
-  and audio with ffmpeg. Measured values of the run: `.artifacts/demo/timeline.json`.
+- **Watch:** https://youtu.be/Nu2pVtMFT-g (5 min 13 s, 1080p, recorded 2026-10-29 on the review UI,
+  Deepgram Aura voices).
+- **Thumbnail:** `docs/presentation/demo_thumbnail.png` (the Scribe review screen, demo data).
 
 ## What is live and what is not
 
 | Live (calls to the running stack during the recording) | Not live, and said so on screen |
 |---|---|
-| Voice question: Deepgram nova-3-medical (streamed), `/v1/ask`, the spoken answer (Deepgram Aura-2, the agent's voice) | The question's voice: Deepgram Aura speech streamed in, because a script cannot speak into a microphone |
+| Voice question: Deepgram nova-3-medical (streamed), `/v1/ask`, the spoken answer (Deepgram Aura-2, the agent's voice) | The question's voice: synthetic speech (Deepgram Aura) streamed in instead of a microphone |
 | Ask in the UI (agentic path, DDInter facts), the cited answer and its sources | The narrator (Deepgram Aura) |
 | Scribe: the consultation audio streamed into the listener (`voice/scribe.py`): live transcription with diarization, roles, de-ID, note writer, guardrails, the refused write, the approved FHIR write | The consultation is a PriMock57 recording (role-played, real voices, CC BY 4.0) played into the listener; its draft is filed under Synthea patient 1617 |
 | The audit log as admin | Waits over 6 s are compressed to 2.5 s, with the real time on screen; after the first 32 s of the consultation, the rest is streamed at 2x and shown compressed |
 
-The UI's demo sign-in is answered by the script with a locally issued token for the synthetic users, so
-the API keeps `DEV_LOGIN=false`.
+Sign-in in the recording uses a locally issued token for the synthetic users, so the API keeps
+`DEV_LOGIN=false`.
 
 ## Scenes
 
@@ -42,8 +38,7 @@ Over 30 questions the p50 / p95 are 4,296 / 7,093 ms (`evals/reports/voice/laten
   `gemini-2.5-flash` in the default pool, which spends the 4,500-token output limit on thinking, and the
   retry came back cut off; the graph then discarded the first attempt, which had been usable. Fixed in
   the graph: when the retry has no valid statements, the first draft is kept without its failing
-  statements (PROGRESS, 2026-10-29); the script also asks once more on a 422. The third take drafted
-  first time.
+  statements (PROGRESS, 2026-10-29). The third take drafted first time.
 
 - An earlier take used two synthetic TTS voices for the consultation: Deepgram's diarization (live and
   batch) did not tell them apart, so the take uses a real recording.
@@ -58,12 +53,4 @@ Over 30 questions the p50 / p95 are 4,296 / 7,093 ms (`evals/reports/voice/laten
 ## Not shown
 
 Lab mode (it has a screen since 2026-10-28), failover (`just gate 5`), and the browser Voice tab (the
-voice scene runs the same pipeline from the script).
-
-## Re-record
-
-`just up rag`, `npm --prefix apps/web run dev`, then `just demo-video` (about 20 minutes on the free
-tiers; `--scenes title,results` records a subset, `--out <folder>` writes elsewhere instead of replacing
-this take). Narration audio is cached in `.artifacts/demo/tts/`, so a re-recording
-pays only for the live calls: two Ask turns, about 7 minutes of streamed audio, one draft and one spoken
-answer.
+voice scene runs the same pipeline without the browser).

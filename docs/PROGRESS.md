@@ -6,7 +6,7 @@ Last updated: 2026-10-29 · **Phase 1 — Foundations: COMPLETE (2026-10-06)**; 
 **Phase 4 — Voice: COMPLETE (2026-10-14, `just gate 4` PASS; latency budget not met, bottleneck explained)**.
 **Phase 5 — Lab + open models: COMPLETE (2026-10-14, `just gate 5` PASS)**; LoRA de-ID tagger trained
 (round 2) and adopted behind `DEID_NER=tagger` (2026-10-24, ADR-0014).
-**Phase 6 — Hardening: done; demo video re-recorded 2026-10-29 on the new UI (upload pending)**.
+**Phase 6 — Hardening: done; demo video re-recorded 2026-10-29 on the new UI and uploaded (https://youtu.be/Nu2pVtMFT-g)**.
 Phases in total: 6 (SPEC §12).
 
 ## Agreed decisions (2026-10-04)
@@ -684,9 +684,8 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   only when the joined message has nothing left to scrub (else the old behaviour), with tests for the
   access line and PHI split between template and argument. The running API picks it up at the next
   `just up rag` (rebuild); re-run `just eval leak` then.
-- 2026-10-18: **Demo video** (`just demo-video`, `scripts/demo_video.py`; `docs/presentation/demo_video.md`):
-  3 min 37 s, 1080p, recorded live from a hidden Chrome (Playwright 1.63.0 via `uv run --with`, not a
-  project dependency; DevTools screencast + ffmpeg). Live: the voice steps (Deepgram nova-3-medical →
+- 2026-10-18: **Demo video** (`docs/presentation/demo_video.md`): 3 min 37 s, 1080p, recorded
+  live from the review UI. Live: the voice steps (Deepgram nova-3-medical →
   `/v1/ask` → Cartesia), Ask in the UI (agentic path), Scribe (draft, wrong family name refused, approved
   write `DocumentReference/60565`), the audit log. Synthetic and labelled: the doctor's voice and the
   narrator (Cartesia), waits over 6 s compressed with the real time on screen. Voice turn in the run:
@@ -1272,11 +1271,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   dark themes, and phone width (no horizontal scroll); no console errors. Real mode: sign-in shows
   how to enable demo sign-in when the API refuses it. Screenshots in `docs/presentation/ui/`
   (`just ui-screenshots`, Playwright on the installed Chrome) and in the README.
-  `scripts/demo_video.py` follows the new UI (selectors) and gains `--out`; checked against the
-  live API with its Ask and audit scenes written to a scratch folder (the recorded video untouched):
-  sign-in by a locally issued token as before, a real agentic answer (3 cited sentences, 32 s on the
-  free tier) with a passage opened, then the audit log as admin. The demo video itself still shows
-  the old UI.
+  The demo video itself still shows the old UI.
 
 - 2026-10-29: **A cut-off retry no longer throws away the first draft** (graph fix), found re-recording
   the demo video on the new UI. Two takes ended "no draft produced": the note writer's calls went to
@@ -1287,13 +1282,21 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   and when the retry has no valid statements the doctor gets the first draft, with the removal reasons
   of both attempts listed. Two unreadable attempts still end without a draft. Unit +2
   (`test_agent_graph.py`), red-team 67/67 with its control. The same consultation from cached words
-  drafted fine when the pool chose `gemini-3.5-flash-lite` (20 s, 24 statements). `demo_video.py`
-  also asks once more on a 422. **Demo video re-recorded** (`docs/presentation/demo_video.md`): 5 min
+  drafted fine when the pool chose `gemini-3.5-flash-lite` (20 s, 24 statements). **Demo video
+  re-recorded** (`docs/presentation/demo_video.md`): 5 min
   13 s on the redesigned UI, all scenes live; the Scribe draft (61 turns, 42 statements, 15 without a
   guideline source, unsure speech marked) came through first time, the wrong family name was refused
   with "2 attempts left", the corrected approval saved `DocumentReference/68511`. Narration and
   results card updated (red team 67/67, 7 leak-test sinks; citations and statements now pointed at so
   their links show). The 2026-10-19 take is kept as `old-ui-2026-10-19_clinscribe_demo.mp4`.
+
+- 2026-10-29: **Thumbnail for the demo video**: `docs/presentation/demo_thumbnail.png`, 1280×720,
+  240 KB, in the review UI's dark colours around its Scribe review screenshot (demo data).
+- 2026-10-29: **Demo video uploaded** by you: https://youtu.be/Nu2pVtMFT-g (YouTube, "clinscribe demo"; the
+  custom thumbnail is the one served). Linked from the README (thumbnail as the link),
+  `docs/presentation/demo_video.md` and the write-up draft; the write-up's counts brought up to
+  date (29 ADRs, five postmortems). The recording and thumbnail tooling is kept out of the
+  repository (you asked); it stays local and untracked.
 
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
@@ -1313,9 +1316,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - **You (or a clinician reviewer): fill `evals/golden/review/review_v1.csv`** (49 rows; open in Excel;
   verdict ok / fix / reject, notes, reviewer, date), then I apply fixes and close task 3.
 - **You: review ADR-0007** (vector store), the ADR-0006 BM25 update, and ADR-0008 / ADR-0009 (Phase 3).
-- **You: watch `.artifacts/demo/clinscribe_demo.mp4` (re-recorded 2026-10-29 on the new UI; the old take
-  is kept beside it), upload it (YouTube, unlisted) and send me the link** for
-  `docs/presentation/demo_video.md`.
+- **You: publish the write-up** (`docs/presentation/write_up.md`, now with the video link).
 - Optional: try `just scribe 1617` with two people at one microphone (the eval mixed two close-talk
   microphones; a room is harder).
 - **Phase 2 closes when `just gate 2` passes:** only the golden review sheet (first item) is missing.
