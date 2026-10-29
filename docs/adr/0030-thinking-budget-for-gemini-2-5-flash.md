@@ -79,6 +79,20 @@ speaker tag, and D2N072's whole assessment and plan is on such a line, so its 0.
 0.72 / 0.65 on the pool) measure a transcript without the plan. The decision above stands on the
 harness the rule was written for; the fixed harness's numbers are in the update below.
 
+**Update (2026-10-29): the harness fixed.** An untagged line now continues the turn above it
+(`evals/agents/note_eval.py turns()`; only D2N072 and D2N068 change, D2N068 is not in the sample).
+D2N072 re-drafted, both runs, the other seven replayed from the cache:
+
+| D2N072 | before (no plan in the transcript) | after |
+|---|---|---|
+| pinned, with the budget | recall 0.60, critical 0.59 | **0.88, 1.00** (2 replies: one guardrail retry, neither cut off; 3 statements unsupported) |
+| pool | 0.72, 0.65 | **1.00, 1.00** (0 unsupported) |
+
+Means over the 8 on the fixed harness: pinned fact recall 0.94, critical 0.97, 8 of 288 statements
+unsupported (2.8%); pool 0.89, 0.96, 3 of 172. The pinned run passes the rule there as well, with
+less room on support (2.8% against the 3% limit). The pool report's seven cached drafts came from
+whichever model answered before the budget; its D2N072 draft is the only one made with it in place.
+
 ## Consequences
 
 - The comparison is not paired by model: the committed run's drafts came from whichever pool model

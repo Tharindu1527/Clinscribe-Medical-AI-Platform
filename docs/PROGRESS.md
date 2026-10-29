@@ -989,7 +989,9 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   unsupported** (`evals/reports/agents/note_quality.md`). Remaining misses: D2N072's plan is vague
   ("ordered discussed medications and procedures", the note writer's first and only attempt; the
   splint and Motrin 600 mg are missing), D2N075 leaves out the reason for the visit. One judge, no
-  clinician check, no intervals over 8 consultations: indicative.
+  clinician check, no intervals over 8 consultations: indicative. (Corrected 2026-10-29: the
+  harness had dropped the transcript line that holds D2N072's plan, so the note writer never saw
+  it; with the line, that draft has the splint and Motrin and scores 1.00 / 1.00.)
 - 2026-10-26: **Dose rule reads doses in words** (guardrails v2, ADR-0020, proposed). The dose rule
   read only digits, so "oxycodone five milligrams" in the consultation did not source the note's
   "5 mg": D2N085's draft lost the prescription, and in D2N077 ("fifty milligrams of ultram") the
@@ -1298,6 +1300,36 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
   date (29 ADRs, five postmortems). The recording and thumbnail tooling is kept out of the
   repository (you asked); it stays local and untracked.
 
+- 2026-10-29: **A thinking budget for gemini-2.5-flash in the default pool** (ADR-0030, proposed;
+  adopted after its test). Why drafts ended "no draft produced": the gateway's spend log (no model
+  calls) shows gemini-2.5-flash hit the note writer's 4,500-token output limit on 8 of 17
+  note-sized replies, thinking a median of 3,169 tokens (gemini-3.5-flash 1 of 5, 3.6-flash 0 of 7);
+  the note itself needs 950-2,000. Proposed: `thinking: {type: enabled, budget_tokens: 1024}` on
+  that deployment only (its short tasks rarely think that long: 3 of 98 calls over 1,024). Rule
+  written first: every dialogue drafted with no reply cut off, fact recall ≥ 0.80, critical ≥ 0.87,
+  at most 3% of statements unsupported. Test: the note writer pinned to that model with the budget
+  (new evaluation alias `clinscribe-eval-gemini-2.5-flash`, never a fallback target, a test keeps
+  it identical to the pool copy; `note_quality.py --alias`, no fallbacks), 8 ACI-Bench dialogues,
+  same judge, 14 resumptions over the model's 20 free requests a day. **Result: 0 of 8 cut off**
+  (thinking median 910, most 1,022), recall 0.90, critical 0.92, 6 of 280 unsupported (2.1%): all
+  pass, adopted on the pool deployment (checked in LiteLLM's model info after the restart). The
+  gateway client now records each reply's finish reason and thinking tokens
+  (`Completion.finish_reason`, `reasoning_tokens`), and the pinned report lists every note-writer
+  reply with them. Unit +4.
+- 2026-10-29: **Note-quality harness dropped the plan of a consultation** (found reading the pinned
+  run). `evals/agents/note_eval.py turns()` kept only lines with a speaker tag; ACI-Bench breaks two
+  utterances after a dictation command, and D2N072's whole assessment and plan (normal x-ray,
+  contusion, splint, Motrin 600 mg every six hours for a week, follow-up) sat on the dropped line.
+  So the 2026-10-26 entry's "D2N072's plan is vague" measured a transcript without a plan (corrected
+  there). Now an untagged line continues the turn above it (only D2N072 and D2N068 change; D2N068 is
+  not in the sample; turn numbers unchanged); unit test that fails on the old parser. Decided
+  ADR-0030 on the harness its rule was written for, then re-drafted D2N072 on both: pool 0.72 / 0.65
+  → **1.00 / 1.00**, pinned 0.60 / 0.59 → 0.88 / 1.00. Means on the fixed harness: pool fact recall
+  **0.89, critical 0.96**, 3 of 172 unsupported (README updated); pinned 0.94 / 0.97, 8 of 288
+  (2.8%), still within the rule. Also: the run printed its report to a cp1252 console and ended with
+  exit 1 on the judge's non-breaking hyphens after writing it; it now prints the path.
+  `just lint` clean; `just test` 549 passed, 3 skipped (Langfuse ingestion suspended, pgvector off).
+
 ## Next
 - **You: try the Voice tab with your microphone** (`just up voice`, `just voice dev`, review UI → voice)
   and **review ADR-0019** (browser voice); also **ADR-0018** (question-subject grounding), **ADR-0017** (citation support check not
@@ -1306,6 +1338,7 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - **You: open draft `draft-a4159c7306ae416d`** in the review UI (Scribe → Drafts awaiting review; needs `DEV_LOGIN=true`) to see the low-confidence speech flags, and **review ADR-0027**, **postmortem 0005**, **ADR-0028** (doctors' edits as evaluation data; confirm the 365-day limit) and **ADR-0029** (role words are not names).
 - **You: look at the new review UI**: `just ui-demo` (no stack), or with the API and
   `DEV_LOGIN=true`.
+- **You: review ADR-0030** (thinking budget for gemini-2.5-flash: tested, adopted).
 - **You: review ADR-0026** (quality gates in CI) and ADR-0025 (reasoning effort: measured, not adopted).
 - **You: review ADR-0024** (Phoenix trial), ADR-0023 (dashboards), ADR-0022 (retention, erasure and
   access), ADR-0021 (HL7 v2) and ADR-0020 (dose rule v2). Mark GitGuardian's four findings on PR
@@ -1404,10 +1437,10 @@ Free-tier budget: every LLM response cached; development on small subsets, as in
 - Core + fhir + rag + voice was estimated at ~10.2 GB, above the 10 GB WSL cap. Resolved in Phase 4: the
   voice agent and the Scribe listener run on the host (LiveKit console mode), so the `voice` profile is
   not started; core + fhir + rag measured 5.9 GiB with the de-ID tagger (2026-10-24).
-- **Note writer on `gemini-2.5-flash`** (2026-10-29): it thinks within the 4,500-token output limit, so a
-  long consultation's note can come back cut off. The graph now keeps the first draft when a retry
-  fails, but the cause stays: options are a thinking budget for that deployment or the note writer on a
-  non-thinking model, either one with a note-quality re-run (`evals/agents/note_quality.py`) first.
+- ~~**Note writer on `gemini-2.5-flash`** (2026-10-29): it thinks within the 4,500-token output limit, so
+  a long consultation's note can come back cut off~~: resolved 2026-10-29 (ADR-0030), a 1,024-token
+  thinking budget on that deployment, 0 of 8 replies cut off in the pinned test. Not measured: the
+  budget's effect on that model's short tasks (grading, rewrites), which rarely think that long.
 - The package name `agents/` clashes with the OpenAI Agents SDK import name (`agents`). The Phase 3
   framework comparison should run in its own isolated project under `evals/agents/`.
 - SPEC §3 and §6 still contain embedded-diagram placeholders (architecture, RAG pipeline). Text is enough
