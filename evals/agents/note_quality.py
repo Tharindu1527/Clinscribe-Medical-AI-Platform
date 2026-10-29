@@ -294,7 +294,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     path = REPORT.with_name(f"note_quality_{args.alias}.md") if args.alias else REPORT
     write_report(results, cover, back, path, pinned=args.alias)
-    print(path.read_text(encoding="utf-8"))
+    # the path, not the text: the judge writes non-breaking hyphens, which a Windows console
+    # (cp1252) cannot print, and the run then ended with exit 1 after writing the report
+    print(f"wrote {path}")
     return 0
 
 

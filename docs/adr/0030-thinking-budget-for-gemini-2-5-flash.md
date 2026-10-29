@@ -1,6 +1,6 @@
 # ADR-0030: A thinking budget for gemini-2.5-flash in the default pool
 
-Status: Proposed · Date: 2026-10-29
+Status: Proposed (adopted after the test below passed) · Date: 2026-10-29
 
 ## Context
 
@@ -53,7 +53,31 @@ only if all three hold:
 3. **supported:** at most 3% of statements unsupported by the turns they cite (committed run: 3 of
    171).
 
-Result: see the update below.
+**Result (2026-10-29): all three hold; adopted.** The budget is now on the pool's gemini-2.5-flash
+deployment (`llmops/gateway/config.yaml`); the evaluation alias stays for later pinned tests.
+Report: `evals/reports/agents/note_quality_clinscribe-eval-gemini-2.5-flash.md` (the run took 14
+resumptions over the model's 20 free requests a day).
+
+| | pool, committed | pinned, with the budget | rule |
+|---|---|---|---|
+| drafts | 8 of 8 | 8 of 8 | every dialogue |
+| note-writer replies cut off | - (not recorded then) | **0 of 8** | 0 |
+| fact recall | 0.85 | **0.90** | ≥ 0.80 |
+| critical-fact recall | 0.92 | **0.92** | ≥ 0.87 |
+| statements unsupported | 3 of 171 (1.8%) | **6 of 280 (2.1%)** | ≤ 3% |
+
+No draft needed a second attempt. Thinking took a median of 910 and at most 1,022 tokens, so the
+cap held on every call; the notes themselves took 970-1,960 tokens, inside the 3,476 the cap
+leaves. The drafts are longer
+(35 statements against 21), which also lifts the "without assessment and plan" control (0.72 / 0.69
+against 0.60 / 0.50): more of the reference's facts are in the subjective and objective sections.
+Latency per reply p50 16.2 s; the slowest, 77.2 s, includes one gateway retry (a rate-limit wait
+inside the request); without it the slowest is 24.9 s.
+
+Found while reading the results, not part of the rule: the harness dropped ACI-Bench lines without a
+speaker tag, and D2N072's whole assessment and plan is on such a line, so its 0.60 / 0.59 here (and
+0.72 / 0.65 on the pool) measure a transcript without the plan. The decision above stands on the
+harness the rule was written for; the fixed harness's numbers are in the update below.
 
 ## Consequences
 

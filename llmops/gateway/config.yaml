@@ -28,6 +28,9 @@ model_list:
       model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_API_KEY
       api_base: os.environ/GEMINI_API_BASE
+      # Its thinking counts against max_tokens and cut off 8 of 17 note-sized replies at 4,500;
+      # capped at 1,024 after the pinned test passed its rule (ADR-0030: 0 of 8 cut off)
+      thinking: {type: enabled, budget_tokens: 1024}
   # Evaluation only, never a fallback target: one pool model on its own, so a test can pin it
   # (ADR-0030: the note writer with a thinking budget; Gemini 2.5 thinking counts against max_tokens)
   - model_name: clinscribe-eval-gemini-2.5-flash
