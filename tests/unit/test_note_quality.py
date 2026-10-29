@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from evals.agents.note_eval import turns
 from evals.agents.note_quality import (
     Recording,
     parse_coverage,
@@ -16,6 +17,28 @@ from evals.agents.note_quality import (
 from llmops.gateway.client import Completion
 
 pytestmark = pytest.mark.unit
+
+
+def test_a_line_without_a_speaker_tag_continues_the_turn_above() -> None:
+    # ACI-Bench D2N072: the doctor's assessment and plan follow a dictation command on their own
+    # line; dropping it (as before 2026-10-29) left the note writer a consultation without a plan
+    dialogue = (
+        "[doctor] all right . so , on this x-ray.\n"
+        "everything looks normal . we'll give you 600 milligrams every six hours .\n"
+        "[patient] okay .\n"
+        "[patient_guest]\n"
+        "\n"
+        "[doctor_guest] any questions ?"
+    )
+    assert turns(dialogue) == [
+        (
+            "doctor",
+            "all right . so , on this x-ray. everything looks normal . "
+            "we'll give you 600 milligrams every six hours .",
+        ),
+        ("patient", "okay ."),
+        ("doctor", "any questions ?"),
+    ]
 
 
 def test_the_reference_note_becomes_sentence_statements_under_its_headings() -> None:

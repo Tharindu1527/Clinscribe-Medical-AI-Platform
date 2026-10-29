@@ -45,13 +45,18 @@ class NoTools:
 
 
 def turns(dialogue: str) -> list[tuple[str, str]]:
-    out = []
+    """Speaker turns. A line without a speaker tag continues the turn above it: ACI-Bench breaks
+    some utterances after a dictation command, and D2N072's assessment and plan (normal x-ray,
+    contusion, splint, Motrin 600 mg) sit on such a line, which was dropped until 2026-10-29."""
+    out: list[list[str]] = []
     for line in dialogue.splitlines():
-        match = re.match(r"\[(doctor|patient|patient_guest|doctor_guest)\]\s*(.*)", line.strip())
-        if match and match.group(2):
-            speaker = "doctor" if match.group(1).startswith("doctor") else "patient"
-            out.append((speaker, match.group(2)))
-    return out
+        line = line.strip()
+        match = re.match(r"\[(doctor|patient|patient_guest|doctor_guest)\]\s*(.*)", line)
+        if match:
+            out.append(["doctor" if match.group(1).startswith("doctor") else "patient", match[2]])
+        elif line and out:
+            out[-1][1] = f"{out[-1][1]} {line}".strip()
+    return [(speaker, text) for speaker, text in out if text]
 
 
 def main(argv: list[str] | None = None) -> int:

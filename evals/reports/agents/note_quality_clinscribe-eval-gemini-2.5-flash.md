@@ -9,7 +9,7 @@ read as indicative.
 
 | | Fact recall | Critical recall | Statement support | Unsupported statements | Section fits |
 |---|---|---|---|---|---|
-| drafts (mean of 8) | 0.90 | 0.92 | 0.97 | 6 of 280 | 1.00 |
+| drafts (mean of 8) | 0.94 | 0.97 | 0.96 | 8 of 288 | 1.00 |
 | control: the reference as the draft | 1.00 | 1.00 | - | - | - |
 | control: draft without assessment and plan | 0.72 | 0.69 | - | - | - |
 
@@ -18,7 +18,7 @@ read as indicative.
 | aci-D2N075 | 44 | 21 | 1.00 | 1.00 | 0.95 | 2 |
 | aci-D2N086 | 40 | 30 | 0.95 | 1.00 | 1.00 | 0 |
 | aci-D2N085 | 27 | 23 | 0.98 | 0.97 | 1.00 | 0 |
-| aci-D2N072 | 24 | 20 | 0.60 | 0.59 | 0.94 | 1 |
+| aci-D2N072 | 32 | 20 | 0.88 | 1.00 | 0.89 | 3 |
 | aci-D2N079 | 31 | 27 | 0.93 | 0.93 | 1.00 | 0 |
 | aci-D2N082 | 40 | 20 | 0.95 | 1.00 | 0.95 | 1 |
 | aci-D2N077 | 37 | 25 | 0.82 | 0.87 | 0.95 | 1 |
@@ -34,13 +34,9 @@ text, as the judge saw it.
   - unsupported: The ER did not prescribe any medications.
   - unsupported: The patient's history was briefly summarized.
 - **aci-D2N072**
-  - missed (critical): Imaging: X‑rays of right hand show no fracture or bony abnormality
-  - missed (critical): Impression: right index finger contusion at the tip
-  - missed (critical): Plan: discussed diagnosis and treatment options with patient
-  - missed (critical): Plan: recommended a splint
-  - missed (critical): Plan: prescribe Motrin 600 mg every 6 hours for 1 week
-  - missed (critical): Plan: advise follow‑up if symptoms do not improve
-  - unsupported: Patient states "that hurts" when a specific spot on the finger is touched.
+  - unsupported: On exam, there was no pain on the joint up here.
+  - unsupported: There was no pain right there.
+  - unsupported: She can bend her finger.
 - **aci-D2N079**
   - missed (critical): 66-year-old male patient
 - **aci-D2N082**
@@ -62,13 +58,13 @@ inside the output tokens; "length" means the reply stopped at the output limit.
 | aci-D2N075 | 1 | stop | 2880 | 922 | 17.1 |
 | aci-D2N086 | 1 | stop | 2898 | 1020 | 16.2 |
 | aci-D2N085 | 1 | stop | 2202 | 1020 | 12.1 |
-| aci-D2N072 | 1 | stop | 1723 | 753 | 11.2 |
+| aci-D2N072 | 2 | stop, stop | 2089, 2112 | 1023, 835 | 13.5, 16.0 |
 | aci-D2N079 | 1 | stop | 2455 | 1022 | 12.0 |
 | aci-D2N082 | 1 | stop | 2778 | 883 | 77.2 |
 | aci-D2N077 | 1 | stop | 2573 | 897 | 16.2 |
 | aci-D2N087 | 1 | stop | 2320 | 807 | 24.9 |
 
-Replies cut off: 0 of 8. Thinking tokens: median 910, most 1022. Latency per reply: p50 16.2 s, p95 77.2 s.
+Replies cut off: 0 of 9. Thinking tokens: median 922, most 1023. Latency per reply: p50 16.2 s, p95 77.2 s.
 
 ## ADR-0030 rule (written before this run)
 
